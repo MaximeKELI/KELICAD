@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use std::fmt::Write;
 
 use kelicad_doc::{
-    DimKind, DimensionGeom, Document, EntityId, EntityRecord, Geometry, HatchGeom,
-    HatchPattern, TextAlign, TextGeom,
+    DimKind, DimensionGeom, Document, EntityId, EntityRecord, Geometry, HatchGeom, HatchPattern,
+    TextAlign, TextGeom,
 };
 use kelicad_geom::{Arc, Circle, Line, Polyline};
 use kelicad_math::Vec2;

@@ -86,12 +86,7 @@ fn run_case(case: &Case) -> Result<(), String> {
         .ask(&mut session, &case.utterance)
         .map_err(|e| e.to_string())?;
 
-    let tools: Vec<&str> = ask
-        .proposal
-        .steps
-        .iter()
-        .map(|s| s.tool.as_str())
-        .collect();
+    let tools: Vec<&str> = ask.proposal.steps.iter().map(|s| s.tool.as_str()).collect();
     let expected: Vec<&str> = case.expect_tools.iter().map(String::as_str).collect();
     if tools != expected {
         return Err(format!("tools got {tools:?} want {expected:?}"));
@@ -101,12 +96,11 @@ fn run_case(case: &Case) -> Result<(), String> {
         if session.document.entity_count() != n {
             // Seeded cases: entity_count is delta expectation for draw-only;
             // for move-only, count stays at seed size.
-            if case.expect_tools.iter().any(|t| {
-                matches!(
-                    t.as_str(),
-                    "move" | "copy" | "rotate" | "scale" | "offset"
-                )
-            }) && case.expect_tools[0] != "draw_rectangle"
+            if case
+                .expect_tools
+                .iter()
+                .any(|t| matches!(t.as_str(), "move" | "copy" | "rotate" | "scale" | "offset"))
+                && case.expect_tools[0] != "draw_rectangle"
             {
                 // skip strict count
             } else if session.document.entity_count() != n {

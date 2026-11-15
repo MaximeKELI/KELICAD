@@ -356,10 +356,7 @@ impl WasmCad {
 
     /// AI journal JSON array.
     pub fn keli_journal_json(&self) -> String {
-        self.keli
-            .journal
-            .to_json()
-            .unwrap_or_else(|_| "[]".into())
+        self.keli.journal.to_json().unwrap_or_else(|_| "[]".into())
     }
 
     /// Ghost vertices for pending KELI proposal (interleaved x0,y0,x1,y1).

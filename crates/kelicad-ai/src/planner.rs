@@ -230,10 +230,7 @@ fn parse_rectangle_wh(s: &str) -> Option<(f64, f64)> {
 
 fn capture_two_numbers(s: &str) -> Option<(f64, f64)> {
     // Find sequences like 4 m x 3 m or 4x3 or 4 * 3
-    let cleaned: String = s
-        .chars()
-        .map(|c| if c == ',' { '.' } else { c })
-        .collect();
+    let cleaned: String = s.chars().map(|c| if c == ',' { '.' } else { c }).collect();
     let mut nums = Vec::new();
     let mut cur = String::new();
     for c in cleaned.chars() {
@@ -283,8 +280,8 @@ fn parse_move_delta(s: &str) -> Option<(f64, f64)> {
             return Some((a, b));
         }
     }
-    let dist = first_number_near_keywords(focus)
-        .or_else(|| all_numbers(focus).into_iter().next())?;
+    let dist =
+        first_number_near_keywords(focus).or_else(|| all_numbers(focus).into_iter().next())?;
 
     if focus.contains("droite") || focus.contains("right") {
         return Some((dist, 0.0));
@@ -333,10 +330,7 @@ fn parse_line(s: &str) -> Option<((f64, f64), (f64, f64))> {
         return None;
     }
     // Collect 4 numbers → start/end
-    let cleaned: String = s
-        .chars()
-        .map(|c| if c == ',' { '.' } else { c })
-        .collect();
+    let cleaned: String = s.chars().map(|c| if c == ',' { '.' } else { c }).collect();
     let mut nums = Vec::new();
     let mut cur = String::new();
     for c in cleaned.chars() {
@@ -378,10 +372,7 @@ fn parse_circle(s: &str) -> Option<((f64, f64), f64)> {
     if !(s.contains("cercle") || s.contains("circle")) {
         return None;
     }
-    let cleaned: String = s
-        .chars()
-        .map(|c| if c == ',' { '.' } else { c })
-        .collect();
+    let cleaned: String = s.chars().map(|c| if c == ',' { '.' } else { c }).collect();
     let mut nums = Vec::new();
     let mut cur = String::new();
     for c in cleaned.chars() {
@@ -475,10 +466,7 @@ fn parse_offset_distance(s: &str) -> Option<f64> {
 }
 
 fn all_numbers(s: &str) -> Vec<f64> {
-    let cleaned: String = s
-        .chars()
-        .map(|c| if c == ',' { '.' } else { c })
-        .collect();
+    let cleaned: String = s.chars().map(|c| if c == ',' { '.' } else { c }).collect();
     let mut nums = Vec::new();
     let mut cur = String::new();
     for c in cleaned.chars() {

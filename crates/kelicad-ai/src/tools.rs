@@ -337,7 +337,9 @@ fn read_measure(call: &ToolCall, ctx: &ToolContext<'_>) -> Result<ToolExecResult
                 .ok_or_else(|| AiError::Execution(format!("entity {id} not found")))?;
             match &ent.geometry {
                 Geometry::Line(l) => json!({"kind":"line","length": l.length()}),
-                Geometry::Circle(c) => json!({"kind":"circle","radius": c.radius, "area": PI * c.radius * c.radius}),
+                Geometry::Circle(c) => {
+                    json!({"kind":"circle","radius": c.radius, "area": PI * c.radius * c.radius})
+                }
                 Geometry::Polyline(p) => {
                     let mut len = 0.0;
                     for i in 0..p.segment_count() {
@@ -350,7 +352,9 @@ fn read_measure(call: &ToolCall, ctx: &ToolContext<'_>) -> Result<ToolExecResult
                 Geometry::Dimension(d) => {
                     json!({"kind":"dimension","measured": d.measured_length(), "text": d.display_text()})
                 }
-                other => json!({"kind": format!("{:?}", other.kind()), "note": "no scalar measure"}),
+                other => {
+                    json!({"kind": format!("{:?}", other.kind()), "note": "no scalar measure"})
+                }
             }
         }
         other => {
@@ -493,8 +497,14 @@ fn write_draw_line(
         step: step(
             tool,
             &call.args,
-            &format!("ligne ({:.3},{:.3})→({:.3},{:.3})", start.x, start.y, end.x, end.y),
-            &format!("line ({:.3},{:.3})→({:.3},{:.3})", start.x, start.y, end.x, end.y),
+            &format!(
+                "ligne ({:.3},{:.3})→({:.3},{:.3})",
+                start.x, start.y, end.x, end.y
+            ),
+            &format!(
+                "line ({:.3},{:.3})→({:.3},{:.3})",
+                start.x, start.y, end.x, end.y
+            ),
             false,
             None,
         ),
@@ -716,12 +726,13 @@ fn write_add_dimension(
         });
         (a, b, dim_line)
     } else if let Some(eid) = call.args.get("entity_id").and_then(|v| v.as_str()) {
-        let id = EntityId::from_uuid(uuid::Uuid::parse_str(eid).map_err(|_| {
-            AiError::InvalidArgs {
-                tool: tool.into(),
-                reason: "bad entity_id".into(),
-            }
-        })?);
+        let id =
+            EntityId::from_uuid(
+                uuid::Uuid::parse_str(eid).map_err(|_| AiError::InvalidArgs {
+                    tool: tool.into(),
+                    reason: "bad entity_id".into(),
+                })?,
+            );
         let ent = ctx
             .session
             .document
@@ -1197,11 +1208,7 @@ fn control_highlight(call: &ToolCall, ctx: &ToolContext<'_>) -> Result<ToolExecR
 }
 
 fn control_propose_plan(call: &ToolCall) -> Result<ToolExecResult, AiError> {
-    let steps = call
-        .args
-        .get("steps")
-        .cloned()
-        .unwrap_or_else(|| json!([]));
+    let steps = call.args.get("steps").cloned().unwrap_or_else(|| json!([]));
     Ok(ToolExecResult {
         step: step(
             "propose_plan",
