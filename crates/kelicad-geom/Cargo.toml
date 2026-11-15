@@ -3,7 +3,12 @@ name = "kelicad-geom"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-repository.workspace = true
 rust-version.workspace = true
+description = "2D geometric primitives and intersections for KELICAD"
+readme = "README.md"
 
 [dependencies]
+kelicad-math = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

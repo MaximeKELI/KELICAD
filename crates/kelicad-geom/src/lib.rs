@@ -1,14 +1,18 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! 2D geometry primitives and intersections.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub mod aabb;
+pub mod arc;
+pub mod circle;
+pub mod intersect;
+pub mod line;
+
+pub use aabb::Aabb;
+pub use arc::Arc;
+pub use circle::Circle;
+pub use intersect::{
+    circle_circle, line_circle, line_line, CircleCircleResult, LineCircleResult, LineLineResult,
+};
+pub use line::Line;
