@@ -412,6 +412,7 @@ dependencies = [
  "kelicad-cmd",
  "kelicad-doc",
  "kelicad-geom",
+ "kelicad-io",
  "kelicad-math",
  "kelicad-ops",
  "kelicad-snap",

@@ -18,7 +18,13 @@ pub fn export_svg(session: &DocSession, width: f64, height: f64) -> Result<Strin
     let mut max_x = f64::NEG_INFINITY;
     let mut max_y = f64::NEG_INFINITY;
     for ent in session.document.entities() {
-        expand_bounds(&ent.geometry, &mut min_x, &mut min_y, &mut max_x, &mut max_y);
+        expand_bounds(
+            &ent.geometry,
+            &mut min_x,
+            &mut min_y,
+            &mut max_x,
+            &mut max_y,
+        );
     }
     if !min_x.is_finite() {
         min_x = 0.0;

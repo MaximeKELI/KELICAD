@@ -17,6 +17,7 @@ kelicad-geom = { workspace = true }
 kelicad-math = { workspace = true }
 kelicad-ops = { workspace = true }
 kelicad-snap = { workspace = true }
+kelicad-io = { path = "../kelicad-io", default-features = false }
 serde = { workspace = true }
 serde_json = { workspace = true }
 wasm-bindgen = { workspace = true }

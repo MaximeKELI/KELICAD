@@ -10,9 +10,8 @@ technical comments are in English.
 
 ## Status
 
-Milestone **M1 — Basic 2D drafting** in progress/complete for validation:
-command engine (LINE/PLINE/CIRCLE/ARC/RECTANG + modify/TRIM/EXTEND/ERASE),
-snaps, `.kelicad` I/O (rusqlite + browser sql.js), WebGPU drawing UI + CLI.
+Milestone **M2 — Annotation & interop** ready for validation: TEXT/DIMLINEAR/HATCH/BLOCK/INSERT,
+DXF import/export + report, SVG/PDF export, paper layouts (model), Web UI DXF/SVG.
 
 ## Repository layout
 

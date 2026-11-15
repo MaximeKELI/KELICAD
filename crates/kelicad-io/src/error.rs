@@ -6,6 +6,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum IoError {
     /// SQLite error.
+    #[cfg(feature = "native")]
     #[error("sqlite: {0}")]
     Sqlite(#[from] rusqlite::Error),
     /// JSON geometry / meta.

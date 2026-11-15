@@ -10,14 +10,35 @@ import { parseCadOutput, type CadSession } from "./cad/types";
 import { CommandLine } from "./components/CommandLine";
 import { DrawingViewport } from "./components/DrawingViewport";
 
-const QUICK = ["L", "PL", "C", "A", "REC", "M", "CO", "RO", "SC", "MI", "O", "TR", "EX", "E", "U"];
+const QUICK = [
+  "L",
+  "PL",
+  "C",
+  "A",
+  "REC",
+  "DT",
+  "DLI",
+  "H",
+  "B",
+  "I",
+  "M",
+  "CO",
+  "RO",
+  "SC",
+  "MI",
+  "O",
+  "TR",
+  "EX",
+  "E",
+  "U",
+];
 
 export function App() {
   const [cad, setCad] = useState<CadSession | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [echoes, setEchoes] = useState<string[]>([
-    "KELICAD M1 — tapez L, C, REC… ou cliquez une commande.",
+    "KELICAD M2 — dessin + annotation (DT, DLI, H, B, I) + DXF/SVG.",
   ]);
   const [revision, setRevision] = useState(0);
   const [entityCount, setEntityCount] = useState(0);
@@ -115,6 +136,66 @@ export function App() {
     input.click();
   }, [cad]);
 
+  const downloadText = (filename: string, text: string, mime: string) => {
+    const blob = new Blob([text], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportDxf = useCallback(() => {
+    if (!cad) return;
+    try {
+      downloadText("dessin.dxf", cad.export_dxf(), "application/dxf");
+      setEchoes((prev) => [...prev, "Export DXF"]);
+    } catch (e) {
+      setEchoes((prev) => [...prev, `Erreur DXF: ${String(e)}`]);
+    }
+  }, [cad]);
+
+  const exportSvg = useCallback(() => {
+    if (!cad) return;
+    try {
+      downloadText("dessin.svg", cad.export_svg(1200, 800), "image/svg+xml");
+      setEchoes((prev) => [...prev, "Export SVG"]);
+    } catch (e) {
+      setEchoes((prev) => [...prev, `Erreur SVG: ${String(e)}`]);
+    }
+  }, [cad]);
+
+  const importDxf = useCallback(() => {
+    if (!cad) return;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".dxf,text/plain";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      void file.text().then((text) => {
+        try {
+          const report = JSON.parse(cad.import_dxf(text)) as {
+            imported: number;
+            skipped: string[];
+            warnings: string[];
+          };
+          setRevision((n) => n + 1);
+          setEntityCount(cad.entity_count());
+          setEchoes((prev) => [
+            ...prev,
+            `DXF import: ${report.imported} entité(s), ${report.skipped.length} ignorée(s)`,
+            ...report.warnings.slice(0, 3),
+          ]);
+        } catch (e) {
+          setEchoes((prev) => [...prev, `Erreur import DXF: ${String(e)}`]);
+        }
+      });
+    };
+    input.click();
+  }, [cad]);
+
   if (error) {
     return (
       <div className="flex h-full items-center justify-center p-8 text-red-300">
@@ -136,7 +217,7 @@ export function App() {
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-700/60 bg-ink-900 px-4 py-2">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-accent-soft">KELICAD</p>
-          <h1 className="text-base font-medium">Dessin 2D — M1</h1>
+          <h1 className="text-base font-medium">Dessin 2D — M2</h1>
         </div>
         <div className="flex flex-wrap gap-1">
           {QUICK.map((cmd) => (
@@ -162,6 +243,27 @@ export function App() {
             onClick={() => void saveKelicad()}
           >
             SAVE
+          </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={importDxf}
+          >
+            DXF↓
+          </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={exportDxf}
+          >
+            DXF↑
+          </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={exportSvg}
+          >
+            SVG
           </button>
         </div>
         <div className="font-mono text-xs text-ink-500">

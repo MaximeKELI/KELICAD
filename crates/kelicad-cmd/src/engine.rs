@@ -458,9 +458,10 @@ impl<G: IdGen> CommandEngine<G> {
             (CommandId::DimLinear, _) => {
                 prompt("Emplacement de la ligne de cote", "Dimension line location")
             }
-            (CommandId::Hatch, _) => {
-                prompt("Point du contour (Entrée pour fermer)", "Boundary point (Enter to close)")
-            }
+            (CommandId::Hatch, _) => prompt(
+                "Point du contour (Entrée pour fermer)",
+                "Boundary point (Enter to close)",
+            ),
             (CommandId::Block, Active::Block { name: None, .. }) => {
                 prompt("Nom du bloc", "Block name")
             }
@@ -926,10 +927,7 @@ impl<G: IdGen> CommandEngine<G> {
                 out = self.create_block_from_selection(&name, p);
                 self.active = None;
             }
-            (
-                CommandId::Insert,
-                Active::Insert { name: Some(name) },
-            ) => {
+            (CommandId::Insert, Active::Insert { name: Some(name) }) => {
                 if let Some(def) = self.session.document.block_by_name(&name) {
                     let block_id = def.id;
                     out = self.commit_one(Geometry::Insert(InsertGeom {

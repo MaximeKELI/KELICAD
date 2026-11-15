@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use std::fmt::Write;
 
 use kelicad_doc::{
-    DimKind, DimensionGeom, EntityId, EntityKind, EntityRecord, Geometry, HatchGeom, HatchPattern,
-    TextAlign, TextGeom, Document,
+    DimKind, DimensionGeom, Document, EntityId, EntityRecord, Geometry, HatchGeom,
+    HatchPattern, TextAlign, TextGeom,
 };
 use kelicad_geom::{Arc, Circle, Line, Polyline};
 use kelicad_math::Vec2;
@@ -28,8 +28,11 @@ pub struct ImportReport {
 /// Export the document model space to DXF (ASCII).
 pub fn export_dxf(session: &DocSession) -> Result<String, IoError> {
     let mut out = String::new();
-    writeln!(out, "0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1009\n0\nENDSEC")
-        .map_err(|e| IoError::Format(e.to_string()))?;
+    writeln!(
+        out,
+        "0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1009\n0\nENDSEC"
+    )
+    .map_err(|e| IoError::Format(e.to_string()))?;
     writeln!(out, "0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER").map_err(io_fmt)?;
     for layer in session.document.layers() {
         writeln!(
@@ -53,12 +56,7 @@ pub fn export_dxf(session: &DocSession) -> Result<String, IoError> {
         )
         .map_err(io_fmt)?;
         for g in &block.entities {
-            write_entity(
-                &mut out,
-                g,
-                "0",
-                &session.document,
-            )?;
+            write_entity(&mut out, g, "0", &session.document)?;
         }
         writeln!(out, "0\nENDBLK").map_err(io_fmt)?;
     }
@@ -83,7 +81,13 @@ fn io_fmt(e: std::fmt::Error) -> IoError {
 
 fn sanitize(name: &str) -> String {
     name.chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect()
 }
 
@@ -309,11 +313,7 @@ fn f(m: &HashMap<i32, Vec<String>>, code: i32, idx: usize) -> Option<f64> {
     m.get(&code)?.get(idx)?.parse().ok()
 }
 
-fn read_entity(
-    ty: &str,
-    chunk: &[(i32, String)],
-    report: &mut ImportReport,
-) -> Option<Geometry> {
+fn read_entity(ty: &str, chunk: &[(i32, String)], report: &mut ImportReport) -> Option<Geometry> {
     let m = group_map(chunk);
     match ty {
         "LINE" => {
@@ -369,7 +369,11 @@ fn read_entity(
             let x = f(&m, 10, 0)?;
             let y = f(&m, 20, 0)?;
             let h = f(&m, 40, 0).unwrap_or(2.5);
-            let content = m.get(&1).and_then(|v| v.first()).cloned().unwrap_or_default();
+            let content = m
+                .get(&1)
+                .and_then(|v| v.first())
+                .cloned()
+                .unwrap_or_default();
             let rot = f(&m, 50, 0).unwrap_or(0.0).to_radians();
             Some(Geometry::Text(TextGeom {
                 position: Vec2::new(x, y),
@@ -434,7 +438,9 @@ fn read_entity(
                 .and_then(|v| v.first())
                 .cloned()
                 .unwrap_or_else(|| "SOLID".into());
-            report.warnings.push("HATCH: boundary-only approximation".into());
+            report
+                .warnings
+                .push("HATCH: boundary-only approximation".into());
             Some(Geometry::Hatch(HatchGeom {
                 boundary,
                 pattern: if pat.eq_ignore_ascii_case("SOLID") {
@@ -450,11 +456,15 @@ fn read_entity(
             Some(Geometry::Point(Vec2::new(x, y)))
         }
         "INSERT" => {
-            report.skipped.push("INSERT: block table not fully wired on import M2".into());
+            report
+                .skipped
+                .push("INSERT: block table not fully wired on import M2".into());
             // Still import as a point marker so round-trip count isn't silent loss without report.
             let x = f(&m, 10, 0).unwrap_or(0.0);
             let y = f(&m, 20, 0).unwrap_or(0.0);
-            report.warnings.push(format!("INSERT at ({x},{y}) imported as POINT placeholder"));
+            report
+                .warnings
+                .push(format!("INSERT at ({x},{y}) imported as POINT placeholder"));
             Some(Geometry::Point(Vec2::new(x, y)))
         }
         other => {
@@ -467,7 +477,7 @@ fn read_entity(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kelicad_doc::EntityRecord;
+    use kelicad_doc::{EntityKind, EntityRecord};
     use kelicad_geom::Line;
 
     #[test]

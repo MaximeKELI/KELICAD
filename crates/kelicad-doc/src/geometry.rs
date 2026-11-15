@@ -65,19 +65,19 @@ impl Geometry {
             Self::Polyline(p) => Self::Polyline(translate_polyline(p, delta)),
             Self::Text(t) => {
                 let mut n = t.clone();
-                n.position = n.position + delta;
+                n.position += delta;
                 Self::Text(n)
             }
             Self::MText(t) => {
                 let mut n = t.clone();
-                n.position = n.position + delta;
+                n.position += delta;
                 Self::MText(n)
             }
             Self::Dimension(d) => {
                 let mut n = d.clone();
-                n.def1 = n.def1 + delta;
-                n.def2 = n.def2 + delta;
-                n.dim_line = n.dim_line + delta;
+                n.def1 += delta;
+                n.def2 += delta;
+                n.dim_line += delta;
                 Self::Dimension(n)
             }
             Self::Hatch(h) => {
@@ -87,7 +87,7 @@ impl Geometry {
             }
             Self::Insert(i) => {
                 let mut n = i.clone();
-                n.position = n.position + delta;
+                n.position += delta;
                 Self::Insert(n)
             }
         }
@@ -211,11 +211,7 @@ impl Geometry {
             }
             Self::Hatch(h) => {
                 let mut n = h.clone();
-                n.boundary = n
-                    .boundary
-                    .iter()
-                    .map(|p| mirror_point(*p, a, b))
-                    .collect();
+                n.boundary = n.boundary.iter().map(|p| mirror_point(*p, a, b)).collect();
                 Self::Hatch(n)
             }
             Self::Insert(i) => {

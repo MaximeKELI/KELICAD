@@ -210,6 +210,31 @@ impl WasmCad {
         Ok(())
     }
 
+    /// Export model space as DXF ASCII.
+    pub fn export_dxf(&self) -> Result<String, JsValue> {
+        kelicad_io::export_dxf(&self.engine.session).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Import DXF ASCII, replacing the current document. Returns import report JSON.
+    pub fn import_dxf(&mut self, text: &str) -> Result<String, JsValue> {
+        let (session, report) =
+            kelicad_io::import_dxf(text).map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.engine = CommandEngine::new(session, UuidV7Gen);
+        self.last_prompt_fr.clear();
+        Ok(serde_json::json!({
+            "imported": report.imported,
+            "skipped": report.skipped,
+            "warnings": report.warnings,
+        })
+        .to_string())
+    }
+
+    /// Export SVG.
+    pub fn export_svg(&self, width: f64, height: f64) -> Result<String, JsValue> {
+        kelicad_io::export_svg(&self.engine.session, width, height)
+            .map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
     /// Export document snapshot JSON (for .kelicad writers / download).
     pub fn export_snapshot_json(&self) -> Result<String, JsValue> {
         let doc = &self.engine.session.document;
@@ -354,7 +379,11 @@ fn geometry_from_value(v: &serde_json::Value) -> Result<Geometry, String> {
             position: Vec2::new(num(v, "x")?, num(v, "y")?),
             height: num(v, "height").unwrap_or(2.5),
             rotation: num(v, "rotation").unwrap_or(0.0),
-            content: v.get("content").and_then(|c| c.as_str()).unwrap_or("").to_string(),
+            content: v
+                .get("content")
+                .and_then(|c| c.as_str())
+                .unwrap_or("")
+                .to_string(),
             align: kelicad_doc::TextAlign::Left,
         })),
         "dimension" => Ok(Geometry::Dimension(kelicad_doc::DimensionGeom {
@@ -364,14 +393,23 @@ fn geometry_from_value(v: &serde_json::Value) -> Result<Geometry, String> {
             dim_line: Vec2::new(num(v, "dx").unwrap_or(0.0), num(v, "dy").unwrap_or(0.0)),
             assoc_a: None,
             assoc_b: None,
-            text_override: v.get("text_override").and_then(|t| t.as_str()).map(|s| s.to_string()),
+            text_override: v
+                .get("text_override")
+                .and_then(|t| t.as_str())
+                .map(|s| s.to_string()),
         })),
         "hatch" => {
-            let verts = v.get("boundary").and_then(|a| a.as_array()).ok_or_else(|| "hatch.boundary".to_string())?;
+            let verts = v
+                .get("boundary")
+                .and_then(|a| a.as_array())
+                .ok_or_else(|| "hatch.boundary".to_string())?;
             let mut boundary = Vec::new();
             for item in verts {
                 let arr = item.as_array().ok_or_else(|| "hv".to_string())?;
-                boundary.push(Vec2::new(arr[0].as_f64().unwrap_or(0.0), arr[1].as_f64().unwrap_or(0.0)));
+                boundary.push(Vec2::new(
+                    arr[0].as_f64().unwrap_or(0.0),
+                    arr[1].as_f64().unwrap_or(0.0),
+                ));
             }
             Ok(Geometry::Hatch(kelicad_doc::HatchGeom {
                 boundary,
@@ -491,15 +529,27 @@ fn append_geometry_lines(g: &Geometry, out: &mut Vec<f32>) {
         }
         Geometry::Dimension(d) => {
             out.extend_from_slice(&[
-                d.def1.x as f32, d.def1.y as f32, d.def2.x as f32, d.def2.y as f32,
-                d.def1.x as f32, d.def1.y as f32, d.dim_line.x as f32, d.dim_line.y as f32,
-                d.def2.x as f32, d.def2.y as f32, d.dim_line.x as f32, d.dim_line.y as f32,
+                d.def1.x as f32,
+                d.def1.y as f32,
+                d.def2.x as f32,
+                d.def2.y as f32,
+                d.def1.x as f32,
+                d.def1.y as f32,
+                d.dim_line.x as f32,
+                d.dim_line.y as f32,
+                d.def2.x as f32,
+                d.def2.y as f32,
+                d.dim_line.x as f32,
+                d.dim_line.y as f32,
             ]);
         }
         Geometry::Hatch(h) => {
             for seg in h.boundary.windows(2) {
                 out.extend_from_slice(&[
-                    seg[0].x as f32, seg[0].y as f32, seg[1].x as f32, seg[1].y as f32,
+                    seg[0].x as f32,
+                    seg[0].y as f32,
+                    seg[1].x as f32,
+                    seg[1].y as f32,
                 ]);
             }
         }
@@ -507,8 +557,14 @@ fn append_geometry_lines(g: &Geometry, out: &mut Vec<f32>) {
             let s = 0.25;
             let p = i.position;
             out.extend_from_slice(&[
-                (p.x - s) as f32, p.y as f32, (p.x + s) as f32, p.y as f32,
-                p.x as f32, (p.y - s) as f32, p.x as f32, (p.y + s) as f32,
+                (p.x - s) as f32,
+                p.y as f32,
+                (p.x + s) as f32,
+                p.y as f32,
+                p.x as f32,
+                (p.y - s) as f32,
+                p.x as f32,
+                (p.y + s) as f32,
             ]);
         }
     }

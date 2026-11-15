@@ -1,8 +1,8 @@
 //! Atomic operations applied to a document.
 
 use kelicad_doc::{
-    BlockDef, BlockId, DocError, Document, EntityId, EntityRecord, Geometry, Layer, LayerId, Layout,
-    LayoutId,
+    BlockDef, BlockId, DocError, Document, EntityId, EntityRecord, Geometry, Layer, LayerId,
+    Layout, LayoutId,
 };
 
 /// Errors while applying an operation.

@@ -37,11 +37,7 @@ pub fn export_pdf(session: &DocSession) -> Result<Vec<u8>, IoError> {
                 });
             }
             Geometry::Polyline(p) if p.vertices.len() >= 2 => {
-                let points: Vec<_> = p
-                    .vertices
-                    .iter()
-                    .map(|v| (map(v.x, v.y), false))
-                    .collect();
+                let points: Vec<_> = p.vertices.iter().map(|v| (map(v.x, v.y), false)).collect();
                 layer.add_line(printpdf::Line {
                     points,
                     is_closed: p.closed,
@@ -70,11 +66,7 @@ pub fn export_pdf(session: &DocSession) -> Result<Vec<u8>, IoError> {
                 });
             }
             Geometry::Hatch(h) if h.boundary.len() >= 2 => {
-                let points: Vec<_> = h
-                    .boundary
-                    .iter()
-                    .map(|v| (map(v.x, v.y), false))
-                    .collect();
+                let points: Vec<_> = h.boundary.iter().map(|v| (map(v.x, v.y), false)).collect();
                 layer.add_line(printpdf::Line {
                     points,
                     is_closed: true,

@@ -1,10 +1,10 @@
 //! JSON encoding of geometry components for the entities table.
 
-use kelicad_doc::{
-    DimKind, DimensionGeom, HatchGeom, HatchPattern, InsertGeom, MTextGeom, TextAlign, TextGeom,
-    Geometry,
-};
 use kelicad_doc::{BlockId, EntityId};
+use kelicad_doc::{
+    DimKind, DimensionGeom, Geometry, HatchGeom, HatchPattern, InsertGeom, MTextGeom, TextAlign,
+    TextGeom,
+};
 use kelicad_geom::{Arc, Circle, Line, Polyline};
 use kelicad_math::Vec2;
 use serde::{Deserialize, Serialize};
@@ -195,10 +195,7 @@ pub fn geometry_from_json(s: &str) -> Result<Geometry, IoError> {
             clockwise,
         }),
         GeomDto::Polyline { vertices, closed } => {
-            let verts = vertices
-                .into_iter()
-                .map(|[x, y]| Vec2::new(x, y))
-                .collect();
+            let verts = vertices.into_iter().map(|[x, y]| Vec2::new(x, y)).collect();
             Geometry::Polyline(if closed {
                 Polyline::closed(verts)
             } else {
