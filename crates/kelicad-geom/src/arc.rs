@@ -1,4 +1,4 @@
-//! Circular arcs (CCW from `start_angle` to `end_angle`).
+//! Circular arcs (CCW from `start_angle` to `end_angle` by default).
 
 use std::f64::consts::TAU;
 
@@ -7,8 +7,7 @@ use kelicad_math::{Tolerance, Vec2};
 use crate::aabb::Aabb;
 use crate::circle::Circle;
 
-/// Circular arc. Angles are in radians; sweep is counter-clockwise from
-/// `start_angle` toward `end_angle` unless `clockwise` is set.
+/// Circular arc. Angles are in radians.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Arc {
     /// Center of the supporting circle.
@@ -24,7 +23,9 @@ pub struct Arc {
 }
 
 impl Arc {
-    /// Create a CCW arc.
+    /// Create a CCW arc from `start_angle` to `end_angle`.
+    ///
+    /// If the angles are equal (within float equality), the arc has zero sweep.
     pub fn new(center: Vec2, radius: f64, start_angle: f64, end_angle: f64) -> Self {
         Self {
             center,
@@ -40,40 +41,23 @@ impl Arc {
         Circle::new(self.center, self.radius)
     }
 
-    /// True if degenerate.
+    /// True if degenerate (near-zero radius or sweep).
     pub fn is_degenerate(self, tol: Tolerance) -> bool {
-        self.radius < tol.abs || tol.is_zero(self.sweep_angle().abs())
+        self.radius < tol.abs || self.sweep_angle().abs() < tol.abs
     }
 
-    /// Signed sweep angle in (−τ, τ], negative if clockwise.
+    /// Signed sweep in (−τ, τ]. Positive = CCW, negative = CW.
+    /// Equal start/end angles yield a zero sweep (not a full circle).
     pub fn sweep_angle(self) -> f64 {
-        let mut delta = normalize_angle(self.end_angle - self.start_angle);
-        if self.clockwise {
-            if delta > 0.0 {
-                delta -= TAU;
-            } else if delta == 0.0 {
-                delta = -TAU;
-            }
-        } else if delta < 0.0 {
-            delta += TAU;
-        } else if delta == 0.0 {
-            delta = TAU;
-        }
-        // Full circle when start == end is represented as ±τ; for zero-length
-        // arcs callers should set equal angles with a flag — here equal angles
-        // mean a full turn. For CAD short arcs, prefer distinct angles.
-        if !self.clockwise && (self.end_angle - self.start_angle).abs() < f64::EPSILON {
-            return 0.0;
-        }
-        if self.clockwise && (self.end_angle - self.start_angle).abs() < f64::EPSILON {
+        if (self.end_angle - self.start_angle).abs() < f64::EPSILON {
             return 0.0;
         }
         let mut d = normalize_angle(self.end_angle - self.start_angle);
         if self.clockwise {
-            if d >= 0.0 {
+            if d > 0.0 {
                 d -= TAU;
             }
-        } else if d <= 0.0 {
+        } else if d < 0.0 {
             d += TAU;
         }
         d
@@ -95,14 +79,17 @@ impl Arc {
         self.circle().point_at_angle(angle)
     }
 
-    /// Conservative AABB (samples extrema and endpoints).
+    /// Conservative AABB from endpoints and axis extrema on the sweep.
     pub fn aabb(self) -> Aabb {
         let mut box_ = Aabb::EMPTY
             .expand(self.start_point())
             .expand(self.end_point());
-        // Include axis extrema if they lie on the arc.
-        for &axis_angle in &[0.0, std::f64::consts::FRAC_PI_2, std::f64::consts::PI, 3.0 * std::f64::consts::FRAC_PI_2]
-        {
+        for &axis_angle in &[
+            0.0,
+            std::f64::consts::FRAC_PI_2,
+            std::f64::consts::PI,
+            3.0 * std::f64::consts::FRAC_PI_2,
+        ] {
             if self.contains_angle(axis_angle, Tolerance::DEFAULT) {
                 box_ = box_.expand(self.circle().point_at_angle(axis_angle));
             }
@@ -114,7 +101,7 @@ impl Arc {
     pub fn contains_angle(self, angle: f64, tol: Tolerance) -> bool {
         let sweep = self.sweep_angle();
         if sweep.abs() < tol.abs {
-            return tol.eq(normalize_angle(angle), normalize_angle(self.start_angle));
+            return (normalize_angle(angle - self.start_angle)).abs() <= tol.abs;
         }
         let mut a = normalize_angle(angle - self.start_angle);
         if self.clockwise {

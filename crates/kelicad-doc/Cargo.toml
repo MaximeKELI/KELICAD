@@ -3,7 +3,13 @@ name = "kelicad-doc"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-repository.workspace = true
 rust-version.workspace = true
+description = "Document model (ECS), layers, and entity components for KELICAD"
+readme = "README.md"
 
 [dependencies]
+kelicad-geom = { workspace = true }
+kelicad-math = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]

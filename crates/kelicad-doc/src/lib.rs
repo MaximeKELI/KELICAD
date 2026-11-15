@@ -1,14 +1,14 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! Document model: entities, components, and layers.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub mod document;
+pub mod entity;
+pub mod geometry;
+pub mod layer;
+
+pub use document::Document;
+pub use entity::{EntityId, EntityKind};
+pub use geometry::Geometry;
+pub use layer::{Layer, LayerId, LayerFlags};
