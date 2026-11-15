@@ -223,6 +223,9 @@ impl std::fmt::Display for DocError {
             Self::UnknownLayer(id) => write!(f, "unknown layer {id}"),
             Self::CannotRemoveDefaultLayer => write!(f, "cannot remove default layer"),
             Self::LayerInUse => write!(f, "layer is still in use"),
+            Self::UnknownBlock(id) => write!(f, "unknown block {id}"),
+            Self::BlockExists(name) => write!(f, "block exists: {name}"),
+            Self::UnknownLayout(id) => write!(f, "unknown layout {id}"),
         }
     }
 }
