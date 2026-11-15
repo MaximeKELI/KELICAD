@@ -10,8 +10,8 @@ technical comments are in English.
 
 ## Status
 
-Milestone **M2 — Annotation & interop** ready for validation: TEXT/DIMLINEAR/HATCH/BLOCK/INSERT,
-DXF import/export + report, SVG/PDF export, paper layouts (model), Web UI DXF/SVG.
+Milestone **M3 — Copilote KELI v1** ready for validation: tool calling, Propose/Apply,
+ghost preview, AI journal, `evals/` ≥90 % on 100 requests, Web panel KELI.
 
 ## Repository layout
 
