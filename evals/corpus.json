@@ -1,0 +1,967 @@
+[
+  {
+    "id": "001",
+    "utterance": "dessine un rectangle de 4 m × 3 m, cote-le et déplace-le de 2 m vers la droite",
+    "expect_tools": [
+      "draw_rectangle",
+      "add_dimension",
+      "move"
+    ],
+    "expect": {
+      "entity_count": 2,
+      "undo_clears": true,
+      "rect_min_x": 2.0,
+      "dim_length": 4.0
+    }
+  },
+  {
+    "id": "002",
+    "utterance": "dessine un rectangle de 1 m x 1 m",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "003",
+    "utterance": "dessine un rectangle de 2 m x 3 m",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "004",
+    "utterance": "dessine un rectangle de 5 m x 2 m",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "005",
+    "utterance": "dessine un rectangle de 10 m x 4 m",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "006",
+    "utterance": "dessine un rectangle de 0.5 m x 0.5 m",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "007",
+    "utterance": "dessine un rectangle de 8 m x 8 m",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "008",
+    "utterance": "dessine un rectangle de 3 m x 6 m",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "009",
+    "utterance": "dessine un rectangle de 7 m x 1 m",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "010",
+    "utterance": "dessine un rectangle de 12 m x 3 m",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "011",
+    "utterance": "dessine un rectangle de 4.5 m x 2.5 m",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "012",
+    "utterance": "dessine une ligne de (0,0) a (5,0)",
+    "expect_tools": [
+      "draw_line"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "013",
+    "utterance": "dessine une ligne de (1,1) a (2,2)",
+    "expect_tools": [
+      "draw_line"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "014",
+    "utterance": "dessine une ligne de (0,0) a (0,10)",
+    "expect_tools": [
+      "draw_line"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "015",
+    "utterance": "dessine une ligne de (-1,0) a (1,0)",
+    "expect_tools": [
+      "draw_line"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "016",
+    "utterance": "dessine une ligne de (3,4) a (5,6)",
+    "expect_tools": [
+      "draw_line"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "017",
+    "utterance": "dessine une ligne de (0,0) a (100,0)",
+    "expect_tools": [
+      "draw_line"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "018",
+    "utterance": "dessine une ligne de (2,0) a (2,8)",
+    "expect_tools": [
+      "draw_line"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "019",
+    "utterance": "dessine une ligne de (0,5) a (5,5)",
+    "expect_tools": [
+      "draw_line"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "020",
+    "utterance": "dessine un cercle de rayon 1",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "021",
+    "utterance": "dessine un cercle de rayon 2",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "022",
+    "utterance": "dessine un cercle de rayon 0.5",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "023",
+    "utterance": "dessine un cercle de rayon 3.5",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "024",
+    "utterance": "dessine un cercle de rayon 10",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "025",
+    "utterance": "dessine un cercle de rayon 0.25",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "026",
+    "utterance": "dessine un cercle de rayon 7",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "027",
+    "utterance": "dessine un cercle de rayon 4",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "028",
+    "utterance": "draw a rectangle 4 x 3",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "029",
+    "utterance": "draw a circle radius 2",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "030",
+    "utterance": "draw a line from (0,0) to (10,0)",
+    "expect_tools": [
+      "draw_line"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "031",
+    "utterance": "move 3 to the right",
+    "expect_tools": [
+      "move"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "032",
+    "utterance": "copy by 2 to the right",
+    "expect_tools": [
+      "copy"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "033",
+    "utterance": "rotate 90 degrees about 0 0",
+    "expect_tools": [
+      "rotate"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "034",
+    "utterance": "scale by 2 about 0 0",
+    "expect_tools": [
+      "scale"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "035",
+    "utterance": "measure distance from (0,0) to (3,4)",
+    "expect_tools": [
+      "measure"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "036",
+    "utterance": "list layers",
+    "expect_tools": [
+      "list_layers"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "037",
+    "utterance": "summarize document",
+    "expect_tools": [
+      "summarize_document"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "038",
+    "utterance": "run check",
+    "expect_tools": [
+      "run_check"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "039",
+    "utterance": "list blocks",
+    "expect_tools": [
+      "list_blocks"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "040",
+    "utterance": "get selection",
+    "expect_tools": [
+      "get_selection"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "041",
+    "utterance": "query entities",
+    "expect_tools": [
+      "query_entities"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "042",
+    "utterance": "get view",
+    "expect_tools": [
+      "get_view"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "043",
+    "utterance": "liste les calques",
+    "expect_tools": [
+      "list_layers"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "044",
+    "utterance": "résumé du plan",
+    "expect_tools": [
+      "summarize_document"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "045",
+    "utterance": "vérifie le dessin",
+    "expect_tools": [
+      "run_check"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "046",
+    "utterance": "combien d'entités",
+    "expect_tools": [
+      "summarize_document"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "047",
+    "utterance": "mesure la distance de (0,0) a (5,0)",
+    "expect_tools": [
+      "measure"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "048",
+    "utterance": "déplace de 2 m vers la gauche",
+    "expect_tools": [
+      "move"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "049",
+    "utterance": "déplace de 1 m vers le haut",
+    "expect_tools": [
+      "move"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "050",
+    "utterance": "copie de 5 m vers la droite",
+    "expect_tools": [
+      "copy"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "051",
+    "utterance": "rotation de 45 degres",
+    "expect_tools": [
+      "rotate"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "052",
+    "utterance": "échelle de 0.5",
+    "expect_tools": [
+      "scale"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "053",
+    "utterance": "offset de 0.2",
+    "expect_tools": [
+      "offset"
+    ],
+    "expect": {}
+  },
+  {
+    "id": "054",
+    "utterance": "écris le texte \"MUR\" en (1,1)",
+    "expect_tools": [
+      "draw_text"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "055",
+    "utterance": "draw text \"DOOR\" at (0,0)",
+    "expect_tools": [
+      "draw_text"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "056",
+    "utterance": "dessine un rectangle 9x2",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "057",
+    "utterance": "dessine un rectangle 6x6",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "058",
+    "utterance": "dessine un rectangle 1.5x3",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "059",
+    "utterance": "dessine un rectangle 20x10",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "060",
+    "utterance": "dessine un rectangle 0.8x1.2",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "061",
+    "utterance": "dessine un rectangle 11x5",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "062",
+    "utterance": "dessine un rectangle 2.2x2.2",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "063",
+    "utterance": "dessine un rectangle 15x1",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "064",
+    "utterance": "dessine un rectangle 3.3x4.4",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "065",
+    "utterance": "dessine un rectangle 7.7x7.7",
+    "expect_tools": [
+      "draw_rectangle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "066",
+    "utterance": "draw a circle of radius 1.1",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "067",
+    "utterance": "draw a circle of radius 2.2",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "068",
+    "utterance": "draw a circle of radius 3.3",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "069",
+    "utterance": "draw a circle of radius 4.4",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "070",
+    "utterance": "draw a circle of radius 5.5",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "071",
+    "utterance": "draw a circle of radius 6.6",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "072",
+    "utterance": "draw a circle of radius 0.1",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "073",
+    "utterance": "draw a circle of radius 9",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "074",
+    "utterance": "trace une ligne de (0,0) a (1,0)",
+    "expect_tools": [
+      "draw_line"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "075",
+    "utterance": "trace une ligne de (0,0) a (0,1)",
+    "expect_tools": [
+      "draw_line"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "076",
+    "utterance": "trace une ligne de (2,2) a (4,4)",
+    "expect_tools": [
+      "draw_line"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "077",
+    "utterance": "trace une ligne de (5,0) a (5,5)",
+    "expect_tools": [
+      "draw_line"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "078",
+    "utterance": "trace une ligne de (10,10) a (0,0)",
+    "expect_tools": [
+      "draw_line"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "079",
+    "utterance": "trace une ligne de (1,2) a (3,4)",
+    "expect_tools": [
+      "draw_line"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "080",
+    "utterance": "trace une ligne de (-2,0) a (2,0)",
+    "expect_tools": [
+      "draw_line"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "081",
+    "utterance": "trace une ligne de (0,-1) a (0,1)",
+    "expect_tools": [
+      "draw_line"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "082",
+    "utterance": "dessine un rectangle de 5 m x 2 m, cote-le et déplace-le de 1 m vers la droite",
+    "expect_tools": [
+      "draw_rectangle",
+      "add_dimension",
+      "move"
+    ],
+    "expect": {
+      "entity_count": 2,
+      "undo_clears": true
+    }
+  },
+  {
+    "id": "083",
+    "utterance": "draw a rectangle 3 x 2, dimension it and move 4 to the right",
+    "expect_tools": [
+      "draw_rectangle",
+      "add_dimension",
+      "move"
+    ],
+    "expect": {
+      "entity_count": 2
+    }
+  },
+  {
+    "id": "084",
+    "utterance": "dessine un rectangle de 6x4 et cote-le",
+    "expect_tools": [
+      "draw_rectangle",
+      "add_dimension"
+    ],
+    "expect": {
+      "entity_count": 2
+    }
+  },
+  {
+    "id": "085",
+    "utterance": "dessine un cercle rayon 0.75",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "086",
+    "utterance": "dessine un cercle rayon 1.0",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "087",
+    "utterance": "dessine un cercle rayon 1.25",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "088",
+    "utterance": "dessine un cercle rayon 1.5",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "089",
+    "utterance": "dessine un cercle rayon 1.75",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "090",
+    "utterance": "dessine un cercle rayon 2.0",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "091",
+    "utterance": "dessine un cercle rayon 0.5",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "092",
+    "utterance": "dessine un cercle rayon 0.75",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "093",
+    "utterance": "dessine un cercle rayon 1.0",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "094",
+    "utterance": "dessine un cercle rayon 1.25",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "095",
+    "utterance": "dessine un cercle rayon 1.5",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "096",
+    "utterance": "dessine un cercle rayon 1.75",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "097",
+    "utterance": "dessine un cercle rayon 2.0",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "098",
+    "utterance": "dessine un cercle rayon 0.5",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "099",
+    "utterance": "dessine un cercle rayon 0.75",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  },
+  {
+    "id": "100",
+    "utterance": "dessine un cercle rayon 1.0",
+    "expect_tools": [
+      "draw_circle"
+    ],
+    "expect": {
+      "entity_count": 1
+    }
+  }
+]
