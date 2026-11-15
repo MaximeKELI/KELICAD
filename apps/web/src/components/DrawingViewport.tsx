@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import type { PeerPresence } from "../cad/collab";
 import type { CadSession } from "../cad/types";
 import { type Camera2D, LineRenderer } from "../gpu/lineRenderer";
 
@@ -7,9 +8,19 @@ type Props = {
   cad: CadSession;
   onOutput: (raw: string) => void;
   revision: number;
+  peers?: PeerPresence[];
+  peerTick?: number;
+  onHoverWorld?: (x: number, y: number) => void;
 };
 
-export function DrawingViewport({ cad, onOutput, revision }: Props) {
+export function DrawingViewport({
+  cad,
+  onOutput,
+  revision,
+  peers = [],
+  peerTick = 0,
+  onHoverWorld,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<Camera2D>({ x: 5, y: 5, zoom: 20 });
@@ -18,6 +29,11 @@ export function DrawingViewport({ cad, onOutput, revision }: Props) {
   const lastPtr = useRef({ x: 0, y: 0 });
   const rendererRef = useRef<LineRenderer | null>(null);
   const hoverRef = useRef({ x: 0, y: 0 });
+  const onHoverRef = useRef(onHoverWorld);
+  onHoverRef.current = onHoverWorld;
+  const [camVersion, setCamVersion] = useState(0);
+  void peerTick;
+  void camVersion;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -113,6 +129,7 @@ export function DrawingViewport({ cad, onOutput, revision }: Props) {
     const onMove = (e: PointerEvent) => {
       const w = worldFromClient(e.clientX, e.clientY);
       hoverRef.current = w;
+      onHoverRef.current?.(w.x, w.y);
       if (dragging.current) {
         const rect = wrap.getBoundingClientRect();
         const cam = cameraRef.current;
@@ -122,6 +139,7 @@ export function DrawingViewport({ cad, onOutput, revision }: Props) {
         cam.x -= (e.clientX - lastPtr.current.x) * worldPerPxX;
         cam.y += (e.clientY - lastPtr.current.y) * worldPerPxY;
         lastPtr.current = { x: e.clientX, y: e.clientY };
+        setCamVersion((n) => n + 1);
       }
     };
     const onUp = (e: PointerEvent) => {
@@ -161,12 +179,45 @@ export function DrawingViewport({ cad, onOutput, revision }: Props) {
     // revision bump forces scene refresh on next RAF via cad.scene_line_vertices()
   }, [revision]);
 
+  const clientFromWorld = (wx: number, wy: number) => {
+    const wrap = wrapRef.current;
+    if (!wrap) return { x: 0, y: 0 };
+    const rect = wrap.getBoundingClientRect();
+    const cam = cameraRef.current;
+    const aspect = rect.width / Math.max(rect.height, 1);
+    const halfH = cam.zoom * 0.5;
+    const halfW = halfH * aspect;
+    const nx = (wx - (cam.x - halfW)) / (halfW * 2);
+    const ny = ((cam.y + halfH) - wy) / (halfH * 2);
+    return { x: nx * rect.width, y: ny * rect.height };
+  };
+
   return (
     <div ref={wrapRef} className="relative h-full w-full overflow-hidden">
       <canvas
         ref={canvasRef}
         className="h-full w-full touch-none cursor-crosshair"
       />
+      {peers.map((p) => {
+        if (!p.cursor) return null;
+        const pos = clientFromWorld(p.cursor.x, p.cursor.y);
+        const color = `rgb(${p.color[0]},${p.color[1]},${p.color[2]})`;
+        return (
+          <div
+            key={p.peer_id}
+            className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2"
+            style={{ left: pos.x, top: pos.y }}
+          >
+            <div className="h-2 w-2 rounded-full" style={{ background: color }} />
+            <span
+              className="ml-1 whitespace-nowrap rounded px-1 text-[10px] text-ink-950"
+              style={{ background: color }}
+            >
+              {p.name}
+            </span>
+          </div>
+        );
+      })}
       <p className="pointer-events-none absolute bottom-3 left-3 rounded bg-ink-900/80 px-3 py-1 font-mono text-xs text-ink-100">
         Clic = point · Molette = zoom · Molette clic / Espace+glisser = pan · Échap = annuler
       </p>

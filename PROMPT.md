@@ -39,5 +39,5 @@ All document mutation via `Operation`. Core is I/O-free and clock-free.
 
 ## Milestone in progress
 
-**M3 — Copilote KELI v1.** See ADR 0007 (`kelicad-ai` tool calling, Propose mode,
-evals/). Prior: M0–M2 delivered.
+**M4 — Collaboration.** See ADR 0003/0008 (`kelicad-sync`, gateway). Prior: M0–M3
+delivered.

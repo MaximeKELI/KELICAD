@@ -405,8 +405,7 @@ impl WasmCad {
             self.replica.publish_already_applied(entry.op);
         }
         self.sync_journal_cursor = applied;
-        self.replica
-            .mirror_session(self.engine.session.clone());
+        self.replica.mirror_session(self.engine.session.clone());
         self.sync_drain_outbox()
     }
 
@@ -418,8 +417,8 @@ impl WasmCad {
 
     /// Integrate one remote envelope JSON. Returns status string.
     pub fn sync_integrate(&mut self, envelope_json: &str) -> Result<String, JsValue> {
-        let env: OpEnvelope = serde_json::from_str(envelope_json)
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let env: OpEnvelope =
+            serde_json::from_str(envelope_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
         if env.actor_id == self.replica.actor_id {
             return Ok("self".into());
         }
@@ -519,8 +518,7 @@ impl WasmCad {
 
     /// Save named version; returns restore point JSON.
     pub fn sync_save_version(&mut self, name: &str) -> Result<String, JsValue> {
-        self.replica
-            .mirror_session(self.engine.session.clone());
+        self.replica.mirror_session(self.engine.session.clone());
         let point = self
             .replica
             .save_version(name)
@@ -544,8 +542,7 @@ impl WasmCad {
 
     /// Document fingerprint for convergence checks.
     pub fn sync_fingerprint(&mut self) -> String {
-        self.replica
-            .mirror_session(self.engine.session.clone());
+        self.replica.mirror_session(self.engine.session.clone());
         self.replica.doc_fingerprint()
     }
 
@@ -585,18 +582,18 @@ impl WasmCad {
                 self.replica.comments.upsert(comment, t);
                 Ok("comment".into())
             }
-            WireMessage::CommentResolve { id, lamport, actor_id } => {
+            WireMessage::CommentResolve {
+                id,
+                lamport,
+                actor_id,
+            } => {
                 let u = Uuid::parse_str(&id).map_err(|e| JsValue::from_str(&e.to_string()))?;
                 let actor = Uuid::parse_str(&actor_id)
                     .map(ActorId)
                     .unwrap_or(self.replica.actor_id);
-                self.replica.comments.resolve(
-                    CommentId(u),
-                    HybridTime {
-                        lamport,
-                        actor,
-                    },
-                );
+                self.replica
+                    .comments
+                    .resolve(CommentId(u), HybridTime { lamport, actor });
                 Ok("resolve".into())
             }
             WireMessage::VersionSave { point } => {

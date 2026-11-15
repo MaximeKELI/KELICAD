@@ -185,11 +185,7 @@ async fn handle_client_text(
             if let Ok(cid) = uuid::Uuid::parse_str(&id) {
                 let mut rooms = state.rooms.lock().await;
                 if let Some(room) = rooms.get_mut(room_id) {
-                    if let Some(c) = room
-                        .comments
-                        .iter_mut()
-                        .find(|c| c.id.0 == cid)
-                    {
+                    if let Some(c) = room.comments.iter_mut().find(|c| c.id.0 == cid) {
                         c.resolved = true;
                         c.created.lamport = c.created.lamport.max(lamport);
                         let _ = actor_id;

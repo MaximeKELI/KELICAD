@@ -73,9 +73,7 @@ impl LwwTable {
 
     /// True if every target of `op` would apply under `time`.
     pub fn would_apply_op(&self, op: &Operation, time: HybridTime) -> bool {
-        targets_of(op)
-            .iter()
-            .all(|k| self.would_apply(k, time))
+        targets_of(op).iter().all(|k| self.would_apply(k, time))
     }
 
     /// Record wins for an applied op.

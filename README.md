@@ -10,8 +10,8 @@ technical comments are in English.
 
 ## Status
 
-Milestone **M3 — Copilote KELI v1** ready for validation: tool calling, Propose/Apply,
-ghost preview, AI journal, `evals/` ≥90 % on 100 requests, Web panel KELI.
+Milestone **M4 — Collaboration** ready for validation: operation-log sync (LWW),
+presence, comments, restore points, Axum gateway, web multi-tab collab.
 
 ## Repository layout
 

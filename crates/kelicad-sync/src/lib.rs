@@ -109,7 +109,7 @@ mod convergence_tests {
                 geometry: Geometry::Line(Line::new(Vec2::new(0.0, 0.0), Vec2::new(3.0, 0.0))),
             })
             .unwrap();
-        // set_a has lower lamport than set_b if b ticked after observe... 
+        // set_a has lower lamport than set_b if b ticked after observe...
         // Actually b.lamport was set_a.lamport-1, then tick → set_a.lamport.
         // Equal lamport → actor_id tie-break: ActorId(2) > ActorId(1).
         a.integrate(&set_b).unwrap();

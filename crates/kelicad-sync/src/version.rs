@@ -62,10 +62,8 @@ pub fn snapshot_session(session: &DocSession) -> Result<String, serde_json::Erro
 pub fn diff_snapshots(a_json: &str, b_json: &str) -> Result<EntityDiff, serde_json::Error> {
     let a: SnapshotFile = serde_json::from_str(a_json)?;
     let b: SnapshotFile = serde_json::from_str(b_json)?;
-    let map_a: BTreeMap<EntityId, SnapEnt> =
-        a.entities.into_iter().map(|e| (e.id, e)).collect();
-    let map_b: BTreeMap<EntityId, SnapEnt> =
-        b.entities.into_iter().map(|e| (e.id, e)).collect();
+    let map_a: BTreeMap<EntityId, SnapEnt> = a.entities.into_iter().map(|e| (e.id, e)).collect();
+    let map_b: BTreeMap<EntityId, SnapEnt> = b.entities.into_iter().map(|e| (e.id, e)).collect();
     let keys_a: BTreeSet<_> = map_a.keys().copied().collect();
     let keys_b: BTreeSet<_> = map_b.keys().copied().collect();
     let added: Vec<_> = keys_b.difference(&keys_a).copied().collect();

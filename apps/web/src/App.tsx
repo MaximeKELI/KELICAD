@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { CollabClient, type CollabStatus, type PeerPresence } from "./cad/collab";
 import {
   downloadBytes,
   kelicadBytesToSnapshotJson,
@@ -7,6 +8,8 @@ import {
 } from "./cad/kelicadFile";
 import { loadCad } from "./cad/loadCad";
 import { parseCadOutput, type CadSession } from "./cad/types";
+import { CollabBar } from "./components/CollabBar";
+import { CommentsPanel } from "./components/CommentsPanel";
 import { CommandLine } from "./components/CommandLine";
 import { DrawingViewport } from "./components/DrawingViewport";
 import { KeliPanel } from "./components/KeliPanel";
@@ -39,16 +42,40 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [echoes, setEchoes] = useState<string[]>([
-    "KELICAD M3 — dessin + annotation + KELI (panneau à droite).",
+    "KELICAD M4 — collab: lancez `cargo run -p kelicad-gateway` puis Nouvelle salle.",
   ]);
   const [revision, setRevision] = useState(0);
   const [entityCount, setEntityCount] = useState(0);
+  const [collabStatus, setCollabStatus] = useState<CollabStatus>("disconnected");
+  const [displayName, setDisplayName] = useState("Alice");
+  const [peers, setPeers] = useState<PeerPresence[]>([]);
+  const [peerTick, setPeerTick] = useState(0);
 
   useEffect(() => {
     void loadCad()
       .then((session) => setCad(session))
       .catch((e: unknown) => setError(String(e)));
   }, []);
+
+  const collab = useMemo(() => (cad ? new CollabClient(cad) : null), [cad]);
+
+  useEffect(() => {
+    if (!collab || !cad) return;
+    collab.onStatus = setCollabStatus;
+    collab.onEcho = (line) => setEchoes((prev) => [...prev, line].slice(-40));
+    collab.onDoc = () => {
+      setRevision((n) => n + 1);
+      setEntityCount(cad.entity_count());
+    };
+    collab.onPeers = () => {
+      try {
+        setPeers(JSON.parse(cad.sync_peers_json()) as PeerPresence[]);
+        setPeerTick((n) => n + 1);
+      } catch {
+        setPeers([]);
+      }
+    };
+  }, [cad, collab]);
 
   const applyOutput = useCallback(
     (raw: string, session: CadSession) => {
@@ -65,17 +92,16 @@ export function App() {
       }
       if (out.document_changed) {
         setRevision((n) => n + 1);
+        collab?.flush();
       }
       setEntityCount(session.entity_count());
     },
-    [],
+    [collab],
   );
 
   const onOutput = useCallback(
     (raw: string) => {
-      if (!cad) {
-        return;
-      }
+      if (!cad) return;
       applyOutput(raw, cad);
     },
     [applyOutput, cad],
@@ -83,9 +109,7 @@ export function App() {
 
   const onSubmit = useCallback(
     (text: string) => {
-      if (!cad) {
-        return;
-      }
+      if (!cad) return;
       const t = text.trim();
       if (!t) {
         applyOutput(cad.enter(), cad);
@@ -97,9 +121,7 @@ export function App() {
   );
 
   const saveKelicad = useCallback(async () => {
-    if (!cad) {
-      return;
-    }
+    if (!cad) return;
     try {
       const snap = cad.export_snapshot_json();
       const bytes = await snapshotToKelicadBytes(snap);
@@ -111,17 +133,13 @@ export function App() {
   }, [cad]);
 
   const openKelicad = useCallback(async () => {
-    if (!cad) {
-      return;
-    }
+    if (!cad) return;
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".kelicad,application/octet-stream";
     input.onchange = () => {
       const file = input.files?.[0];
-      if (!file) {
-        return;
-      }
+      if (!file) return;
       void file.arrayBuffer().then(async (buf) => {
         try {
           const json = await kelicadBytesToSnapshotJson(new Uint8Array(buf));
@@ -205,7 +223,7 @@ export function App() {
     );
   }
 
-  if (!cad) {
+  if (!cad || !collab) {
     return (
       <div className="flex h-full items-center justify-center font-mono text-ink-500">
         Chargement du cœur KELICAD…
@@ -218,7 +236,7 @@ export function App() {
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-700/60 bg-ink-900 px-4 py-2">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-accent-soft">KELICAD</p>
-          <h1 className="text-base font-medium">Dessin 2D — M3 · KELI</h1>
+          <h1 className="text-base font-medium">Dessin 2D — M4 · Collab</h1>
         </div>
         <div className="flex flex-wrap gap-1">
           {QUICK.map((cmd) => (
@@ -271,19 +289,42 @@ export function App() {
           Entités <span className="text-ink-100">{entityCount}</span>
         </div>
       </header>
+      <CollabBar
+        collab={collab}
+        status={collabStatus}
+        name={displayName}
+        onName={setDisplayName}
+        onEcho={(line) => setEchoes((prev) => [...prev, line].slice(-40))}
+      />
       <div className="flex min-h-0 flex-1">
         <main className="min-h-0 min-w-0 flex-1">
-          <DrawingViewport cad={cad} onOutput={onOutput} revision={revision} />
+          <DrawingViewport
+            cad={cad}
+            onOutput={onOutput}
+            revision={revision}
+            peers={peers}
+            peerTick={peerTick}
+            onHoverWorld={(x, y) => {
+              if (collabStatus === "online") {
+                collab.sendPresence(x, y);
+              }
+            }}
+          />
         </main>
+        <CommentsPanel
+          cad={cad}
+          collab={collab}
+          revision={revision}
+          onEcho={(line) => setEchoes((prev) => [...prev, line].slice(-40))}
+        />
         <KeliPanel
           cad={cad}
           onChanged={() => {
             setRevision((n) => n + 1);
             setEntityCount(cad.entity_count());
+            collab.flush();
           }}
-          onEcho={(lines) =>
-            setEchoes((prev) => [...prev, ...lines].slice(-40))
-          }
+          onEcho={(lines) => setEchoes((prev) => [...prev, ...lines].slice(-40))}
         />
       </div>
       <CommandLine prompt={prompt} echoes={echoes} onSubmit={onSubmit} />

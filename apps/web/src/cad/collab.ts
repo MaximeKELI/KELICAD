@@ -50,6 +50,15 @@ export class CollabClient {
     ws.onopen = () => {
       this.setStatus("online");
       ws.send(this.cad.sync_hello_json());
+      // Flush any ops buffered while offline.
+      const envelopes = JSON.parse(this.cad.sync_publish_local()) as unknown[];
+      for (const env of envelopes) {
+        ws.send(JSON.stringify({ type: "op", envelope: env }));
+      }
+      const drained = JSON.parse(this.cad.sync_drain_outbox()) as unknown[];
+      for (const env of drained) {
+        ws.send(JSON.stringify({ type: "op", envelope: env }));
+      }
       this.onEcho?.(`Collab connecté — salle ${roomId.slice(0, 8)}…`);
     };
     ws.onclose = () => {
@@ -127,6 +136,12 @@ export class CollabClient {
   sendVersion(pointJson: string) {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type: "version_save", point: JSON.parse(pointJson) }));
+    }
+  }
+
+  sendPresence(x: number, y: number) {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(this.cad.sync_set_presence(x, y, true));
     }
   }
 
