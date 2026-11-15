@@ -1,14 +1,17 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! Core math types for KELICAD.
+//!
+//! Absolute floating-point equality is never used for geometry; prefer
+//! [`Tolerance`] and the robust predicates in [`predicates`].
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub mod mat;
+pub mod predicates;
+pub mod tolerance;
+pub mod vec;
+
+pub use mat::{Mat3, Mat4};
+pub use predicates::{incircle, orient2d, Orient};
+pub use tolerance::Tolerance;
+pub use vec::{Vec2, Vec3};
