@@ -63,6 +63,25 @@ export type CadSession = {
   keli_proposal_json(): string;
   keli_journal_json(): string;
   keli_ghost_vertices(): Float32Array | number[];
+  sync_set_identity(name: string, r: number, g: number, b: number): void;
+  sync_actor_id(): string;
+  sync_publish_local(): string;
+  sync_drain_outbox(): string;
+  sync_integrate(envelope_json: string): string;
+  sync_catch_up(ops_json: string): number;
+  sync_hello_json(): string;
+  sync_set_presence(x: number, y: number, has_cursor: boolean): string;
+  sync_upsert_peer(json: string): void;
+  sync_peers_json(): string;
+  sync_add_comment_at(x: number, y: number, body: string): string;
+  sync_comments_json(): string;
+  sync_resolve_comment(id: string): boolean;
+  sync_upsert_comment_json(json: string): void;
+  sync_save_version(name: string): string;
+  sync_versions_json(): string;
+  sync_diff_versions(a: string, b: string): string;
+  sync_fingerprint(): string;
+  sync_handle_wire(text: string): string;
 };
 
 export function parseCadOutput(raw: string): CadOutput {

@@ -8,12 +8,10 @@ type Props = {
   name: string;
   onName: (n: string) => void;
   onEcho: (line: string) => void;
-  onDoc: () => void;
 };
 
-export function CollabBar({ collab, status, name, onName, onEcho, onDoc }: Props) {
+export function CollabBar({ collab, status, name, onName, onEcho }: Props) {
   const [roomInput, setRoomInput] = useState("");
-  const [diff, setDiff] = useState("");
 
   const createAndJoin = useCallback(async () => {
     try {
@@ -30,23 +28,6 @@ export function CollabBar({ collab, status, name, onName, onEcho, onDoc }: Props
     if (!id) return;
     collab.connect(id, name);
   }, [collab, name, roomInput]);
-
-  const saveVersion = useCallback(() => {
-    const label = `v${Date.now()}`;
-    try {
-      const point = collab["cad"]
-        ? null
-        : null;
-      void point;
-      // access via flush path — CollabClient wraps cad privately; use window hook
-    } catch {
-      /* */
-    }
-    onEcho(`Version: utilisez le panneau Versions`);
-    onDoc();
-  }, [onDoc, onEcho]);
-
-  void saveVersion;
 
   const statusColor =
     status === "online"
@@ -100,15 +81,6 @@ export function CollabBar({ collab, status, name, onName, onEcho, onDoc }: Props
         onClick={() => collab.reconnect(name)}
       >
         Reconnecter
-      </button>
-      {diff && <span className="text-ink-400">{diff}</span>}
-      <button
-        type="button"
-        className="rounded border border-ink-600 px-2 py-1 hover:border-accent-soft"
-        onClick={() => setDiff("")}
-        hidden={!diff}
-      >
-        OK
       </button>
     </div>
   );
