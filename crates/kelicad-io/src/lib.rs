@@ -1,14 +1,11 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! `.kelicad` SQLite persistence (schema v0).
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub mod error;
+pub mod geometry_json;
+pub mod kelicad_file;
+
+pub use error::IoError;
+pub use kelicad_file::{load_document, save_document, SCHEMA_VERSION};

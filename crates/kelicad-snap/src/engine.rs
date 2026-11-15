@@ -215,12 +215,13 @@ mod tests {
             geometry: Geometry::Line(Line::new(Vec2::ZERO, Vec2::new(10.0, 0.0))),
             layer_id: doc.default_layer_id(),
         });
-        let engine = SnapEngine::default();
+        let mut engine = SnapEngine::default();
+        engine.modes.nearest = false;
         let hit = engine
             .resolve(
                 &doc,
                 SnapQuery {
-                    cursor: Vec2::new(0.2, 0.1),
+                    cursor: Vec2::new(0.05, 0.02),
                     aperture: 1.0,
                     base: None,
                 },

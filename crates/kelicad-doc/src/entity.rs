@@ -3,7 +3,7 @@
 use uuid::Uuid;
 
 /// Stable entity identifier (UUID v7).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EntityId(Uuid);
 
 impl EntityId {

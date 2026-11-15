@@ -1,14 +1,16 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! Command engine for KELICAD.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub mod engine;
+pub mod id_gen;
+pub mod input;
+pub mod registry;
+pub mod selection;
+
+pub use engine::{CommandEngine, CommandEvent, CommandOutput, EnginePrompt};
+pub use id_gen::{IdGen, SequentialIdGen, UuidV7Gen};
+pub use input::{parse_point, InputError, ParsedPoint};
+pub use registry::CommandId;
+pub use selection::Selection;
