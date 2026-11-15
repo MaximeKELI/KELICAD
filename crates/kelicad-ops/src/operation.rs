@@ -61,6 +61,11 @@ pub enum Operation {
         /// Layer id.
         id: LayerId,
     },
+    /// Apply several ops as one undo step (inverses applied in reverse order).
+    Batch {
+        /// Forward operations in application order.
+        ops: Vec<Operation>,
+    },
 }
 
 impl Operation {
@@ -133,6 +138,15 @@ impl Operation {
                 let prev = doc.current_layer;
                 doc.set_current_layer(*id)?;
                 Ok(Operation::SetCurrentLayer { id: prev })
+            }
+            Self::Batch { ops } => {
+                let mut inverses = Vec::with_capacity(ops.len());
+                for op in ops {
+                    let inv = op.apply(doc)?;
+                    inverses.push(inv);
+                }
+                inverses.reverse();
+                Ok(Operation::Batch { ops: inverses })
             }
         }
     }

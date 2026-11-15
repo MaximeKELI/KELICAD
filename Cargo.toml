@@ -5,7 +5,7 @@ members = [
     "crates/kelicad-geom",
     "crates/kelicad-doc",
     "crates/kelicad-ops",
-    "crates/kelicad-wasm",
+    "crates/kelicad-wasm", "crates/kelicad-cmd", "crates/kelicad-snap", "crates/kelicad-io",
 ]
 default-members = [
     "crates/kelicad-math",
