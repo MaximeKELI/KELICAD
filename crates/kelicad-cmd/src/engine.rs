@@ -519,6 +519,23 @@ impl<G: IdGen> CommandEngine<G> {
                 out = self.erase_selection();
                 self.active = None;
             }
+            Active::Hatch { points } => {
+                if points.len() >= 3 {
+                    let mut boundary = points;
+                    if boundary.first() != boundary.last() {
+                        if let Some(first) = boundary.first().copied() {
+                            boundary.push(first);
+                        }
+                    }
+                    out = self.commit_one(Geometry::Hatch(HatchGeom {
+                        boundary,
+                        pattern: HatchPattern::Solid,
+                    }));
+                } else {
+                    out.echoes.push("HATCH : au moins 3 points.".into());
+                }
+                self.active = None;
+            }
             _ => {
                 out.echoes.push(format!(
                     "{} : Entrée ignorée (continuez la saisie ou Échap).",
