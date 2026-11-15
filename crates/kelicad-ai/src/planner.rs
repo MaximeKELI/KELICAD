@@ -228,25 +228,7 @@ fn parse_rectangle_wh(s: &str) -> Option<(f64, f64)> {
 }
 
 fn capture_two_numbers(s: &str) -> Option<(f64, f64)> {
-    // Find sequences like 4 m x 3 m or 4x3 or 4 * 3
-    let cleaned: String = s.chars().map(|c| if c == ',' { '.' } else { c }).collect();
-    let mut nums = Vec::new();
-    let mut cur = String::new();
-    for c in cleaned.chars() {
-        if c.is_ascii_digit() || c == '.' {
-            cur.push(c);
-        } else if !cur.is_empty() {
-            if let Ok(v) = cur.parse::<f64>() {
-                nums.push(v);
-            }
-            cur.clear();
-        }
-    }
-    if !cur.is_empty() {
-        if let Ok(v) = cur.parse::<f64>() {
-            nums.push(v);
-        }
-    }
+    let nums = all_numbers(s);
     if nums.len() >= 2 {
         Some((nums[0], nums[1]))
     } else {
