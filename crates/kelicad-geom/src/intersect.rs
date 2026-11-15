@@ -257,12 +257,15 @@ mod tests {
             let b = Circle::new(Vec2::new(bx, by), br);
             let tol = Tolerance::COARSE;
             match circle_circle(a, b, tol) {
-                CircleCircleResult::One(p) | CircleCircleResult::Two(p, _) => {
+                CircleCircleResult::One(p) => {
                     prop_assert!((p.distance(a.center) - a.radius).abs() < 1e-5);
                     prop_assert!((p.distance(b.center) - b.radius).abs() < 1e-5);
                 }
-                CircleCircleResult::Two(_, q) => {
+                CircleCircleResult::Two(p, q) => {
+                    prop_assert!((p.distance(a.center) - a.radius).abs() < 1e-5);
+                    prop_assert!((p.distance(b.center) - b.radius).abs() < 1e-5);
                     prop_assert!((q.distance(a.center) - a.radius).abs() < 1e-5);
+                    prop_assert!((q.distance(b.center) - b.radius).abs() < 1e-5);
                 }
                 _ => {}
             }

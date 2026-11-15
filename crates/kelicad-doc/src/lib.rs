@@ -8,7 +8,7 @@ pub mod entity;
 pub mod geometry;
 pub mod layer;
 
-pub use document::Document;
+pub use document::{DocError, Document, EntityRecord};
 pub use entity::{EntityId, EntityKind};
 pub use geometry::Geometry;
-pub use layer::{Layer, LayerId, LayerFlags};
+pub use layer::{Layer, LayerFlags, LayerId};

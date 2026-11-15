@@ -1,7 +1,6 @@
 //! Atomic operations applied to a document.
 
-use kelicad_doc::document::EntityRecord;
-use kelicad_doc::{DocError, Document, EntityId, Geometry, Layer, LayerId};
+use kelicad_doc::{DocError, Document, EntityId, EntityRecord, Geometry, Layer, LayerId};
 
 /// Errors while applying an operation.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
