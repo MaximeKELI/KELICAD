@@ -8,6 +8,9 @@ pub mod arc;
 pub mod circle;
 pub mod intersect;
 pub mod line;
+pub mod polyline;
+pub mod transform;
+pub mod trim;
 
 pub use aabb::Aabb;
 pub use arc::Arc;
@@ -16,3 +19,4 @@ pub use intersect::{
     circle_circle, line_circle, line_line, CircleCircleResult, LineCircleResult, LineLineResult,
 };
 pub use line::Line;
+pub use polyline::Polyline;
