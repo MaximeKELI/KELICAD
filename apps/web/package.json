@@ -10,7 +10,7 @@
     "test": "vitest run",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit --pretty false",
-    "build:wasm": "wasm-pack build ../../crates/kelicad-wasm --target web --out-dir ../web/src/wasm/pkg --release"
+    "build:wasm": "wasm-pack build ../../crates/kelicad-wasm --target web --out-dir ../../apps/web/src/wasm/pkg --release"
   },
   "dependencies": {
     "react": "18.3.1",

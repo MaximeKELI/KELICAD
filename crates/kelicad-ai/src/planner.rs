@@ -15,7 +15,6 @@ pub fn plan_utterance(utterance: &str) -> Result<Vec<ToolCall>, AiError> {
     // Normalize common unit/× glyphs for matching.
     let norm = lower
         .replace('×', "x")
-        .replace('×', "x")
         .replace(" mètres", " m")
         .replace(" metre", " m")
         .replace(" meters", " m")
@@ -113,14 +112,14 @@ pub fn plan_utterance(utterance: &str) -> Result<Vec<ToolCall>, AiError> {
         return Ok(calls);
     }
 
-    if norm.contains("calque") || norm.contains("layer") {
-        if norm.contains("liste") || norm.contains("list") || norm.contains("quels") {
-            calls.push(ToolCall {
-                name: "list_layers".into(),
-                args: json!({}),
-            });
-            return Ok(calls);
-        }
+    if (norm.contains("calque") || norm.contains("layer"))
+        && (norm.contains("liste") || norm.contains("list") || norm.contains("quels"))
+    {
+        calls.push(ToolCall {
+            name: "list_layers".into(),
+            args: json!({}),
+        });
+        return Ok(calls);
     }
 
     if norm.contains("résumé")
@@ -149,14 +148,14 @@ pub fn plan_utterance(utterance: &str) -> Result<Vec<ToolCall>, AiError> {
         return Ok(calls);
     }
 
-    if norm.contains("bloc") || norm.contains("block") {
-        if norm.contains("liste") || norm.contains("list") {
-            calls.push(ToolCall {
-                name: "list_blocks".into(),
-                args: json!({}),
-            });
-            return Ok(calls);
-        }
+    if (norm.contains("bloc") || norm.contains("block"))
+        && (norm.contains("liste") || norm.contains("list"))
+    {
+        calls.push(ToolCall {
+            name: "list_blocks".into(),
+            args: json!({}),
+        });
+        return Ok(calls);
     }
 
     if norm.contains("sélection") || norm.contains("selection") {
@@ -270,9 +269,7 @@ fn parse_move_delta(s: &str) -> Option<(f64, f64)> {
     .iter()
     .filter_map(|k| s.find(k))
     .min();
-    let Some(idx) = move_idx else {
-        return None;
-    };
+    let idx = move_idx?;
     let focus = &s[idx..];
     // Explicit delta
     if let Some(i) = focus.find("delta") {
