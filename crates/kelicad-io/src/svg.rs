@@ -7,6 +7,10 @@ use kelicad_ops::DocSession;
 
 use crate::error::IoError;
 
+const STROKE: &str = "rgb(31,111,235)";
+const FILL_SOFT: &str = "rgba(31,111,235,0.2)";
+const TEXT_FILL: &str = "rgb(232,238,248)";
+
 /// Export model space entities to a simple SVG document.
 pub fn export_svg(session: &DocSession, width: f64, height: f64) -> Result<String, IoError> {
     let mut min_x = f64::INFINITY;
@@ -28,18 +32,19 @@ pub fn export_svg(session: &DocSession, width: f64, height: f64) -> Result<Strin
     max_x += pad;
     max_y += pad;
 
+    let vb_y = -max_y;
+    let vb_w = max_x - min_x;
+    let vb_h = max_y - min_y;
+
     let mut out = String::new();
     writeln!(
         out,
-        r#"<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="{min_x} {} {} {}" fill="none" stroke="##1f6feb" stroke-width="0.05">"#,
-        -max_y,
-        max_x - min_x,
-        max_y - min_y
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" \
+viewBox=\"{min_x} {vb_y} {vb_w} {vb_h}\" fill=\"none\" stroke=\"{STROKE}\" stroke-width=\"0.05\">"
     )
     .map_err(|e| IoError::Format(e.to_string()))?;
-    // Flip Y for CAD → SVG
-    writeln!(out, r#"<g transform="scale(1,-1)">"#).map_err(|e| IoError::Format(e.to_string()))?;
+    writeln!(out, "<g transform=\"scale(1,-1)\">").map_err(|e| IoError::Format(e.to_string()))?;
 
     for ent in session.document.entities() {
         write_geom(&mut out, &ent.geometry)?;
@@ -96,7 +101,7 @@ fn write_geom(out: &mut String, g: &Geometry) -> Result<(), IoError> {
         Geometry::Line(l) => {
             writeln!(
                 out,
-                r#"<line x1="{}" y1="{}" x2="{}" y2="{}" />"#,
+                "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" />",
                 l.start.x, l.start.y, l.end.x, l.end.y
             )
             .map_err(|e| IoError::Format(e.to_string()))?;
@@ -104,7 +109,7 @@ fn write_geom(out: &mut String, g: &Geometry) -> Result<(), IoError> {
         Geometry::Circle(c) => {
             writeln!(
                 out,
-                r#"<circle cx="{}" cy="{}" r="{}" />"#,
+                "<circle cx=\"{}\" cy=\"{}\" r=\"{}\" />",
                 c.center.x, c.center.y, c.radius
             )
             .map_err(|e| IoError::Format(e.to_string()))?;
@@ -120,7 +125,7 @@ fn write_geom(out: &mut String, g: &Geometry) -> Result<(), IoError> {
             let sweep = if a.clockwise { 0 } else { 1 };
             writeln!(
                 out,
-                r#"<path d="M {} {} A {} {} 0 {} {} {} {}" />"#,
+                "<path d=\"M {} {} A {} {} 0 {} {} {} {}\" />",
                 p0.x, p0.y, a.radius, a.radius, large, sweep, p1.x, p1.y
             )
             .map_err(|e| IoError::Format(e.to_string()))?;
@@ -137,16 +142,15 @@ fn write_geom(out: &mut String, g: &Geometry) -> Result<(), IoError> {
             if p.closed {
                 d.push_str(" Z");
             }
-            writeln!(out, r#"<path d="{d}" />"#).map_err(|e| IoError::Format(e.to_string()))?;
+            writeln!(out, "<path d=\"{d}\" />").map_err(|e| IoError::Format(e.to_string()))?;
         }
         Geometry::Text(t) => {
             writeln!(
                 out,
-                r#"<text x="{}" y="{}" font-size="{}" transform="scale(1,-1) translate(0,{})" fill="##e8eef8" stroke="none">{}</text>"#,
+                "<text x=\"{}\" y=\"{}\" font-size=\"{}\" fill=\"{TEXT_FILL}\" stroke=\"none\">{}</text>",
                 t.position.x,
-                -t.position.y,
+                t.position.y,
                 t.height,
-                -2.0 * t.position.y,
                 xml_escape(&t.content)
             )
             .map_err(|e| IoError::Format(e.to_string()))?;
@@ -154,7 +158,7 @@ fn write_geom(out: &mut String, g: &Geometry) -> Result<(), IoError> {
         Geometry::MText(t) => {
             writeln!(
                 out,
-                r#"<text x="{}" y="{}" font-size="{}" fill="##e8eef8" stroke="none">{}</text>"#,
+                "<text x=\"{}\" y=\"{}\" font-size=\"{}\" fill=\"{TEXT_FILL}\" stroke=\"none\">{}</text>",
                 t.position.x,
                 t.position.y,
                 t.height,
@@ -165,14 +169,14 @@ fn write_geom(out: &mut String, g: &Geometry) -> Result<(), IoError> {
         Geometry::Dimension(d) => {
             writeln!(
                 out,
-                r#"<line x1="{}" y1="{}" x2="{}" y2="{}" />"#,
+                "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" />",
                 d.def1.x, d.def1.y, d.def2.x, d.def2.y
             )
             .map_err(|e| IoError::Format(e.to_string()))?;
             let mid = d.def1.lerp(d.def2, 0.5);
             writeln!(
                 out,
-                r#"<text x="{}" y="{}" font-size="0.35" fill="##e8eef8" stroke="none">{}</text>"#,
+                "<text x=\"{}\" y=\"{}\" font-size=\"0.35\" fill=\"{TEXT_FILL}\" stroke=\"none\">{}</text>",
                 mid.x,
                 mid.y,
                 xml_escape(&d.display_text())
@@ -191,14 +195,14 @@ fn write_geom(out: &mut String, g: &Geometry) -> Result<(), IoError> {
             d.push_str(" Z");
             writeln!(
                 out,
-                r#"<path d="{d}" fill="##1f6feb33" stroke="##1f6feb" />"#
+                "<path d=\"{d}\" fill=\"{FILL_SOFT}\" stroke=\"{STROKE}\" />"
             )
             .map_err(|e| IoError::Format(e.to_string()))?;
         }
         Geometry::Insert(i) => {
             writeln!(
                 out,
-                r#"<circle cx="{}" cy="{}" r="0.2" fill="##1f6feb" stroke="none" />"#,
+                "<circle cx=\"{}\" cy=\"{}\" r=\"0.2\" fill=\"{STROKE}\" stroke=\"none\" />",
                 i.position.x, i.position.y
             )
             .map_err(|e| IoError::Format(e.to_string()))?;
@@ -206,7 +210,7 @@ fn write_geom(out: &mut String, g: &Geometry) -> Result<(), IoError> {
         Geometry::Point(p) => {
             writeln!(
                 out,
-                r#"<circle cx="{}" cy="{}" r="0.1" fill="##1f6feb" stroke="none" />"#,
+                "<circle cx=\"{}\" cy=\"{}\" r=\"0.1\" fill=\"{STROKE}\" stroke=\"none\" />",
                 p.x, p.y
             )
             .map_err(|e| IoError::Format(e.to_string()))?;
