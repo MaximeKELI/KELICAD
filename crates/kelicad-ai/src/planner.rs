@@ -298,37 +298,11 @@ fn parse_line(s: &str) -> Option<((f64, f64), (f64, f64))> {
     if s.contains("rectangle") || s.contains("cercle") || s.contains("circle") {
         return None;
     }
-    // Collect 4 numbers → start/end
-    let cleaned: String = s.chars().map(|c| if c == ',' { '.' } else { c }).collect();
-    let mut nums = Vec::new();
-    let mut cur = String::new();
-    for c in cleaned.chars() {
-        if c.is_ascii_digit() || c == '.' || c == '-' {
-            if c == '-' && !cur.is_empty() {
-                if let Ok(v) = cur.parse() {
-                    nums.push(v);
-                }
-                cur.clear();
-                cur.push('-');
-            } else {
-                cur.push(c);
-            }
-        } else if !cur.is_empty() {
-            if let Ok(v) = cur.parse() {
-                nums.push(v);
-            }
-            cur.clear();
-        }
-    }
-    if !cur.is_empty() {
-        if let Ok(v) = cur.parse() {
-            nums.push(v);
-        }
-    }
+    let nums = all_numbers(s);
     if nums.len() >= 4 {
         Some(((nums[0], nums[1]), (nums[2], nums[3])))
     } else if nums.len() == 2 {
-        // line of length L along X from origin
+        // Length along +X from origin when only one scalar pair is present.
         Some(((0.0, 0.0), (nums[0], 0.0)))
     } else if nums.len() == 1 {
         Some(((0.0, 0.0), (nums[0], 0.0)))
@@ -341,24 +315,7 @@ fn parse_circle(s: &str) -> Option<((f64, f64), f64)> {
     if !(s.contains("cercle") || s.contains("circle")) {
         return None;
     }
-    let cleaned: String = s.chars().map(|c| if c == ',' { '.' } else { c }).collect();
-    let mut nums = Vec::new();
-    let mut cur = String::new();
-    for c in cleaned.chars() {
-        if c.is_ascii_digit() || c == '.' {
-            cur.push(c);
-        } else if !cur.is_empty() {
-            if let Ok(v) = cur.parse() {
-                nums.push(v);
-            }
-            cur.clear();
-        }
-    }
-    if !cur.is_empty() {
-        if let Ok(v) = cur.parse() {
-            nums.push(v);
-        }
-    }
+    let nums = all_numbers(s);
     if nums.len() >= 3 {
         Some(((nums[0], nums[1]), nums[2]))
     } else if nums.len() == 1 {
@@ -435,11 +392,19 @@ fn parse_offset_distance(s: &str) -> Option<f64> {
 }
 
 fn all_numbers(s: &str) -> Vec<f64> {
-    let cleaned: String = s.chars().map(|c| if c == ',' { '.' } else { c }).collect();
+    // Commas separate coordinates; decimals use '.'.
     let mut nums = Vec::new();
     let mut cur = String::new();
-    for c in cleaned.chars() {
-        if c.is_ascii_digit() || c == '.' {
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '-' && cur.is_empty() {
+            if chars
+                .peek()
+                .is_some_and(|p| p.is_ascii_digit() || *p == '.')
+            {
+                cur.push('-');
+            }
+        } else if c.is_ascii_digit() || c == '.' {
             cur.push(c);
         } else if !cur.is_empty() {
             if let Ok(v) = cur.parse() {
