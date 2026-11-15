@@ -1,0 +1,20 @@
+[package]
+name = "kelicad-constraints"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "2D parametric constraint graph and solver for KELICAD"
+readme = "README.md"
+
+[dependencies]
+kelicad-doc = { workspace = true }
+kelicad-geom = { workspace = true }
+kelicad-math = { workspace = true }
+kelicad-ops = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]

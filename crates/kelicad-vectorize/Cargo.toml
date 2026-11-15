@@ -1,0 +1,19 @@
+[package]
+name = "kelicad-vectorize"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Deterministic SVG/PNG → editable CAD geometries"
+readme = "README.md"
+
+[dependencies]
+kelicad-doc = { workspace = true }
+kelicad-geom = { workspace = true }
+kelicad-math = { workspace = true }
+image = { version = "0.25.5", default-features = false, features = ["png"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
