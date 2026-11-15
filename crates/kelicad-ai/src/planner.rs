@@ -303,17 +303,7 @@ fn first_number_near_keywords(s: &str) -> Option<f64> {
     for key in ["de ", "by ", "of "] {
         if let Some(i) = s.find(key) {
             let sub = &s[i + key.len()..];
-            let mut cur = String::new();
-            for c in sub.chars() {
-                if c.is_ascii_digit() || c == '.' || c == ',' {
-                    cur.push(if c == ',' { '.' } else { c });
-                } else if !cur.is_empty() {
-                    break;
-                }
-            }
-            if let Ok(v) = cur.parse::<f64>() {
-                return Some(v);
-            }
+            return all_numbers(sub).into_iter().next();
         }
     }
     None
