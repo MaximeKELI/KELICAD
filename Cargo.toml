@@ -11,6 +11,8 @@ members = [
     "crates/kelicad-ai",
     "crates/kelicad-sync",
     "crates/kelicad-plugin",
+    "crates/kelicad-constraints",
+    "crates/kelicad-vectorize",
     "crates/kelicad-wasm",
     "services/gateway",
     "apps/cli",
@@ -27,6 +29,8 @@ default-members = [
     "crates/kelicad-ai",
     "crates/kelicad-sync",
     "crates/kelicad-plugin",
+    "crates/kelicad-constraints",
+    "crates/kelicad-vectorize",
 ]
 
 [workspace.package]
@@ -47,6 +51,8 @@ kelicad-io = { path = "crates/kelicad-io" }
 kelicad-ai = { path = "crates/kelicad-ai" }
 kelicad-sync = { path = "crates/kelicad-sync" }
 kelicad-plugin = { path = "crates/kelicad-plugin" }
+kelicad-constraints = { path = "crates/kelicad-constraints" }
+kelicad-vectorize = { path = "crates/kelicad-vectorize" }
 clap = { version = "4.5.21", features = ["derive"] }
 axum = { version = "0.7.9", features = ["ws"] }
 tokio = { version = "1.41.1", features = ["rt-multi-thread", "macros", "net", "sync", "time"] }

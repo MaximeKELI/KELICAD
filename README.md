@@ -10,8 +10,8 @@ technical comments are in English.
 
 ## Status
 
-Milestone **M5 — Plugins & API** ready for validation: capability-gated plugin host,
-example plugin, SDK stubs, `kelicad-cli`, macros, OpenAPI REST on the gateway.
+Milestone **M6 — Paramétrique et IA avancée**: 2D constraint solver, deterministic
+SVG/PNG vectorize, compliance rulesets, cleanup, and auto-dimension (ADR 0010).
 
 ## Repository layout
 
