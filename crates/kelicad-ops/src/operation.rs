@@ -1,6 +1,9 @@
 //! Atomic operations applied to a document.
 
-use kelicad_doc::{DocError, Document, EntityId, EntityRecord, Geometry, Layer, LayerId};
+use kelicad_doc::{
+    BlockDef, BlockId, DocError, Document, EntityId, EntityRecord, Geometry, Layer, LayerId, Layout,
+    LayoutId,
+};
 
 /// Errors while applying an operation.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -65,6 +68,26 @@ pub enum Operation {
     Batch {
         /// Forward operations in application order.
         ops: Vec<Operation>,
+    },
+    /// Create or replace a block definition.
+    UpsertBlock {
+        /// Block definition.
+        def: BlockDef,
+    },
+    /// Delete a block definition.
+    DeleteBlock {
+        /// Block id.
+        id: BlockId,
+    },
+    /// Create or replace a paper layout.
+    UpsertLayout {
+        /// Layout.
+        layout: Layout,
+    },
+    /// Delete a layout.
+    DeleteLayout {
+        /// Layout id.
+        id: LayoutId,
     },
 }
 
@@ -147,6 +170,34 @@ impl Operation {
                 }
                 inverses.reverse();
                 Ok(Operation::Batch { ops: inverses })
+            }
+            Self::UpsertBlock { def } => {
+                let prev = doc.get_block(def.id).cloned();
+                doc.upsert_block(def.clone());
+                Ok(match prev {
+                    Some(old) => Operation::UpsertBlock { def: old },
+                    None => Operation::DeleteBlock { id: def.id },
+                })
+            }
+            Self::DeleteBlock { id } => {
+                let Some(def) = doc.remove_block(*id) else {
+                    return Err(OpError::Doc(DocError::UnknownBlock(*id)));
+                };
+                Ok(Operation::UpsertBlock { def })
+            }
+            Self::UpsertLayout { layout } => {
+                let prev = doc.get_layout(layout.id).cloned();
+                doc.upsert_layout(layout.clone());
+                Ok(match prev {
+                    Some(old) => Operation::UpsertLayout { layout: old },
+                    None => Operation::DeleteLayout { id: layout.id },
+                })
+            }
+            Self::DeleteLayout { id } => {
+                let Some(layout) = doc.remove_layout(*id) else {
+                    return Err(OpError::Doc(DocError::UnknownLayout(*id)));
+                };
+                Ok(Operation::UpsertLayout { layout })
             }
         }
     }

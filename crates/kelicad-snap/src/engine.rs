@@ -109,6 +109,42 @@ impl SnapEngine {
                         Self::push(out, *p, SnapKind::Endpoint, query.cursor);
                     }
                 }
+                Geometry::Text(t) => {
+                    if self.modes.endpoint {
+                        Self::push(out, t.position, SnapKind::Endpoint, query.cursor);
+                    }
+                }
+                Geometry::MText(t) => {
+                    if self.modes.endpoint {
+                        Self::push(out, t.position, SnapKind::Endpoint, query.cursor);
+                    }
+                }
+                Geometry::Dimension(d) => {
+                    if self.modes.endpoint {
+                        Self::push(out, d.def1, SnapKind::Endpoint, query.cursor);
+                        Self::push(out, d.def2, SnapKind::Endpoint, query.cursor);
+                    }
+                    if self.modes.midpoint {
+                        Self::push(
+                            out,
+                            d.def1.lerp(d.def2, 0.5),
+                            SnapKind::Midpoint,
+                            query.cursor,
+                        );
+                    }
+                }
+                Geometry::Hatch(h) => {
+                    for &p in &h.boundary {
+                        if self.modes.endpoint {
+                            Self::push(out, p, SnapKind::Endpoint, query.cursor);
+                        }
+                    }
+                }
+                Geometry::Insert(i) => {
+                    if self.modes.endpoint {
+                        Self::push(out, i.position, SnapKind::Endpoint, query.cursor);
+                    }
+                }
             }
         }
     }

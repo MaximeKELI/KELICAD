@@ -835,6 +835,19 @@ impl<G: IdGen> CommandEngine<G> {
                     .fold(f64::INFINITY, f64::min)
                     .sqrt(),
                 Geometry::Point(q) => q.distance(p),
+                Geometry::Text(t) => t.position.distance(p),
+                Geometry::MText(t) => t.position.distance(p),
+                Geometry::Dimension(d) => d
+                    .def1
+                    .distance(p)
+                    .min(d.def2.distance(p))
+                    .min(d.dim_line.distance(p)),
+                Geometry::Hatch(h) => h
+                    .boundary
+                    .iter()
+                    .map(|q| q.distance(p))
+                    .fold(f64::INFINITY, f64::min),
+                Geometry::Insert(i) => i.position.distance(p),
             };
             if d <= self.snap_aperture * 2.0 && best.map(|(_, bd)| d < bd).unwrap_or(true) {
                 best = Some((ent.id, d));
