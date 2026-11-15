@@ -19,6 +19,7 @@ export type CadSession = {
   redo(): string;
   set_snap_aperture(aperture: number): void;
   export_snapshot_json(): string;
+  import_snapshot_json(json: string): void;
   scene_line_vertices(): Float32Array | number[];
   ghost_line_vertices(x: number, y: number): Float32Array | number[];
   selection_json(): string;

@@ -106,3 +106,52 @@ export function downloadBytes(filename: string, data: Uint8Array): void {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+function bytesToUuid(bytes: Uint8Array): string {
+  const hex = [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/** Read a `.kelicad` SQLite blob into the snapshot JSON expected by WASM import. */
+export async function kelicadBytesToSnapshotJson(data: Uint8Array): Promise<string> {
+  const SQL = await initSqlJs({
+    locateFile: (file) => `https://sql.js.org/dist/${file}`,
+  });
+  const db = new SQL.Database(data);
+  const format = (
+    db.exec("SELECT value FROM meta WHERE key='format'")[0]?.values[0]?.[0] as string | undefined
+  );
+  if (format !== "kelicad") {
+    db.close();
+    throw new Error("not a kelicad file");
+  }
+  const current =
+    (db.exec("SELECT value FROM meta WHERE key='current_layer'")[0]?.values[0]?.[0] as string) ||
+    "";
+  const layerRows = db.exec(
+    "SELECT id, name, color_r, color_g, color_b FROM layers",
+  )[0];
+  const layers =
+    layerRows?.values.map((row) => ({
+      id: bytesToUuid(row[0] as Uint8Array),
+      name: String(row[1]),
+      color: [Number(row[2]), Number(row[3]), Number(row[4])] as [number, number, number],
+    })) ?? [];
+  const entRows = db.exec(
+    "SELECT id, kind, layer_id, geometry_json FROM entities WHERE deleted=0",
+  )[0];
+  const entities =
+    entRows?.values.map((row) => ({
+      id: bytesToUuid(row[0] as Uint8Array),
+      kind: String(row[1]),
+      layer_id: bytesToUuid(row[2] as Uint8Array),
+      geometry: JSON.parse(String(row[3])) as Record<string, unknown>,
+    })) ?? [];
+  db.close();
+  return JSON.stringify({
+    schema_version: 0,
+    current_layer: current,
+    layers,
+    entities,
+  });
+}

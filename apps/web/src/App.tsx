@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { downloadBytes, snapshotToKelicadBytes } from "./cad/kelicadFile";
+import {
+  downloadBytes,
+  kelicadBytesToSnapshotJson,
+  snapshotToKelicadBytes,
+} from "./cad/kelicadFile";
 import { loadCad } from "./cad/loadCad";
 import { parseCadOutput, type CadSession } from "./cad/types";
 import { CommandLine } from "./components/CommandLine";
@@ -84,6 +88,33 @@ export function App() {
     }
   }, [cad]);
 
+  const openKelicad = useCallback(async () => {
+    if (!cad) {
+      return;
+    }
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".kelicad,application/octet-stream";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) {
+        return;
+      }
+      void file.arrayBuffer().then(async (buf) => {
+        try {
+          const json = await kelicadBytesToSnapshotJson(new Uint8Array(buf));
+          cad.import_snapshot_json(json);
+          setRevision((n) => n + 1);
+          setEntityCount(cad.entity_count());
+          setEchoes((prev) => [...prev, `Ouvert ${file.name}`]);
+        } catch (e) {
+          setEchoes((prev) => [...prev, `Erreur ouverture: ${String(e)}`]);
+        }
+      });
+    };
+    input.click();
+  }, [cad]);
+
   if (error) {
     return (
       <div className="flex h-full items-center justify-center p-8 text-red-300">
@@ -118,6 +149,13 @@ export function App() {
               {cmd}
             </button>
           ))}
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={() => void openKelicad()}
+          >
+            OPEN
+          </button>
           <button
             type="button"
             className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"

@@ -3,10 +3,13 @@
 #![forbid(unsafe_code)]
 
 use kelicad_cmd::{CommandEngine, CommandEvent, CommandId, UuidV7Gen};
-use kelicad_doc::Geometry;
+use kelicad_doc::{EntityId, EntityRecord, Geometry, Layer, LayerId};
+use kelicad_geom::{Arc, Circle, Line, Polyline};
 use kelicad_math::Vec2;
-use kelicad_ops::DocSession;
+use kelicad_ops::{DocSession, Operation};
+use serde::Deserialize;
 use serde::Serialize;
+use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 
 /// Install the panic hook once.
@@ -137,6 +140,79 @@ impl WasmCad {
         self.engine.snap_aperture = aperture.max(1e-9);
     }
 
+    /// Replace the session document from a snapshot JSON (empty journal).
+    pub fn import_snapshot_json(&mut self, json: &str) -> Result<(), JsValue> {
+        #[derive(Deserialize)]
+        struct InSnap {
+            current_layer: String,
+            layers: Vec<InLayer>,
+            entities: Vec<InEntity>,
+        }
+        #[derive(Deserialize)]
+        struct InLayer {
+            id: String,
+            name: String,
+            color: [u8; 3],
+        }
+        #[derive(Deserialize)]
+        struct InEntity {
+            id: String,
+            layer_id: String,
+            geometry: serde_json::Value,
+        }
+
+        let snap: InSnap =
+            serde_json::from_str(json).map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let mut session = DocSession::new();
+        for layer in &snap.layers {
+            let id = LayerId::from_uuid(
+                Uuid::parse_str(&layer.id).map_err(|e| JsValue::from_str(&e.to_string()))?,
+            );
+            if id != session.document.default_layer_id() {
+                session
+                    .apply(Operation::CreateLayer {
+                        layer: Layer::new(id, layer.name.clone(), layer.color),
+                    })
+                    .map_err(|e| JsValue::from_str(&e.to_string()))?;
+            } else {
+                // Update default layer display attrs via upsert
+                session
+                    .document
+                    .upsert_layer(Layer::new(id, layer.name.clone(), layer.color));
+            }
+        }
+        for ent in &snap.entities {
+            let id = EntityId::from_uuid(
+                Uuid::parse_str(&ent.id).map_err(|e| JsValue::from_str(&e.to_string()))?,
+            );
+            let layer_id = LayerId::from_uuid(
+                Uuid::parse_str(&ent.layer_id).map_err(|e| JsValue::from_str(&e.to_string()))?,
+            );
+            let geometry = geometry_from_value(&ent.geometry)
+                .map_err(|e| JsValue::from_str(&e))?;
+            session
+                .apply(Operation::CreateEntity {
+                    record: EntityRecord {
+                        id,
+                        kind: geometry.kind(),
+                        geometry,
+                        layer_id,
+                    },
+                })
+                .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        }
+        if let Ok(u) = Uuid::parse_str(&snap.current_layer) {
+            let _ = session
+                .document
+                .set_current_layer(LayerId::from_uuid(u));
+        }
+        // Reset journal so undo doesn't walk the import batch as user history.
+        session.journal = kelicad_ops::OpJournal::new();
+        self.engine = CommandEngine::new(session, UuidV7Gen);
+        self.last_prompt_fr.clear();
+        Ok(())
+    }
+
     /// Export document snapshot JSON (for .kelicad writers / download).
     pub fn export_snapshot_json(&self) -> Result<String, JsValue> {
         let doc = &self.engine.session.document;
@@ -230,6 +306,64 @@ fn output_json(out: &kelicad_cmd::CommandOutput) -> String {
         "snap": snap,
     })
     .to_string()
+}
+
+fn geometry_from_value(v: &serde_json::Value) -> Result<Geometry, String> {
+    let ty = v
+        .get("type")
+        .and_then(|t| t.as_str())
+        .ok_or_else(|| "geometry.type missing".to_string())?;
+    match ty {
+        "point" => Ok(Geometry::Point(Vec2::new(
+            num(v, "x")?,
+            num(v, "y")?,
+        ))),
+        "line" => Ok(Geometry::Line(Line::new(
+            Vec2::new(num(v, "x0")?, num(v, "y0")?),
+            Vec2::new(num(v, "x1")?, num(v, "y1")?),
+        ))),
+        "circle" => Ok(Geometry::Circle(Circle::new(
+            Vec2::new(num(v, "cx")?, num(v, "cy")?),
+            num(v, "r")?,
+        ))),
+        "arc" => Ok(Geometry::Arc(Arc {
+            center: Vec2::new(num(v, "cx")?, num(v, "cy")?),
+            radius: num(v, "r")?,
+            start_angle: num(v, "start_angle")?,
+            end_angle: num(v, "end_angle")?,
+            clockwise: v
+                .get("clockwise")
+                .and_then(|b| b.as_bool())
+                .unwrap_or(false),
+        })),
+        "polyline" => {
+            let closed = v.get("closed").and_then(|b| b.as_bool()).unwrap_or(false);
+            let verts = v
+                .get("vertices")
+                .and_then(|a| a.as_array())
+                .ok_or_else(|| "polyline.vertices".to_string())?;
+            let mut points = Vec::new();
+            for item in verts {
+                let arr = item.as_array().ok_or_else(|| "vertex".to_string())?;
+                points.push(Vec2::new(
+                    arr[0].as_f64().ok_or_else(|| "vx".to_string())?,
+                    arr[1].as_f64().ok_or_else(|| "vy".to_string())?,
+                ));
+            }
+            Ok(Geometry::Polyline(if closed {
+                Polyline::closed(points)
+            } else {
+                Polyline::new(points)
+            }))
+        }
+        other => Err(format!("unknown geometry type {other}")),
+    }
+}
+
+fn num(v: &serde_json::Value, key: &str) -> Result<f64, String> {
+    v.get(key)
+        .and_then(|x| x.as_f64())
+        .ok_or_else(|| format!("missing {key}"))
 }
 
 fn geometry_value(g: &Geometry) -> serde_json::Value {
