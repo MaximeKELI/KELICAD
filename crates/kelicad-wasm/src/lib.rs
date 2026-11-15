@@ -188,8 +188,7 @@ impl WasmCad {
             let layer_id = LayerId::from_uuid(
                 Uuid::parse_str(&ent.layer_id).map_err(|e| JsValue::from_str(&e.to_string()))?,
             );
-            let geometry = geometry_from_value(&ent.geometry)
-                .map_err(|e| JsValue::from_str(&e))?;
+            let geometry = geometry_from_value(&ent.geometry).map_err(|e| JsValue::from_str(&e))?;
             session
                 .apply(Operation::CreateEntity {
                     record: EntityRecord {
@@ -202,9 +201,7 @@ impl WasmCad {
                 .map_err(|e| JsValue::from_str(&e.to_string()))?;
         }
         if let Ok(u) = Uuid::parse_str(&snap.current_layer) {
-            let _ = session
-                .document
-                .set_current_layer(LayerId::from_uuid(u));
+            let _ = session.document.set_current_layer(LayerId::from_uuid(u));
         }
         // Reset journal so undo doesn't walk the import batch as user history.
         session.journal = kelicad_ops::OpJournal::new();
@@ -314,10 +311,7 @@ fn geometry_from_value(v: &serde_json::Value) -> Result<Geometry, String> {
         .and_then(|t| t.as_str())
         .ok_or_else(|| "geometry.type missing".to_string())?;
     match ty {
-        "point" => Ok(Geometry::Point(Vec2::new(
-            num(v, "x")?,
-            num(v, "y")?,
-        ))),
+        "point" => Ok(Geometry::Point(Vec2::new(num(v, "x")?, num(v, "y")?))),
         "line" => Ok(Geometry::Line(Line::new(
             Vec2::new(num(v, "x0")?, num(v, "y0")?),
             Vec2::new(num(v, "x1")?, num(v, "y1")?),
