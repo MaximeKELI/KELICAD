@@ -24,7 +24,7 @@ impl std::fmt::Display for EntityId {
     }
 }
 
-/// High-level entity classification for M0.
+/// High-level entity classification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EntityKind {
     /// Point.
@@ -35,4 +35,6 @@ pub enum EntityKind {
     Arc,
     /// Full circle.
     Circle,
+    /// Polyline (including rectangles).
+    Polyline,
 }
