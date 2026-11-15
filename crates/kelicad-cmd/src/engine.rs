@@ -1,12 +1,16 @@
 //! Command state machine driving a [`kelicad_ops::DocSession`].
 
-use kelicad_doc::{EntityId, EntityRecord, Geometry};
+use kelicad_doc::{
+    BlockDef, BlockId, DimKind, DimensionGeom, EntityId, EntityRecord, Geometry, HatchGeom,
+    HatchPattern, InsertGeom, TextAlign, TextGeom,
+};
 use kelicad_geom::transform::offset_line;
 use kelicad_geom::trim::{extend_line_to, trim_line_by_cut};
 use kelicad_geom::{Arc, Circle, Line, Polyline};
 use kelicad_math::{Tolerance, Vec2};
 use kelicad_ops::{DocSession, Operation};
 use kelicad_snap::{SnapEngine, SnapHit, SnapQuery};
+use uuid::Uuid;
 
 use crate::id_gen::IdGen;
 use crate::input::{parse_number, parse_point};
@@ -99,6 +103,23 @@ enum Active {
     Trim,
     Extend,
     Erase,
+    Text {
+        position: Option<Vec2>,
+    },
+    DimLinear {
+        def1: Option<Vec2>,
+        def2: Option<Vec2>,
+    },
+    Hatch {
+        points: Vec<Vec2>,
+    },
+    Block {
+        name: Option<String>,
+        base: Option<Vec2>,
+    },
+    Insert {
+        name: Option<String>,
+    },
 }
 
 /// Central command engine.
