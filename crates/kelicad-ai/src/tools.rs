@@ -341,8 +341,8 @@ fn read_measure(call: &ToolCall, ctx: &ToolContext<'_>) -> Result<ToolExecResult
                 Geometry::Polyline(p) => {
                     let mut len = 0.0;
                     for i in 0..p.segment_count() {
-                        if let Some((a, b)) = p.segment(i) {
-                            len += a.distance(b);
+                        if let Some(seg) = p.segment(i) {
+                            len += seg.length();
                         }
                     }
                     json!({"kind":"polyline","length": len, "closed": p.closed})

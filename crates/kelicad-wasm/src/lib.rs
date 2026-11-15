@@ -2,6 +2,7 @@
 
 #![forbid(unsafe_code)]
 
+use kelicad_ai::{AgentMode, DeterministicProvider, KeliAgent, UuidV7Gen as AiUuidV7Gen};
 use kelicad_cmd::{CommandEngine, CommandEvent, CommandId, UuidV7Gen};
 use kelicad_doc::{EntityId, EntityRecord, Geometry, Layer, LayerId};
 use kelicad_geom::{Arc, Circle, Line, Polyline};
@@ -51,6 +52,7 @@ struct SnapshotDto {
 #[wasm_bindgen]
 pub struct WasmCad {
     engine: CommandEngine<UuidV7Gen>,
+    keli: KeliAgent<DeterministicProvider, AiUuidV7Gen>,
     last_prompt_fr: String,
 }
 
@@ -61,6 +63,7 @@ impl WasmCad {
     pub fn new() -> Self {
         Self {
             engine: CommandEngine::new(DocSession::new(), UuidV7Gen),
+            keli: KeliAgent::new(DeterministicProvider, AiUuidV7Gen),
             last_prompt_fr: String::new(),
         }
     }
@@ -301,6 +304,71 @@ impl WasmCad {
     /// Active prompt (French) or empty.
     pub fn prompt_fr(&self) -> String {
         self.last_prompt_fr.clone()
+    }
+
+    /// Ask KELI (Propose by default). Returns AskResult JSON.
+    pub fn keli_ask(&mut self, utterance: &str) -> Result<String, JsValue> {
+        self.sync_keli_selection();
+        let result = self
+            .keli
+            .ask(&mut self.engine.session, utterance)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        serde_json::to_string(&result).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Accept pending KELI proposal (one undoable batch).
+    pub fn keli_accept(&mut self) -> Result<String, JsValue> {
+        self.keli
+            .accept(&mut self.engine.session)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        Ok(r#"{"ok":true}"#.into())
+    }
+
+    /// Reject pending KELI proposal.
+    pub fn keli_reject(&mut self) -> Result<String, JsValue> {
+        self.keli
+            .reject()
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        Ok(r#"{"ok":true}"#.into())
+    }
+
+    /// Set KELI mode: "propose" | "apply".
+    pub fn keli_set_mode(&mut self, mode: &str) -> Result<(), JsValue> {
+        let m = match mode.to_ascii_lowercase().as_str() {
+            "apply" | "appliquer" => AgentMode::Apply,
+            "propose" | "proposer" => AgentMode::Propose,
+            other => {
+                return Err(JsValue::from_str(&format!("unknown mode {other}")));
+            }
+        };
+        self.keli.set_mode(m);
+        Ok(())
+    }
+
+    /// Pending proposal JSON or null.
+    pub fn keli_proposal_json(&self) -> String {
+        match self.keli.pending() {
+            Some(p) => serde_json::to_string(&kelicad_ai::ProposalDto::from(p))
+                .unwrap_or_else(|_| "null".into()),
+            None => "null".into(),
+        }
+    }
+
+    /// AI journal JSON array.
+    pub fn keli_journal_json(&self) -> String {
+        self.keli
+            .journal
+            .to_json()
+            .unwrap_or_else(|_| "[]".into())
+    }
+
+    /// Ghost vertices for pending KELI proposal (interleaved x0,y0,x1,y1).
+    pub fn keli_ghost_vertices(&self) -> Vec<f32> {
+        self.keli.ghost_vertices()
+    }
+
+    fn sync_keli_selection(&mut self) {
+        self.keli.selection = self.engine.selection.iter().collect();
     }
 }
 

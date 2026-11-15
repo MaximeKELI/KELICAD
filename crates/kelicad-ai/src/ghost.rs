@@ -1,7 +1,7 @@
 //! Ghost preview helpers for proposed geometries.
 
 use kelicad_doc::Geometry;
-use kelicad_geom::{Arc, Circle, Line, Polyline};
+use kelicad_geom::{Arc, Circle};
 use kelicad_math::Vec2;
 
 /// Append interleaved line-segment vertices (x0,y0,x1,y1,…) for GPU preview.
@@ -17,8 +17,8 @@ pub fn append_geometry_lines(geom: &Geometry, out: &mut Vec<f32>) {
         Geometry::Arc(a) => tessellate_arc(out, *a, 24),
         Geometry::Polyline(p) => {
             for i in 0..p.segment_count() {
-                if let Some((a, b)) = p.segment(i) {
-                    push_seg(out, a, b);
+                if let Some(seg) = p.segment(i) {
+                    push_seg(out, seg.start, seg.end);
                 }
             }
         }
@@ -103,7 +103,3 @@ fn tessellate_arc(out: &mut Vec<f32>, a: Arc, n: usize) {
         push_seg(out, a.point_at(t0), a.point_at(t1));
     }
 }
-
-/// Unused import silence for Polyline re-export path.
-#[allow(dead_code)]
-fn _poly_hint(_: &Polyline) {}

@@ -330,6 +330,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "kelicad-ai"
+version = "0.1.0"
+dependencies = [
+ "kelicad-doc",
+ "kelicad-geom",
+ "kelicad-math",
+ "kelicad-ops",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
 name = "kelicad-cmd"
 version = "0.1.0"
 dependencies = [
@@ -409,6 +423,7 @@ name = "kelicad-wasm"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
+ "kelicad-ai",
  "kelicad-cmd",
  "kelicad-doc",
  "kelicad-geom",
