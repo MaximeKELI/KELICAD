@@ -37,4 +37,14 @@ pub enum EntityKind {
     Circle,
     /// Polyline (including rectangles).
     Polyline,
+    /// Single-line text.
+    Text,
+    /// Multi-line text.
+    MText,
+    /// Dimension annotation.
+    Dimension,
+    /// Hatch fill.
+    Hatch,
+    /// Block insert / reference.
+    Insert,
 }
