@@ -116,10 +116,7 @@ pub fn line_circle(line: Line, circle: Circle, tol: Tolerance) -> LineCircleResu
     for t in [t1, t2] {
         if t >= -tol.abs && t <= 1.0 + tol.abs {
             let p = line.point_at(t.clamp(0.0, 1.0));
-            if pts
-                .iter()
-                .all(|q: &Vec2| !q.nearly_eq(p, tol))
-            {
+            if pts.iter().all(|q: &Vec2| !q.nearly_eq(p, tol)) {
                 pts.push(p);
             }
         }
@@ -202,10 +199,14 @@ mod tests {
         let circle = Circle::new(Vec2::ZERO, 1.0);
         match line_circle(line, circle, Tolerance::DEFAULT) {
             LineCircleResult::Two(p, q) => {
-                assert!(p.nearly_eq(Vec2::new(-1.0, 0.0), Tolerance::DEFAULT)
-                    || q.nearly_eq(Vec2::new(-1.0, 0.0), Tolerance::DEFAULT));
-                assert!(p.nearly_eq(Vec2::new(1.0, 0.0), Tolerance::DEFAULT)
-                    || q.nearly_eq(Vec2::new(1.0, 0.0), Tolerance::DEFAULT));
+                assert!(
+                    p.nearly_eq(Vec2::new(-1.0, 0.0), Tolerance::DEFAULT)
+                        || q.nearly_eq(Vec2::new(-1.0, 0.0), Tolerance::DEFAULT)
+                );
+                assert!(
+                    p.nearly_eq(Vec2::new(1.0, 0.0), Tolerance::DEFAULT)
+                        || q.nearly_eq(Vec2::new(1.0, 0.0), Tolerance::DEFAULT)
+                );
             }
             other => panic!("expected two points, got {other:?}"),
         }
@@ -217,8 +218,10 @@ mod tests {
         let b = Circle::new(Vec2::new(1.0, 0.0), 1.0);
         match circle_circle(a, b, Tolerance::DEFAULT) {
             CircleCircleResult::Two(p, q) => {
-                assert!(p.nearly_eq(Vec2::new(0.5, 0.866_025_403_78), Tolerance::COARSE)
-                    || q.nearly_eq(Vec2::new(0.5, 0.866_025_403_78), Tolerance::COARSE));
+                assert!(
+                    p.nearly_eq(Vec2::new(0.5, 0.866_025_403_78), Tolerance::COARSE)
+                        || q.nearly_eq(Vec2::new(0.5, 0.866_025_403_78), Tolerance::COARSE)
+                );
             }
             other => panic!("expected two points, got {other:?}"),
         }

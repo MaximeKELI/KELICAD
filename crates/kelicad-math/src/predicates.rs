@@ -82,23 +82,13 @@ mod tests {
 
     #[test]
     fn ccw_unit_square() {
-        let o = orient2d(
-            Vec2::ZERO,
-            Vec2::X,
-            Vec2::Y,
-            Tolerance::DEFAULT,
-        );
+        let o = orient2d(Vec2::ZERO, Vec2::X, Vec2::Y, Tolerance::DEFAULT);
         assert_eq!(o, Orient::CounterClockwise);
     }
 
     #[test]
     fn cw_unit_square() {
-        let o = orient2d(
-            Vec2::ZERO,
-            Vec2::Y,
-            Vec2::X,
-            Tolerance::DEFAULT,
-        );
+        let o = orient2d(Vec2::ZERO, Vec2::Y, Vec2::X, Tolerance::DEFAULT);
         assert_eq!(o, Orient::Clockwise);
     }
 

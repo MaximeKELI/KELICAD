@@ -82,7 +82,10 @@ impl Vec2 {
     /// Linear interpolation.
     #[inline]
     pub fn lerp(self, other: Self, t: f64) -> Self {
-        Self::new(self.x + (other.x - self.x) * t, self.y + (other.y - self.y) * t)
+        Self::new(
+            self.x + (other.x - self.x) * t,
+            self.y + (other.y - self.y) * t,
+        )
     }
 
     /// Component-wise absolute value.

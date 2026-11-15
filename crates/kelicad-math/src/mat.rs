@@ -243,7 +243,9 @@ mod tests {
 
     #[test]
     fn inverse_roundtrip() {
-        let m = Mat3::translation(5.0, -2.0).mul_mat(Mat3::rotation(0.3)).mul_mat(Mat3::scale(2.0));
+        let m = Mat3::translation(5.0, -2.0)
+            .mul_mat(Mat3::rotation(0.3))
+            .mul_mat(Mat3::scale(2.0));
         let inv = m.inverse().expect("invertible");
         let p = Vec2::new(1.5, -4.0);
         let back = inv.transform_point(m.transform_point(p));

@@ -75,7 +75,9 @@ mod tests {
     #[test]
     fn midpoint() {
         let l = Line::new(Vec2::ZERO, Vec2::new(2.0, 4.0));
-        assert!(l.point_at(0.5).nearly_eq(Vec2::new(1.0, 2.0), Tolerance::DEFAULT));
+        assert!(l
+            .point_at(0.5)
+            .nearly_eq(Vec2::new(1.0, 2.0), Tolerance::DEFAULT));
     }
 
     #[test]

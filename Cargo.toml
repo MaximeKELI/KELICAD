@@ -26,7 +26,7 @@ kelicad-math = { path = "crates/kelicad-math" }
 kelicad-geom = { path = "crates/kelicad-geom" }
 kelicad-doc = { path = "crates/kelicad-doc" }
 kelicad-ops = { path = "crates/kelicad-ops" }
-uuid = { version = "1.11.0", features = ["v7", "serde"] }
+uuid = { version = "1.11.0", features = ["v7", "serde", "js"] }
 serde = { version = "1.0.215", features = ["derive"] }
 thiserror = "2.0.3"
 proptest = "1.5.0"

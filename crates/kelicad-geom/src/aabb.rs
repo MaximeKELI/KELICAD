@@ -86,7 +86,9 @@ mod tests {
 
     #[test]
     fn expand_from_empty() {
-        let b = Aabb::EMPTY.expand(Vec2::new(1.0, 2.0)).expand(Vec2::new(-1.0, 4.0));
+        let b = Aabb::EMPTY
+            .expand(Vec2::new(1.0, 2.0))
+            .expand(Vec2::new(-1.0, 4.0));
         assert_eq!(b.min, Vec2::new(-1.0, 2.0));
         assert_eq!(b.max, Vec2::new(1.0, 4.0));
     }

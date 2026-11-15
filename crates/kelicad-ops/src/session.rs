@@ -98,9 +98,7 @@ mod tests {
         let layer = session.document.default_layer_id();
         let record = line_record(2, layer);
         let id = record.id;
-        session
-            .apply(Operation::CreateEntity { record })
-            .unwrap();
+        session.apply(Operation::CreateEntity { record }).unwrap();
 
         let new_geom = Geometry::Line(Line::new(Vec2::new(1.0, 1.0), Vec2::new(2.0, 2.0)));
         session
@@ -109,10 +107,7 @@ mod tests {
                 geometry: new_geom.clone(),
             })
             .unwrap();
-        assert_eq!(
-            session.document.get_entity(id).unwrap().geometry,
-            new_geom
-        );
+        assert_eq!(session.document.get_entity(id).unwrap().geometry, new_geom);
 
         session.undo().unwrap();
         match &session.document.get_entity(id).unwrap().geometry {
@@ -157,9 +152,7 @@ mod tests {
             })
             .unwrap();
         let record = line_record(5, lid);
-        session
-            .apply(Operation::CreateEntity { record })
-            .unwrap();
+        session.apply(Operation::CreateEntity { record }).unwrap();
         assert_eq!(
             session
                 .document
