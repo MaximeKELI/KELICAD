@@ -283,6 +283,49 @@ impl<G: IdGen> CommandEngine<G> {
                     out = self.erase_selection();
                 }
             }
+            CommandId::Text => {
+                self.active = Some((id, Active::Text { position: None }));
+                self.last_command = Some(id);
+                out.prompt = self.current_prompt();
+                out.echoes.push("Commande TEXT".into());
+            }
+            CommandId::DimLinear => {
+                self.active = Some((
+                    id,
+                    Active::DimLinear {
+                        def1: None,
+                        def2: None,
+                    },
+                ));
+                self.last_command = Some(id);
+                out.prompt = self.current_prompt();
+            }
+            CommandId::Hatch => {
+                self.active = Some((id, Active::Hatch { points: vec![] }));
+                self.last_command = Some(id);
+                out.prompt = self.current_prompt();
+            }
+            CommandId::Block => {
+                if self.selection.is_empty() {
+                    out.echoes
+                        .push("Sélectionnez des objets avant BLOCK.".into());
+                    return out;
+                }
+                self.active = Some((
+                    id,
+                    Active::Block {
+                        name: None,
+                        base: None,
+                    },
+                ));
+                self.last_command = Some(id);
+                out.prompt = self.current_prompt();
+            }
+            CommandId::Insert => {
+                self.active = Some((id, Active::Insert { name: None }));
+                self.last_command = Some(id);
+                out.prompt = self.current_prompt();
+            }
             CommandId::Move
             | CommandId::Copy
             | CommandId::Rotate
