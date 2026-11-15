@@ -1,0 +1,17 @@
+{
+  "name": "kelicad",
+  "private": true,
+  "version": "0.1.0",
+  "description": "KELICAD monorepo — CAD for architects and engineers",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm --filter @kelicad/web dev",
+    "build": "pnpm --filter @kelicad/web build",
+    "test": "pnpm --filter @kelicad/web test",
+    "lint": "pnpm --filter @kelicad/web lint",
+    "typecheck": "pnpm --filter @kelicad/web typecheck"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

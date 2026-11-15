@@ -1,0 +1,41 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/kelicad-math",
+    "crates/kelicad-geom",
+    "crates/kelicad-doc",
+    "crates/kelicad-ops",
+    "crates/kelicad-wasm",
+]
+default-members = [
+    "crates/kelicad-math",
+    "crates/kelicad-geom",
+    "crates/kelicad-doc",
+    "crates/kelicad-ops",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/kelicad/kelicad"
+rust-version = "1.75"
+
+[workspace.dependencies]
+kelicad-math = { path = "crates/kelicad-math" }
+kelicad-geom = { path = "crates/kelicad-geom" }
+kelicad-doc = { path = "crates/kelicad-doc" }
+kelicad-ops = { path = "crates/kelicad-ops" }
+uuid = { version = "1.11.0", features = ["v7", "serde"] }
+serde = { version = "1.0.215", features = ["derive"] }
+thiserror = "2.0.3"
+proptest = "1.5.0"
+wasm-bindgen = "0.2.99"
+console_error_panic_hook = "0.1.7"
+
+[profile.release]
+lto = true
+codegen-units = 1
+
+[profile.bench]
+lto = true

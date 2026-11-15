@@ -1,0 +1,1 @@
+{"name":"@kelicad/web","private":true,"version":"0.1.0","scripts":{"dev":"vite","build":"tsc -b && vite build","test":"vitest run","lint":"eslint .","typecheck":"tsc -b --pretty false"},"type":"module"}
