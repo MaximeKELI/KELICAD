@@ -11,21 +11,24 @@ use crate::error::BimError;
 /// Export BIM elements + bodies to a STEP-text IFC subset.
 pub fn export_ifc(elements: &[BimElement], bodies: &[SolidBody]) -> Result<String, BimError> {
     let by_id: HashMap<SolidId, &SolidBody> = bodies.iter().map(|b| (b.id, b)).collect();
-    let mut lines = Vec::new();
-    lines.push("ISO-10303-21;".into());
-    lines.push("HEADER;".into());
-    lines.push("FILE_DESCRIPTION(('KELICAD IFC subset'),'2;1');".into());
-    lines.push("FILE_NAME('kelicad.ifc','',('KELICAD'),('KELICAD'),'kelicad-bim','','');".into());
-    lines.push("FILE_SCHEMA(('IFC2X3'));".into());
-    lines.push("ENDSEC;".into());
-    lines.push("DATA;".into());
+    let mut lines = vec![
+        "ISO-10303-21;".into(),
+        "HEADER;".into(),
+        "FILE_DESCRIPTION(('KELICAD IFC subset'),'2;1');".into(),
+        "FILE_NAME('kelicad.ifc','',('KELICAD'),('KELICAD'),'kelicad-bim','','');".into(),
+        "FILE_SCHEMA(('IFC2X3'));".into(),
+        "ENDSEC;".into(),
+        "DATA;".into(),
+    ];
 
     let mut n = 1u32;
     let project = n;
     lines.push(format!("#{project}=IFCPROJECT('KELICAD',$,$,$,$,$,$,$,$);"));
     n += 1;
     let storey = n;
-    lines.push(format!("#{storey}=IFCBUILDINGSTOREY('Level 0',$,$,$,$,$,$,$,$);"));
+    lines.push(format!(
+        "#{storey}=IFCBUILDINGSTOREY('Level 0',$,$,$,$,$,$,$,$);"
+    ));
     n += 1;
 
     for e in elements {
@@ -113,9 +116,9 @@ pub fn import_ifc(text: &str) -> Result<(Vec<BimElement>, Vec<SolidBody>), BimEr
 fn parse_quoted_name(line: &str) -> Option<String> {
     let start = line.find('(')?;
     let rest = &line[start + 1..];
-    if rest.starts_with('\'') {
-        let end = rest[1..].find('\'')?;
-        return Some(rest[1..1 + end].to_string());
+    if let Some(stripped) = rest.strip_prefix('\'') {
+        let end = stripped.find('\'')?;
+        return Some(stripped[..end].to_string());
     }
     None
 }
@@ -141,7 +144,9 @@ fn parse_placement_near(full: &str, product_line: &str) -> Option<(f64, f64, f64
         .collect::<String>();
     let needle = format!("#{place_ref}=IFCLOCALPLACEMENT");
     for line in full.lines() {
-        if line.to_ascii_uppercase().contains(&needle.to_ascii_uppercase())
+        if line
+            .to_ascii_uppercase()
+            .contains(&needle.to_ascii_uppercase())
             || (line.starts_with(&format!("#{place_ref}="))
                 && line.to_ascii_uppercase().contains("IFCLOCALPLACEMENT"))
         {
@@ -192,9 +197,7 @@ mod tests {
     #[test]
     fn collisions_overlap_and_separate() {
         let k = BuiltinSolidKernel;
-        let a = k
-            .box_solid(Vec3::ZERO, Vec3::new(1.0, 1.0, 1.0))
-            .unwrap();
+        let a = k.box_solid(Vec3::ZERO, Vec3::new(1.0, 1.0, 1.0)).unwrap();
         let b = k
             .box_solid(Vec3::new(0.5, 0.5, 0.5), Vec3::new(1.5, 1.5, 1.5))
             .unwrap();

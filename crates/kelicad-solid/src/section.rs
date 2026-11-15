@@ -36,10 +36,7 @@ fn triangle_plane_intersect(a: Vec3, b: Vec3, c: Vec3, plane: Plane) -> Option<(
     // Dedup near points.
     if hits.len() >= 2 {
         let p0 = hits[0];
-        let p1 = hits
-            .iter()
-            .copied()
-            .find(|p| (*p - p0).length() > 1e-9)?;
+        let p1 = hits.iter().copied().find(|p| (*p - p0).length() > 1e-9)?;
         Some((p0, p1))
     } else {
         None
@@ -86,12 +83,7 @@ fn project_pair(a: Vec3, b: Vec3, abs_n: Vec3) -> (Vec2, Vec2) {
 /// Outline of AABB projected for plan/elevation helpers.
 pub fn aabb_outline_xy(min: Vec2, max: Vec2) -> Geometry {
     Geometry::Polyline(Polyline {
-        vertices: vec![
-            min,
-            Vec2::new(max.x, min.y),
-            max,
-            Vec2::new(min.x, max.y),
-        ],
+        vertices: vec![min, Vec2::new(max.x, min.y), max, Vec2::new(min.x, max.y)],
         closed: true,
     })
 }

@@ -41,8 +41,7 @@ impl Mesh {
     pub fn append(&mut self, other: &Mesh) {
         let base = self.positions.len() as u32;
         self.positions.extend_from_slice(&other.positions);
-        self.indices
-            .extend(other.indices.iter().map(|i| i + base));
+        self.indices.extend(other.indices.iter().map(|i| i + base));
     }
 
     /// Translate all vertices.
@@ -118,7 +117,12 @@ pub fn box_mesh(min: Vec3, max: Vec3) -> Mesh {
 }
 
 /// Approximate cylinder along Z.
-pub fn cylinder_mesh(center_xy: kelicad_math::Vec2, radius: f64, height: f64, segments: usize) -> Mesh {
+pub fn cylinder_mesh(
+    center_xy: kelicad_math::Vec2,
+    radius: f64,
+    height: f64,
+    segments: usize,
+) -> Mesh {
     let segs = segments.max(8);
     let mut profile = Vec::with_capacity(segs);
     for i in 0..segs {
@@ -132,11 +136,7 @@ pub fn cylinder_mesh(center_xy: kelicad_math::Vec2, radius: f64, height: f64, se
 }
 
 /// Revolve an XY profile around +Y through `degrees` (tessellated).
-pub fn revolve_xy_profile(
-    profile: &[kelicad_math::Vec2],
-    degrees: f64,
-    segments: usize,
-) -> Mesh {
+pub fn revolve_xy_profile(profile: &[kelicad_math::Vec2], degrees: f64, segments: usize) -> Mesh {
     let segs = segments.max(4);
     let rad = degrees.to_radians();
     let n = profile.len();
@@ -169,11 +169,7 @@ pub fn revolve_xy_profile(
         let end_base = (segs * n) as u32;
         let end: Vec<Vec3> = positions[segs * n..].to_vec();
         for tri in triangulate_polygon(&end) {
-            indices.extend_from_slice(&[
-                end_base + tri[0],
-                end_base + tri[1],
-                end_base + tri[2],
-            ]);
+            indices.extend_from_slice(&[end_base + tri[0], end_base + tri[1], end_base + tri[2]]);
         }
     }
     Mesh { positions, indices }

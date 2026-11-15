@@ -21,7 +21,11 @@ pub enum ViewKind {
 }
 
 /// Derive 2D geometries from a solid body.
-pub fn derive_view(body: &SolidBody, kind: ViewKind, section_plane: Option<Plane>) -> Vec<Geometry> {
+pub fn derive_view(
+    body: &SolidBody,
+    kind: ViewKind,
+    section_plane: Option<Plane>,
+) -> Vec<Geometry> {
     match kind {
         ViewKind::Plan => {
             let mut out = vec![aabb_outline_xy(

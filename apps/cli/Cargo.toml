@@ -13,6 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 kelicad-doc = { workspace = true }
+kelicad-math = { workspace = true }
 kelicad-io = { workspace = true, features = ["native"] }
 kelicad-ops = { workspace = true }
 kelicad-plugin = { workspace = true }

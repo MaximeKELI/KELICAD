@@ -20,11 +20,7 @@ pub fn schedule_csv(elements: &[BimElement], columns: &[&str]) -> String {
             let cell = match c.as_str() {
                 "kind" => format!("{:?}", e.kind).to_ascii_lowercase(),
                 "id" => e.id.to_string(),
-                "tag" => e
-                    .props
-                    .get("tag")
-                    .cloned()
-                    .unwrap_or_default(),
+                "tag" => e.props.get("tag").cloned().unwrap_or_default(),
                 other => e.props.get(other).cloned().unwrap_or_default(),
             };
             row.push(escape_csv(&cell));

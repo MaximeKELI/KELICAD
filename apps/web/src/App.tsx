@@ -365,6 +365,53 @@ export function App() {
           >
             VECTORIZE
           </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={() => {
+              try {
+                const summary = cad.solid_extrude_selected(2.5);
+                const n = cad.view_derive_apply("plan");
+                setRevision((r) => r + 1);
+                setEntityCount(cad.entity_count());
+                setEchoes((prev) => [
+                  ...prev,
+                  `EXTRUDE: ${summary}`,
+                  `Vue plan: ${n} géométrie(s); solids=${cad.solid_count()}`,
+                ]);
+              } catch (e) {
+                setEchoes((prev) => [...prev, `EXTRUDE erreur: ${String(e)}`]);
+              }
+            }}
+          >
+            EXTRUDE
+          </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={() => {
+              const csv = cad.bim_schedule_csv();
+              downloadText("schedule.csv", csv, "text/csv");
+              setEchoes((prev) => [...prev, "SCHED exportée (schedule.csv)"]);
+            }}
+          >
+            SCHED
+          </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={() => {
+              try {
+                const ifc = cad.ifc_export();
+                downloadText("model.ifc", ifc, "application/x-step");
+                setEchoes((prev) => [...prev, "IFC↑ exporté (model.ifc)"]);
+              } catch (e) {
+                setEchoes((prev) => [...prev, `IFC erreur: ${String(e)}`]);
+              }
+            }}
+          >
+            IFC↑
+          </button>
         </div>
         <div className="font-mono text-xs text-ink-500">
           Entités <span className="text-ink-100">{entityCount}</span>

@@ -14,9 +14,7 @@ use kelicad_ops::{DocSession, Operation};
 use kelicad_plugin::{
     macro_from_json, macro_to_json, record_macro, replay_macro, Manifest, PluginHost, ScriptGuest,
 };
-use kelicad_solid::{
-    derive_view, BuiltinSolidKernel, Profile2, SolidBody, SolidKernel, ViewKind,
-};
+use kelicad_solid::{derive_view, BuiltinSolidKernel, Profile2, SolidBody, SolidKernel, ViewKind};
 use kelicad_vectorize::vectorize_bytes;
 use uuid::Uuid;
 
@@ -119,9 +117,7 @@ enum IfcCmd {
         output: Option<PathBuf>,
     },
     /// Import IFC subset and print element count.
-    Import {
-        input: PathBuf,
-    },
+    Import { input: PathBuf },
 }
 
 #[derive(Subcommand)]
@@ -358,7 +354,8 @@ fn run(cli: Cli) -> Result<(), String> {
                 height,
             } => {
                 let k = BuiltinSolidKernel;
-                let profile = Profile2::rectangle(Vec2::ZERO, width, depth).map_err(|e| e.to_string())?;
+                let profile =
+                    Profile2::rectangle(Vec2::ZERO, width, depth).map_err(|e| e.to_string())?;
                 let body = k.extrude(&profile, height).map_err(|e| e.to_string())?;
                 let plan = derive_view(&body, ViewKind::Plan, None);
                 println!(
@@ -385,9 +382,8 @@ fn run(cli: Cli) -> Result<(), String> {
         },
         Commands::Bim { cmd } => match cmd {
             BimCmd::Schedule => {
-                let (_wb, we) =
-                    wall_from_baseline(Vec2::ZERO, Vec2::new(5.0, 0.0), 0.2, 2.7)
-                        .map_err(|e| e.to_string())?;
+                let (_wb, we) = wall_from_baseline(Vec2::ZERO, Vec2::new(5.0, 0.0), 0.2, 2.7)
+                    .map_err(|e| e.to_string())?;
                 let (_sb, se) =
                     slab_from_rect(Vec2::ZERO, 5.0, 4.0, 0.2).map_err(|e| e.to_string())?;
                 let csv = schedule_csv(&[we, se], &["material", "height", "thickness"]);
@@ -397,9 +393,8 @@ fn run(cli: Cli) -> Result<(), String> {
         },
         Commands::Ifc { cmd } => match cmd {
             IfcCmd::Export { output } => {
-                let (wb, we) =
-                    wall_from_baseline(Vec2::ZERO, Vec2::new(4.0, 0.0), 0.2, 2.5)
-                        .map_err(|e| e.to_string())?;
+                let (wb, we) = wall_from_baseline(Vec2::ZERO, Vec2::new(4.0, 0.0), 0.2, 2.5)
+                    .map_err(|e| e.to_string())?;
                 let (sb, se) =
                     slab_from_rect(Vec2::ZERO, 4.0, 3.0, 0.2).map_err(|e| e.to_string())?;
                 let text = export_ifc(&[we, se], &[wb, sb]).map_err(|e| e.to_string())?;

@@ -10,8 +10,8 @@ technical comments are in English.
 
 ## Status
 
-Milestone **M6 — Paramétrique et IA avancée**: 2D constraint solver, deterministic
-SVG/PNG vectorize, compliance rulesets, cleanup, and auto-dimension (ADR 0010).
+Milestone **M7 — 3D et BIM**: replaceable SolidKernel (Builtin mesh), BIM objects,
+schedules, IFC subset, derived 2D views, and AABB collisions (ADR 0011).
 
 ## Repository layout
 

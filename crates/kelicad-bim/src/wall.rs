@@ -27,16 +27,17 @@ pub fn wall_from_baseline(
     let n = Vec2::new(-tang.y, tang.x) * (thickness * 0.5);
     // Local box along X of length `len`, Y thickness, then place via mesh transform manually:
     // Build AABB-aligned box from start-n to end+n in XY.
-    let corners = [
-        start + n,
-        end + n,
-        end - n,
-        start - n,
-    ];
+    let corners = [start + n, end + n, end - n, start - n];
     let min_x = corners.iter().map(|p| p.x).fold(f64::INFINITY, f64::min);
-    let max_x = corners.iter().map(|p| p.x).fold(f64::NEG_INFINITY, f64::max);
+    let max_x = corners
+        .iter()
+        .map(|p| p.x)
+        .fold(f64::NEG_INFINITY, f64::max);
     let min_y = corners.iter().map(|p| p.y).fold(f64::INFINITY, f64::min);
-    let max_y = corners.iter().map(|p| p.y).fold(f64::NEG_INFINITY, f64::max);
+    let max_y = corners
+        .iter()
+        .map(|p| p.y)
+        .fold(f64::NEG_INFINITY, f64::max);
     // For non-axis-aligned walls, use extruded oriented profile.
     let profile = kelicad_solid::Profile2::from_vertices(corners.to_vec())?;
     let k = BuiltinSolidKernel;
@@ -69,10 +70,7 @@ pub fn slab_from_rect(
 }
 
 /// Axis-aligned box door opening solid (for difference).
-pub fn door_opening_box(
-    min: Vec3,
-    max: Vec3,
-) -> Result<(SolidBody, BimElement), BimError> {
+pub fn door_opening_box(min: Vec3, max: Vec3) -> Result<(SolidBody, BimElement), BimError> {
     let k = BuiltinSolidKernel;
     let body = k.box_solid(min, max)?;
     let elem = BimElement::new(BimKind::Door, body.id).with_prop("tag", "D-01");

@@ -47,7 +47,9 @@ pub struct BuiltinSolidKernel;
 impl SolidKernel for BuiltinSolidKernel {
     fn extrude(&self, profile: &Profile2, height: f64) -> Result<SolidBody, SolidError> {
         if height <= 0.0 || !height.is_finite() {
-            return Err(SolidError::InvalidArg("height must be finite and > 0".into()));
+            return Err(SolidError::InvalidArg(
+                "height must be finite and > 0".into(),
+            ));
         }
         let mesh = extrude_xy_profile(&profile.vertices, height);
         Ok(SolidBody::from_mesh(SolidId::new(), mesh))
@@ -60,7 +62,9 @@ impl SolidKernel for BuiltinSolidKernel {
         segments: usize,
     ) -> Result<SolidBody, SolidError> {
         if degrees.abs() < 1e-9 {
-            return Err(SolidError::InvalidArg("revolve degrees must be non-zero".into()));
+            return Err(SolidError::InvalidArg(
+                "revolve degrees must be non-zero".into(),
+            ));
         }
         let mesh = revolve_xy_profile(&profile.vertices, degrees, segments);
         if mesh.is_empty() {
@@ -71,7 +75,9 @@ impl SolidKernel for BuiltinSolidKernel {
 
     fn box_solid(&self, min: Vec3, max: Vec3) -> Result<SolidBody, SolidError> {
         if max.x <= min.x || max.y <= min.y || max.z <= min.z {
-            return Err(SolidError::InvalidArg("box max must be > min on each axis".into()));
+            return Err(SolidError::InvalidArg(
+                "box max must be > min on each axis".into(),
+            ));
         }
         Ok(SolidBody::from_mesh(SolidId::new(), box_mesh(min, max)))
     }
@@ -216,9 +222,7 @@ mod tests {
     #[test]
     fn section_midplane_outline() {
         let k = BuiltinSolidKernel;
-        let body = k
-            .box_solid(Vec3::ZERO, Vec3::new(4.0, 3.0, 2.0))
-            .unwrap();
+        let body = k.box_solid(Vec3::ZERO, Vec3::new(4.0, 3.0, 2.0)).unwrap();
         let geoms = k.section(&body, Plane::z(1.0));
         assert!(!geoms.is_empty());
     }
@@ -226,9 +230,7 @@ mod tests {
     #[test]
     fn boolean_difference_shrinks_aabb() {
         let k = BuiltinSolidKernel;
-        let wall = k
-            .box_solid(Vec3::ZERO, Vec3::new(10.0, 0.2, 3.0))
-            .unwrap();
+        let wall = k.box_solid(Vec3::ZERO, Vec3::new(10.0, 0.2, 3.0)).unwrap();
         let opening = k
             .box_solid(Vec3::new(9.0, -0.05, 0.0), Vec3::new(11.0, 0.25, 2.2))
             .unwrap();

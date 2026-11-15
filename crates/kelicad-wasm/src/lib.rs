@@ -3,16 +3,14 @@
 #![forbid(unsafe_code)]
 
 use kelicad_ai::{AgentMode, DeterministicProvider, KeliAgent, UuidV7Gen as AiUuidV7Gen};
-use kelicad_cmd::{CommandEngine, CommandEvent, CommandId, UuidV7Gen};
 use kelicad_bim::{export_ifc, schedule_csv, BimElement};
+use kelicad_cmd::{CommandEngine, CommandEvent, CommandId, UuidV7Gen};
 use kelicad_constraints::{solve, Constraint, ConstraintSystem};
 use kelicad_doc::{EntityId, EntityRecord, Geometry, Layer, LayerId};
 use kelicad_geom::{Arc, Circle, Line, Polyline};
 use kelicad_math::Vec2;
 use kelicad_ops::{DocSession, Operation};
-use kelicad_solid::{
-    derive_view, BuiltinSolidKernel, Profile2, SolidBody, SolidKernel, ViewKind,
-};
+use kelicad_solid::{derive_view, BuiltinSolidKernel, Profile2, SolidBody, SolidKernel, ViewKind};
 use kelicad_sync::{
     ActorId, CommentAnchor, CommentId, HybridTime, OpEnvelope, PresenceState, Replica, WireMessage,
 };

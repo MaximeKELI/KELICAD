@@ -39,5 +39,5 @@ All document mutation via `Operation`. Core is I/O-free and clock-free.
 
 ## Milestone in progress
 
-**M6 — Paramétrique et IA avancée.** See ADR 0010 (constraints, vectorize,
-compliance/cleanup/auto-dim). Prior: M0–M5 delivered.
+**M7 — 3D et BIM.** See ADR 0011 (SolidKernel, BIM, IFC subset, derived views).
+Prior: M0–M6 delivered.

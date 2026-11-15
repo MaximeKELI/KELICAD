@@ -1114,11 +1114,14 @@ name = "kelicad-cli"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "kelicad-bim",
  "kelicad-constraints",
  "kelicad-doc",
  "kelicad-io",
+ "kelicad-math",
  "kelicad-ops",
  "kelicad-plugin",
+ "kelicad-solid",
  "kelicad-vectorize",
  "serde",
  "serde_json",
@@ -1303,6 +1306,7 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "kelicad-ai",
+ "kelicad-bim",
  "kelicad-cmd",
  "kelicad-constraints",
  "kelicad-doc",
@@ -1312,6 +1316,7 @@ dependencies = [
  "kelicad-ops",
  "kelicad-plugin",
  "kelicad-snap",
+ "kelicad-solid",
  "kelicad-sync",
  "kelicad-vectorize",
  "serde",
