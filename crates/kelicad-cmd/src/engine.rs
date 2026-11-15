@@ -445,6 +445,30 @@ impl<G: IdGen> CommandEngine<G> {
                 "Sélectionnez les objets, Entrée pour effacer",
                 "Select objects, Enter to erase",
             ),
+            (CommandId::Text, Active::Text { position: None }) => {
+                prompt("Point d'insertion du texte", "Text insertion point")
+            }
+            (CommandId::Text, _) => prompt("Saisissez le texte", "Enter text"),
+            (CommandId::DimLinear, Active::DimLinear { def1: None, .. }) => {
+                prompt("Premier point d'extension", "First extension point")
+            }
+            (CommandId::DimLinear, Active::DimLinear { def2: None, .. }) => {
+                prompt("Second point d'extension", "Second extension point")
+            }
+            (CommandId::DimLinear, _) => {
+                prompt("Emplacement de la ligne de cote", "Dimension line location")
+            }
+            (CommandId::Hatch, _) => {
+                prompt("Point du contour (Entrée pour fermer)", "Boundary point (Enter to close)")
+            }
+            (CommandId::Block, Active::Block { name: None, .. }) => {
+                prompt("Nom du bloc", "Block name")
+            }
+            (CommandId::Block, _) => prompt("Point de base du bloc", "Block base point"),
+            (CommandId::Insert, Active::Insert { name: None }) => {
+                prompt("Nom du bloc à insérer", "Block name to insert")
+            }
+            (CommandId::Insert, _) => prompt("Point d'insertion", "Insertion point"),
             _ => prompt(id.name(), id.name()),
         })
     }
