@@ -722,6 +722,7 @@ dependencies = [
  "kelicad-math",
  "kelicad-ops",
  "kelicad-snap",
+ "kelicad-sync",
  "serde",
  "serde_json",
  "uuid",

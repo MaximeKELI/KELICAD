@@ -124,6 +124,28 @@ impl Replica {
         std::mem::take(&mut self.outbox)
     }
 
+    /// Stamp and queue an operation that was already applied to the document
+    /// (e.g. via the local command engine journal). Does not re-apply.
+    pub fn publish_already_applied(&mut self, op: Operation) -> OpEnvelope {
+        let lamport = self.tick();
+        let envelope = OpEnvelope {
+            op_id: OpId::new(),
+            actor_id: self.actor_id,
+            lamport,
+            payload: op,
+        };
+        self.lww.record(&envelope.payload, envelope.time());
+        self.applied.insert(UuidSet(envelope.op_id.0));
+        self.log.push(envelope.clone());
+        self.outbox.push(envelope.clone());
+        envelope
+    }
+
+    /// Replace mirrored session (after local engine mutations).
+    pub fn mirror_session(&mut self, session: DocSession) {
+        self.session = session;
+    }
+
     /// Integrate a remote (or replayed) envelope.
     pub fn integrate(&mut self, envelope: &OpEnvelope) -> Result<IntegrateResult, SyncError> {
         if self.applied.contains(&UuidSet(envelope.op_id.0)) {

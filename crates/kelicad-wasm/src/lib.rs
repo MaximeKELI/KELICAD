@@ -8,6 +8,9 @@ use kelicad_doc::{EntityId, EntityRecord, Geometry, Layer, LayerId};
 use kelicad_geom::{Arc, Circle, Line, Polyline};
 use kelicad_math::Vec2;
 use kelicad_ops::{DocSession, Operation};
+use kelicad_sync::{
+    ActorId, CommentAnchor, CommentId, HybridTime, OpEnvelope, PresenceState, Replica, WireMessage,
+};
 use serde::Deserialize;
 use serde::Serialize;
 use uuid::Uuid;
@@ -53,6 +56,8 @@ struct SnapshotDto {
 pub struct WasmCad {
     engine: CommandEngine<UuidV7Gen>,
     keli: KeliAgent<DeterministicProvider, AiUuidV7Gen>,
+    replica: Replica,
+    sync_journal_cursor: usize,
     last_prompt_fr: String,
 }
 
@@ -61,9 +66,12 @@ impl WasmCad {
     /// New empty drawing.
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
+        let actor = ActorId::new();
         Self {
             engine: CommandEngine::new(DocSession::new(), UuidV7Gen),
             keli: KeliAgent::new(DeterministicProvider, AiUuidV7Gen),
+            replica: Replica::new(actor, "Anonyme", [80, 180, 220]),
+            sync_journal_cursor: 0,
             last_prompt_fr: String::new(),
         }
     }
@@ -366,6 +374,241 @@ impl WasmCad {
 
     fn sync_keli_selection(&mut self) {
         self.keli.selection = self.engine.selection.iter().collect();
+    }
+
+    /// Set local collab identity (display name + RGB).
+    pub fn sync_set_identity(&mut self, name: &str, r: u8, g: u8, b: u8) {
+        self.replica.presence.name = name.to_string();
+        self.replica.presence.color = [r, g, b];
+    }
+
+    /// Actor id string.
+    pub fn sync_actor_id(&self) -> String {
+        self.replica.actor_id.to_string()
+    }
+
+    /// Publish newly journaled local ops to the collab outbox. Returns JSON array of envelopes.
+    pub fn sync_publish_local(&mut self) -> String {
+        let applied = self.engine.session.journal.len_applied();
+        if self.sync_journal_cursor > applied {
+            self.sync_journal_cursor = applied;
+        }
+        let entries: Vec<_> = self
+            .engine
+            .session
+            .journal
+            .applied()
+            .skip(self.sync_journal_cursor)
+            .cloned()
+            .collect();
+        for entry in entries {
+            self.replica.publish_already_applied(entry.op);
+        }
+        self.sync_journal_cursor = applied;
+        self.replica
+            .mirror_session(self.engine.session.clone());
+        self.sync_drain_outbox()
+    }
+
+    /// Drain pending outbox envelopes as JSON array.
+    pub fn sync_drain_outbox(&mut self) -> String {
+        let out = self.replica.drain_outbox();
+        serde_json::to_string(&out).unwrap_or_else(|_| "[]".into())
+    }
+
+    /// Integrate one remote envelope JSON. Returns status string.
+    pub fn sync_integrate(&mut self, envelope_json: &str) -> Result<String, JsValue> {
+        let env: OpEnvelope = serde_json::from_str(envelope_json)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        if env.actor_id == self.replica.actor_id {
+            return Ok("self".into());
+        }
+        let res = self
+            .replica
+            .integrate(&env)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.engine.session = self.replica.session.clone();
+        // Remote ops must not sit in local undo stack.
+        self.engine.session.journal = kelicad_ops::OpJournal::new();
+        self.sync_journal_cursor = 0;
+        Ok(format!("{res:?}"))
+    }
+
+    /// Catch-up from snapshot ops JSON array.
+    pub fn sync_catch_up(&mut self, ops_json: &str) -> Result<u32, JsValue> {
+        let ops: Vec<OpEnvelope> =
+            serde_json::from_str(ops_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let n = self
+            .replica
+            .catch_up(&ops)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.engine.session = self.replica.session.clone();
+        self.engine.session.journal = kelicad_ops::OpJournal::new();
+        self.sync_journal_cursor = 0;
+        Ok(n as u32)
+    }
+
+    /// Hello / presence wire message JSON.
+    pub fn sync_hello_json(&self) -> String {
+        serde_json::to_string(&WireMessage::Hello {
+            state: self.replica.presence.clone(),
+        })
+        .unwrap_or_else(|_| "{}".into())
+    }
+
+    /// Update local presence; returns Presence wire JSON.
+    pub fn sync_set_presence(&mut self, x: f64, y: f64, has_cursor: bool) -> String {
+        let cursor = if has_cursor {
+            Some(Vec2::new(x, y))
+        } else {
+            None
+        };
+        let selection = self.engine.selection.iter().collect();
+        let state = self.replica.set_presence(cursor, selection);
+        serde_json::to_string(&WireMessage::Presence { state }).unwrap_or_else(|_| "{}".into())
+    }
+
+    /// Ingest peer presence JSON (`PresenceState` or WireMessage::Presence).
+    pub fn sync_upsert_peer(&mut self, json: &str) -> Result<(), JsValue> {
+        if let Ok(WireMessage::Presence { state }) = serde_json::from_str::<WireMessage>(json) {
+            self.replica.upsert_peer(state);
+            return Ok(());
+        }
+        let state: PresenceState =
+            serde_json::from_str(json).map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.replica.upsert_peer(state);
+        Ok(())
+    }
+
+    /// Peers presence as JSON array.
+    pub fn sync_peers_json(&self) -> String {
+        let peers: Vec<_> = self.replica.peers.values().cloned().collect();
+        serde_json::to_string(&peers).unwrap_or_else(|_| "[]".into())
+    }
+
+    /// Add a point-anchored comment; returns comment JSON.
+    pub fn sync_add_comment_at(&mut self, x: f64, y: f64, body: &str) -> String {
+        let c = self.replica.add_comment(
+            CommentAnchor::Point {
+                position: Vec2::new(x, y),
+            },
+            body,
+        );
+        serde_json::to_string(&c).unwrap_or_else(|_| "{}".into())
+    }
+
+    /// Comments JSON array.
+    pub fn sync_comments_json(&self) -> String {
+        serde_json::to_string(&self.replica.comments.all()).unwrap_or_else(|_| "[]".into())
+    }
+
+    /// Resolve comment by id string.
+    pub fn sync_resolve_comment(&mut self, id: &str) -> Result<bool, JsValue> {
+        let u = Uuid::parse_str(id).map_err(|e| JsValue::from_str(&e.to_string()))?;
+        Ok(self.replica.resolve_comment(CommentId(u)))
+    }
+
+    /// Upsert comment from JSON (remote).
+    pub fn sync_upsert_comment_json(&mut self, json: &str) -> Result<(), JsValue> {
+        let c: kelicad_sync::Comment =
+            serde_json::from_str(json).map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let time = c.created;
+        self.replica.comments.upsert(c, time);
+        Ok(())
+    }
+
+    /// Save named version; returns restore point JSON.
+    pub fn sync_save_version(&mut self, name: &str) -> Result<String, JsValue> {
+        self.replica
+            .mirror_session(self.engine.session.clone());
+        let point = self
+            .replica
+            .save_version(name)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        serde_json::to_string(&point).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Versions JSON.
+    pub fn sync_versions_json(&self) -> String {
+        serde_json::to_string(&self.replica.versions).unwrap_or_else(|_| "[]".into())
+    }
+
+    /// Diff two version names → EntityDiff JSON.
+    pub fn sync_diff_versions(&self, a: &str, b: &str) -> Result<String, JsValue> {
+        let diff = self
+            .replica
+            .diff_versions(a, b)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        serde_json::to_string(&diff).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Document fingerprint for convergence checks.
+    pub fn sync_fingerprint(&mut self) -> String {
+        self.replica
+            .mirror_session(self.engine.session.clone());
+        self.replica.doc_fingerprint()
+    }
+
+    /// Handle an inbound wire message JSON (op/presence/comment/snapshot).
+    pub fn sync_handle_wire(&mut self, text: &str) -> Result<String, JsValue> {
+        let msg: WireMessage =
+            serde_json::from_str(text).map_err(|e| JsValue::from_str(&e.to_string()))?;
+        match msg {
+            WireMessage::Snapshot {
+                ops,
+                comments,
+                versions,
+            } => {
+                let n = self
+                    .replica
+                    .catch_up(&ops)
+                    .map_err(|e| JsValue::from_str(&e.to_string()))?;
+                for c in comments {
+                    let t = c.created;
+                    self.replica.comments.upsert(c, t);
+                }
+                self.replica.versions = versions;
+                self.engine.session = self.replica.session.clone();
+                self.engine.session.journal = kelicad_ops::OpJournal::new();
+                self.sync_journal_cursor = 0;
+                Ok(format!("snapshot:{n}"))
+            }
+            WireMessage::Op { envelope } => self.sync_integrate(
+                &serde_json::to_string(&envelope).map_err(|e| JsValue::from_str(&e.to_string()))?,
+            ),
+            WireMessage::Presence { state } => {
+                self.replica.upsert_peer(state);
+                Ok("presence".into())
+            }
+            WireMessage::CommentUpsert { comment } => {
+                let t = comment.created;
+                self.replica.comments.upsert(comment, t);
+                Ok("comment".into())
+            }
+            WireMessage::CommentResolve { id, lamport, actor_id } => {
+                let u = Uuid::parse_str(&id).map_err(|e| JsValue::from_str(&e.to_string()))?;
+                let actor = Uuid::parse_str(&actor_id)
+                    .map(ActorId)
+                    .unwrap_or(self.replica.actor_id);
+                self.replica.comments.resolve(
+                    CommentId(u),
+                    HybridTime {
+                        lamport,
+                        actor,
+                    },
+                );
+                Ok("resolve".into())
+            }
+            WireMessage::VersionSave { point } => {
+                self.replica.versions.push(point);
+                Ok("version".into())
+            }
+            WireMessage::Hello { state } => {
+                self.replica.upsert_peer(state);
+                Ok("hello".into())
+            }
+            WireMessage::Ping => Ok("ping".into()),
+        }
     }
 }
 

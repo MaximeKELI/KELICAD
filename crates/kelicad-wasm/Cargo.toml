@@ -18,6 +18,7 @@ kelicad-math = { workspace = true }
 kelicad-ops = { workspace = true }
 kelicad-snap = { workspace = true }
 kelicad-ai = { workspace = true }
+kelicad-sync = { workspace = true }
 kelicad-io = { path = "../kelicad-io", default-features = false }
 serde = { workspace = true }
 serde_json = { workspace = true }
