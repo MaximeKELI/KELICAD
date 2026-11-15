@@ -546,6 +546,12 @@ impl WasmCad {
         self.replica.doc_fingerprint()
     }
 
+    /// Export applied journal as a macro JSON script.
+    pub fn macro_record_json(&self) -> String {
+        let script = kelicad_plugin::record_macro(&self.engine.session);
+        kelicad_plugin::macro_to_json(&script).unwrap_or_else(|_| "{}".into())
+    }
+
     /// Handle an inbound wire message JSON (op/presence/comment/snapshot).
     pub fn sync_handle_wire(&mut self, text: &str) -> Result<String, JsValue> {
         let msg: WireMessage =

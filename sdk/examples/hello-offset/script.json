@@ -1,0 +1,10 @@
+[
+  {
+    "method": "create_line",
+    "args": { "start": [0.0, 0.0], "end": [1.0, 0.0], "layer": "0" }
+  },
+  {
+    "method": "summarize_document",
+    "args": {}
+  }
+]

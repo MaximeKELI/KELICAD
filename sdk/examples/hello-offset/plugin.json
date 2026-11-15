@@ -1,0 +1,11 @@
+{
+  "id": "hello-offset",
+  "version": "0.1.0",
+  "name": "Hello Offset",
+  "permissions": {
+    "doc_read": true,
+    "doc_write_layers": ["0"],
+    "net_hosts": []
+  },
+  "max_hostcalls": 32
+}

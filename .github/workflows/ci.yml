@@ -29,13 +29,16 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: clippy
-        run: cargo clippy --workspace --exclude kelicad-wasm --exclude kelicad-gateway --all-targets -- -D warnings
+        run: cargo clippy --workspace --exclude kelicad-wasm --exclude kelicad-gateway --exclude kelicad-cli --all-targets -- -D warnings
 
       - name: test
-        run: cargo test --workspace --exclude kelicad-wasm --exclude kelicad-gateway
+        run: cargo test --workspace --exclude kelicad-wasm --exclude kelicad-gateway --exclude kelicad-cli
 
       - name: gateway check
         run: cargo check -p kelicad-gateway
+
+      - name: cli check
+        run: cargo check -p kelicad-cli
 
       - name: check wasm
         run: cargo check -p kelicad-wasm --target wasm32-unknown-unknown

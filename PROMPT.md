@@ -39,5 +39,5 @@ All document mutation via `Operation`. Core is I/O-free and clock-free.
 
 ## Milestone in progress
 
-**M4 — Collaboration.** See ADR 0003/0008 (`kelicad-sync`, gateway). Prior: M0–M3
+**M5 — Plugins & API.** See ADR 0009 (`kelicad-plugin`, CLI, OpenAPI). Prior: M0–M4
 delivered.

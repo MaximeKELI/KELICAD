@@ -1,0 +1,25 @@
+[package]
+name = "kelicad-plugin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Capability-gated plugin host and guest ABI for KELICAD"
+readme = "README.md"
+
+[features]
+default = []
+wasm = ["dep:wasmtime"]
+
+[dependencies]
+kelicad-doc = { workspace = true }
+kelicad-geom = { workspace = true }
+kelicad-math = { workspace = true }
+kelicad-ops = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+wasmtime = { version = "25.0.3", optional = true }
+
+[dev-dependencies]

@@ -10,8 +10,8 @@ technical comments are in English.
 
 ## Status
 
-Milestone **M4 — Collaboration** ready for validation: operation-log sync (LWW),
-presence, comments, restore points, Axum gateway, web multi-tab collab.
+Milestone **M5 — Plugins & API** ready for validation: capability-gated plugin host,
+example plugin, SDK stubs, `kelicad-cli`, macros, OpenAPI REST on the gateway.
 
 ## Repository layout
 

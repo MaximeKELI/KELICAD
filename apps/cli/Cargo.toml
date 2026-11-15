@@ -1,0 +1,22 @@
+[package]
+name = "kelicad-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "KELICAD command-line tools: convert, validate, plugins, macros"
+publish = false
+
+[[bin]]
+name = "kelicad-cli"
+path = "src/main.rs"
+
+[dependencies]
+kelicad-doc = { workspace = true }
+kelicad-io = { workspace = true, features = ["native"] }
+kelicad-ops = { workspace = true }
+kelicad-plugin = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }

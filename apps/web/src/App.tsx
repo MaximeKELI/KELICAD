@@ -284,6 +284,17 @@ export function App() {
           >
             SVG
           </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={() => {
+              const json = cad.macro_record_json();
+              downloadText("macro.json", json, "application/json");
+              setEchoes((prev) => [...prev, "Macro exportée (macro.json)"]);
+            }}
+          >
+            MACRO
+          </button>
         </div>
         <div className="font-mono text-xs text-ink-500">
           Entités <span className="text-ink-100">{entityCount}</span>

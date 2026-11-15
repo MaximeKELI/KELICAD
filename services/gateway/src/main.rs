@@ -44,8 +44,15 @@ async fn main() {
 
     let app = Router::new()
         .route("/health", get(|| async { "ok" }))
+        .route(
+            "/v1/health",
+            get(|| async { Json(serde_json::json!({"ok": true})) }),
+        )
         .route("/rooms", post(create_room))
+        .route("/v1/rooms", post(create_room))
         .route("/rooms/:id/ws", get(ws_handler))
+        .route("/v1/rooms/:id/snapshot", get(get_snapshot))
+        .route("/v1/rooms/:id/ops", post(post_ops))
         .layer(CorsLayer::permissive())
         .with_state(state);
 
@@ -77,6 +84,61 @@ async fn ws_handler(
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
     ws.on_upgrade(move |socket| handle_socket(socket, id, state))
+}
+
+#[derive(Serialize)]
+struct SnapshotResponse {
+    room_id: String,
+    ops: Vec<OpEnvelope>,
+    comments: Vec<Comment>,
+    versions: Vec<RestorePoint>,
+}
+
+async fn get_snapshot(
+    Path(id): Path<String>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<SnapshotResponse>, axum::http::StatusCode> {
+    let rooms = state.rooms.lock().await;
+    let room = rooms.get(&id).ok_or(axum::http::StatusCode::NOT_FOUND)?;
+    Ok(Json(SnapshotResponse {
+        room_id: id,
+        ops: room.ops.clone(),
+        comments: room.comments.clone(),
+        versions: room.versions.clone(),
+    }))
+}
+
+#[derive(serde::Deserialize)]
+struct PostOpsBody {
+    envelope: OpEnvelope,
+}
+
+async fn post_ops(
+    Path(id): Path<String>,
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<PostOpsBody>,
+) -> Result<Json<serde_json::Value>, axum::http::StatusCode> {
+    let tx = {
+        let buses = state.buses.lock().await;
+        buses.get(&id).cloned()
+    };
+    {
+        let mut rooms = state.rooms.lock().await;
+        let room = rooms
+            .get_mut(&id)
+            .ok_or(axum::http::StatusCode::NOT_FOUND)?;
+        if !room.ops.iter().any(|e| e.op_id == body.envelope.op_id) {
+            room.ops.push(body.envelope.clone());
+        }
+    }
+    if let Some(tx) = tx {
+        if let Ok(out) = serde_json::to_string(&WireMessage::Op {
+            envelope: body.envelope.clone(),
+        }) {
+            let _ = tx.send(out);
+        }
+    }
+    Ok(Json(serde_json::json!({ "ok": true })))
 }
 
 async fn handle_socket(socket: WebSocket, room_id: String, state: Arc<AppState>) {

@@ -1,0 +1,66 @@
+openapi: 3.0.3
+info:
+  title: KELICAD Collaboration API
+  version: 0.1.0
+  description: M5 REST surface for rooms, snapshots, and op append.
+servers:
+  - url: http://127.0.0.1:8787
+paths:
+  /v1/health:
+    get:
+      summary: Liveness
+      responses:
+        "200":
+          description: OK
+  /v1/rooms:
+    post:
+      summary: Create a collaboration room
+      responses:
+        "200":
+          description: Room created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  room_id:
+                    type: string
+                  ws_url:
+                    type: string
+  /v1/rooms/{id}/snapshot:
+    get:
+      summary: Fetch room oplog snapshot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Snapshot
+        "404":
+          description: Unknown room
+  /v1/rooms/{id}/ops:
+    post:
+      summary: Append an operation envelope
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                envelope:
+                  type: object
+      responses:
+        "200":
+          description: Accepted
+        "404":
+          description: Unknown room

@@ -82,6 +82,7 @@ export type CadSession = {
   sync_diff_versions(a: string, b: string): string;
   sync_fingerprint(): string;
   sync_handle_wire(text: string): string;
+  macro_record_json(): string;
 };
 
 export function parseCadOutput(raw: string): CadOutput {

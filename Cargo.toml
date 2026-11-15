@@ -10,8 +10,11 @@ members = [
     "crates/kelicad-io",
     "crates/kelicad-ai",
     "crates/kelicad-sync",
+    "crates/kelicad-plugin",
     "crates/kelicad-wasm",
     "services/gateway",
+    "apps/cli",
+    "sdk/rust",
 ]
 default-members = [
     "crates/kelicad-math",
@@ -23,6 +26,7 @@ default-members = [
     "crates/kelicad-io",
     "crates/kelicad-ai",
     "crates/kelicad-sync",
+    "crates/kelicad-plugin",
 ]
 
 [workspace.package]
@@ -42,6 +46,8 @@ kelicad-cmd = { path = "crates/kelicad-cmd" }
 kelicad-io = { path = "crates/kelicad-io" }
 kelicad-ai = { path = "crates/kelicad-ai" }
 kelicad-sync = { path = "crates/kelicad-sync" }
+kelicad-plugin = { path = "crates/kelicad-plugin" }
+clap = { version = "4.5.21", features = ["derive"] }
 axum = { version = "0.7.9", features = ["ws"] }
 tokio = { version = "1.41.1", features = ["rt-multi-thread", "macros", "net", "sync", "time"] }
 tower-http = { version = "0.6.2", features = ["cors"] }
