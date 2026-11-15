@@ -48,6 +48,7 @@ struct SnapshotDto {
 #[wasm_bindgen]
 pub struct WasmCad {
     engine: CommandEngine<UuidV7Gen>,
+    last_prompt_fr: String,
 }
 
 #[wasm_bindgen]
@@ -57,6 +58,15 @@ impl WasmCad {
     pub fn new() -> Self {
         Self {
             engine: CommandEngine::new(DocSession::new(), UuidV7Gen),
+            last_prompt_fr: String::new(),
+        }
+    }
+
+    fn remember(&mut self, out: &kelicad_cmd::CommandOutput) {
+        if let Some(p) = &out.prompt {
+            self.last_prompt_fr = p.message_fr.clone();
+        } else if self.engine.active_command().is_none() {
+            self.last_prompt_fr.clear();
         }
     }
 
@@ -68,6 +78,7 @@ impl WasmCad {
     /// Submit a command-line string (command name or point/number).
     pub fn submit_text(&mut self, text: &str) -> Result<String, JsValue> {
         let out = self.engine.handle(CommandEvent::Text(text.to_string()));
+        self.remember(&out);
         Ok(output_json(&out))
     }
 
@@ -75,42 +86,49 @@ impl WasmCad {
     pub fn start_command(&mut self, name: &str) -> Result<String, JsValue> {
         let id = CommandId::parse(name).ok_or_else(|| JsValue::from_str("unknown command"))?;
         let out = self.engine.handle(CommandEvent::Start(id));
+        self.remember(&out);
         Ok(output_json(&out))
     }
 
     /// World-space pick.
     pub fn pick(&mut self, x: f64, y: f64) -> Result<String, JsValue> {
         let out = self.engine.handle(CommandEvent::Pick(Vec2::new(x, y)));
+        self.remember(&out);
         Ok(output_json(&out))
     }
 
     /// Hover for ghost / snap.
     pub fn hover(&mut self, x: f64, y: f64) -> Result<String, JsValue> {
         let out = self.engine.handle(CommandEvent::Hover(Vec2::new(x, y)));
+        self.remember(&out);
         Ok(output_json(&out))
     }
 
     /// Enter.
     pub fn enter(&mut self) -> Result<String, JsValue> {
         let out = self.engine.handle(CommandEvent::Enter);
+        self.remember(&out);
         Ok(output_json(&out))
     }
 
     /// Cancel (Escape).
     pub fn cancel(&mut self) -> Result<String, JsValue> {
         let out = self.engine.handle(CommandEvent::Cancel);
+        self.remember(&out);
         Ok(output_json(&out))
     }
 
     /// Undo.
     pub fn undo(&mut self) -> Result<String, JsValue> {
         let out = self.engine.handle(CommandEvent::Start(CommandId::Undo));
+        self.remember(&out);
         Ok(output_json(&out))
     }
 
     /// Redo.
     pub fn redo(&mut self) -> Result<String, JsValue> {
         let out = self.engine.handle(CommandEvent::Start(CommandId::Redo));
+        self.remember(&out);
         Ok(output_json(&out))
     }
 
@@ -158,18 +176,16 @@ impl WasmCad {
         out
     }
 
-    /// Ghost preview line vertices.
-    pub fn ghost_line_vertices(&self, hover_x: f64, hover_y: f64) -> Vec<f32> {
+    /// Ghost preview line vertices at world hover position.
+    pub fn ghost_line_vertices(&mut self, hover_x: f64, hover_y: f64) -> Vec<f32> {
         let out = self
             .engine
             .handle(CommandEvent::Hover(Vec2::new(hover_x, hover_y)));
+        self.remember(&out);
         let mut verts = Vec::new();
-        for g in out.ghost {
-            append_geometry_lines(&g, &mut verts);
+        for g in &out.ghost {
+            append_geometry_lines(g, &mut verts);
         }
-        // Hover is side-effect free for document; but handle mutates last snap only via &mut.
-        // Note: we needed &mut self for handle — ghost query advances nothing harmful.
-        let _ = out;
         verts
     }
 
@@ -181,9 +197,7 @@ impl WasmCad {
 
     /// Active prompt (French) or empty.
     pub fn prompt_fr(&self) -> String {
-        // Recompute prompt without event: peek via active command path
-        // Expose last by running a no-op hover at last point if any
-        String::new()
+        self.last_prompt_fr.clone()
     }
 }
 

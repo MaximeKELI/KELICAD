@@ -351,10 +351,14 @@ name = "kelicad-wasm"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
+ "kelicad-cmd",
  "kelicad-doc",
  "kelicad-geom",
  "kelicad-math",
  "kelicad-ops",
+ "kelicad-snap",
+ "serde",
+ "serde_json",
  "uuid",
  "wasm-bindgen",
 ]
