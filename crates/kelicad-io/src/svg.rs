@@ -32,7 +32,7 @@ pub fn export_svg(session: &DocSession, width: f64, height: f64) -> Result<Strin
     writeln!(
         out,
         r#"<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="{min_x} {} {} {}" fill="none" stroke="#1f6feb" stroke-width="0.05">"#,
+<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="{min_x} {} {} {}" fill="none" stroke="##1f6feb" stroke-width="0.05">"#,
         -max_y,
         max_x - min_x,
         max_y - min_y
@@ -142,7 +142,7 @@ fn write_geom(out: &mut String, g: &Geometry) -> Result<(), IoError> {
         Geometry::Text(t) => {
             writeln!(
                 out,
-                r#"<text x="{}" y="{}" font-size="{}" transform="scale(1,-1) translate(0,{})" fill="#e8eef8" stroke="none">{}</text>"#,
+                r#"<text x="{}" y="{}" font-size="{}" transform="scale(1,-1) translate(0,{})" fill="##e8eef8" stroke="none">{}</text>"#,
                 t.position.x,
                 -t.position.y,
                 t.height,
@@ -154,7 +154,7 @@ fn write_geom(out: &mut String, g: &Geometry) -> Result<(), IoError> {
         Geometry::MText(t) => {
             writeln!(
                 out,
-                r#"<text x="{}" y="{}" font-size="{}" fill="#e8eef8" stroke="none">{}</text>"#,
+                r#"<text x="{}" y="{}" font-size="{}" fill="##e8eef8" stroke="none">{}</text>"#,
                 t.position.x,
                 t.position.y,
                 t.height,
@@ -172,7 +172,7 @@ fn write_geom(out: &mut String, g: &Geometry) -> Result<(), IoError> {
             let mid = d.def1.lerp(d.def2, 0.5);
             writeln!(
                 out,
-                r#"<text x="{}" y="{}" font-size="0.35" fill="#e8eef8" stroke="none">{}</text>"#,
+                r#"<text x="{}" y="{}" font-size="0.35" fill="##e8eef8" stroke="none">{}</text>"#,
                 mid.x,
                 mid.y,
                 xml_escape(&d.display_text())
@@ -191,14 +191,14 @@ fn write_geom(out: &mut String, g: &Geometry) -> Result<(), IoError> {
             d.push_str(" Z");
             writeln!(
                 out,
-                r#"<path d="{d}" fill="#1f6feb33" stroke="#1f6feb" />"#
+                r#"<path d="{d}" fill="##1f6feb33" stroke="##1f6feb" />"#
             )
             .map_err(|e| IoError::Format(e.to_string()))?;
         }
         Geometry::Insert(i) => {
             writeln!(
                 out,
-                r#"<circle cx="{}" cy="{}" r="0.2" fill="#1f6feb" stroke="none" />"#,
+                r#"<circle cx="{}" cy="{}" r="0.2" fill="##1f6feb" stroke="none" />"#,
                 i.position.x, i.position.y
             )
             .map_err(|e| IoError::Format(e.to_string()))?;
@@ -206,7 +206,7 @@ fn write_geom(out: &mut String, g: &Geometry) -> Result<(), IoError> {
         Geometry::Point(p) => {
             writeln!(
                 out,
-                r#"<circle cx="{}" cy="{}" r="0.1" fill="#1f6feb" stroke="none" />"#,
+                r#"<circle cx="{}" cy="{}" r="0.1" fill="##1f6feb" stroke="none" />"#,
                 p.x, p.y
             )
             .map_err(|e| IoError::Format(e.to_string()))?;
