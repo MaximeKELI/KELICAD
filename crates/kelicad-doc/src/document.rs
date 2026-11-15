@@ -4,9 +4,11 @@ use std::collections::HashMap;
 
 use uuid::Uuid;
 
+use crate::blocks::{BlockDef, BlockId};
 use crate::entity::{EntityId, EntityKind};
 use crate::geometry::Geometry;
 use crate::layer::{Layer, LayerId};
+use crate::layout::{Layout, LayoutId};
 
 /// Stored entity record.
 #[derive(Debug, Clone, PartialEq)]
@@ -34,6 +36,14 @@ pub struct Document {
     pub current_layer: LayerId,
     /// Name of the default layer created with every document.
     default_layer_id: LayerId,
+    /// Block definitions by id.
+    blocks: HashMap<BlockId, BlockDef>,
+    /// Block name (uppercase) → id.
+    block_names: HashMap<String, BlockId>,
+    /// Paper-space layouts.
+    layouts: HashMap<LayoutId, Layout>,
+    /// Active layout (`None` = model space).
+    pub current_layout: Option<LayoutId>,
 }
 
 impl Document {
@@ -52,6 +62,10 @@ impl Document {
             layers,
             current_layer: default_layer_id,
             default_layer_id,
+            blocks: HashMap::new(),
+            block_names: HashMap::new(),
+            layouts: HashMap::new(),
+            current_layout: None,
         }
     }
 
@@ -122,6 +136,62 @@ impl Document {
         self.current_layer = id;
         Ok(())
     }
+
+    /// Upsert a block definition.
+    pub fn upsert_block(&mut self, def: BlockDef) {
+        let key = def.name.to_ascii_uppercase();
+        self.block_names.insert(key, def.id);
+        self.blocks.insert(def.id, def);
+    }
+
+    /// Remove a block by id.
+    pub fn remove_block(&mut self, id: BlockId) -> Option<BlockDef> {
+        if let Some(def) = self.blocks.remove(&id) {
+            self.block_names.remove(&def.name.to_ascii_uppercase());
+            Some(def)
+        } else {
+            None
+        }
+    }
+
+    /// Get block by id.
+    pub fn get_block(&self, id: BlockId) -> Option<&BlockDef> {
+        self.blocks.get(&id)
+    }
+
+    /// Lookup block by name (case-insensitive).
+    pub fn block_by_name(&self, name: &str) -> Option<&BlockDef> {
+        let id = self.block_names.get(&name.to_ascii_uppercase())?;
+        self.blocks.get(id)
+    }
+
+    /// Iterate blocks.
+    pub fn blocks(&self) -> impl Iterator<Item = &BlockDef> {
+        self.blocks.values()
+    }
+
+    /// Upsert a layout.
+    pub fn upsert_layout(&mut self, layout: Layout) {
+        self.layouts.insert(layout.id, layout);
+    }
+
+    /// Remove layout.
+    pub fn remove_layout(&mut self, id: LayoutId) -> Option<Layout> {
+        if self.current_layout == Some(id) {
+            self.current_layout = None;
+        }
+        self.layouts.remove(&id)
+    }
+
+    /// Get layout.
+    pub fn get_layout(&self, id: LayoutId) -> Option<&Layout> {
+        self.layouts.get(&id)
+    }
+
+    /// Iterate layouts.
+    pub fn layouts(&self) -> impl Iterator<Item = &Layout> {
+        self.layouts.values()
+    }
 }
 
 impl Default for Document {
@@ -139,6 +209,12 @@ pub enum DocError {
     CannotRemoveDefaultLayer,
     /// Layer still referenced by entities.
     LayerInUse,
+    /// Block id not present.
+    UnknownBlock(BlockId),
+    /// Block name already exists.
+    BlockExists(String),
+    /// Layout missing.
+    UnknownLayout(LayoutId),
 }
 
 impl std::fmt::Display for DocError {
