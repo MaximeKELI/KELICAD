@@ -10,8 +10,9 @@ technical comments are in English.
 
 ## Status
 
-Milestone **M0 — Foundations** (in progress): math/geometry core, document +
-ops, wgpu canvas demo, ADRs, `.kelicad` spec v0.
+Milestone **M0 — Foundations** implemented (pending product validation):
+math/geometry core, document + ops, WebGPU canvas demo (100k lines), ADRs
+0001–0004, `.kelicad` spec v0.
 
 ## Repository layout
 
