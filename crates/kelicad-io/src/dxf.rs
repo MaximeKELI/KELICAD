@@ -498,4 +498,54 @@ mod tests {
         assert_eq!(report.imported, 2);
         assert_eq!(loaded.document.entity_count(), 2);
     }
+
+    #[test]
+    fn corpus_line_circle_file() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../formats/corpus/dxf/line_circle.dxf"
+        );
+        let text = std::fs::read_to_string(path).expect("corpus file");
+        let (session, report) = import_dxf(&text).unwrap();
+        assert_eq!(report.imported, 2);
+        assert_eq!(session.document.entity_count(), 2);
+        let again = export_dxf(&session).unwrap();
+        let (session2, report2) = import_dxf(&again).unwrap();
+        assert_eq!(report2.imported, 2);
+        assert_eq!(session2.document.entity_count(), 2);
+    }
+
+    #[test]
+    fn corpus_polyline_text_file() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../formats/corpus/dxf/polyline_text.dxf"
+        );
+        let text = std::fs::read_to_string(path).unwrap();
+        let (session, report) = import_dxf(&text).unwrap();
+        assert_eq!(report.imported, 2);
+        assert!(session
+            .document
+            .entities()
+            .any(|e| matches!(e.geometry, Geometry::Text(_))));
+    }
+
+    #[test]
+    fn svg_and_pdf_smoke() {
+        let mut session = DocSession::new();
+        session
+            .apply(Operation::CreateEntity {
+                record: EntityRecord {
+                    id: EntityId::from_uuid(Uuid::from_u128(9)),
+                    kind: EntityKind::Line,
+                    geometry: Geometry::Line(Line::new(Vec2::ZERO, Vec2::new(5.0, 5.0))),
+                    layer_id: session.document.default_layer_id(),
+                },
+            })
+            .unwrap();
+        let svg = crate::export_svg(&session, 800.0, 600.0).unwrap();
+        assert!(svg.contains("<svg"));
+        let pdf = crate::export_pdf(&session).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
 }
