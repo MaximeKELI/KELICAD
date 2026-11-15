@@ -561,6 +561,51 @@ impl<G: IdGen> CommandEngine<G> {
             };
         }
 
+        // Text content / block names when waiting for string input.
+        if let Some((CommandId::Text, Active::Text { position: Some(p) })) = self.active.clone() {
+            let out = self.commit_one(Geometry::Text(TextGeom {
+                position: p,
+                height: 2.5,
+                rotation: 0.0,
+                content: t.to_string(),
+                align: TextAlign::Left,
+            }));
+            self.active = None;
+            return out;
+        }
+        if let Some((CommandId::Block, Active::Block { name: None, base })) = self.active.clone() {
+            self.active = Some((
+                CommandId::Block,
+                Active::Block {
+                    name: Some(t.to_string()),
+                    base,
+                },
+            ));
+            return CommandOutput {
+                prompt: self.current_prompt(),
+                echoes: vec![format!("Bloc « {t} »")],
+                ..Default::default()
+            };
+        }
+        if let Some((CommandId::Insert, Active::Insert { name: None })) = self.active.clone() {
+            if self.session.document.block_by_name(t).is_none() {
+                return CommandOutput {
+                    echoes: vec![format!("Bloc inconnu : {t}")],
+                    ..Default::default()
+                };
+            }
+            self.active = Some((
+                CommandId::Insert,
+                Active::Insert {
+                    name: Some(t.to_string()),
+                },
+            ));
+            return CommandOutput {
+                prompt: self.current_prompt(),
+                ..Default::default()
+            };
+        }
+
         // Option keywords
         let upper = t.to_ascii_uppercase();
         if upper == "C" || upper == "CL" || upper == "CLOSE" {
