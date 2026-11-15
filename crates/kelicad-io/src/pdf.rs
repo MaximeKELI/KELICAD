@@ -1,54 +1,113 @@
 //! PDF vector export via `printpdf` (MIT).
 
+use std::io::BufWriter;
+
 use kelicad_doc::Geometry;
 use kelicad_ops::DocSession;
-use printpdf::{BuiltinFont, Mm, PdfDocument, PdfLayerReference};
+use printpdf::{BuiltinFont, Mm, PdfDocument, Point};
 
 use crate::error::IoError;
 
 /// Export a single-page PDF approximating model space on A4 landscape.
 pub fn export_pdf(session: &DocSession) -> Result<Vec<u8>, IoError> {
-    let (doc, page1, layer1) =
-        PdfDocument::new("KELICAD", Mm(297.0), Mm(210.0), "Layer 1");
+    let (doc, page1, layer1) = PdfDocument::new("KELICAD", Mm(297.0), Mm(210.0), "Layer 1");
     let layer = doc.get_page(page1).get_layer(layer1);
 
-    // Fit content into page with margin.
     let (min_x, min_y, max_x, max_y) = content_bounds(session);
     let content_w = (max_x - min_x).max(1.0);
     let content_h = (max_y - min_y).max(1.0);
-    let margin = 15.0;
+    let margin = 15.0_f32;
     let page_w = 297.0 - 2.0 * margin;
     let page_h = 210.0 - 2.0 * margin;
-    let scale = (page_w / content_w).min(page_h / content_h);
+    let scale = (page_w / content_w as f32).min(page_h / content_h as f32);
 
-    let map = |x: f64, y: f64| -> (Mm, Mm) {
-        let px = margin + (x - min_x) * scale;
-        let py = margin + (y - min_y) * scale;
-        (Mm(px as f32), Mm(py as f32))
+    let map = |x: f64, y: f64| -> Point {
+        let px = margin + (x as f32 - min_x as f32) * scale;
+        let py = margin + (y as f32 - min_y as f32) * scale;
+        Point::new(Mm(px), Mm(py))
     };
 
-    draw_entities(&layer, session, &map)?;
+    for ent in session.document.entities() {
+        match &ent.geometry {
+            Geometry::Line(l) => {
+                let points = vec![map(l.start.x, l.start.y), map(l.end.x, l.end.y)];
+                layer.add_line(printpdf::Line {
+                    points: points.into_iter().map(|p| (p, false)).collect(),
+                    is_closed: false,
+                });
+            }
+            Geometry::Polyline(p) if p.vertices.len() >= 2 => {
+                let points: Vec<_> = p
+                    .vertices
+                    .iter()
+                    .map(|v| (map(v.x, v.y), false))
+                    .collect();
+                layer.add_line(printpdf::Line {
+                    points,
+                    is_closed: p.closed,
+                });
+            }
+            Geometry::Circle(c) => {
+                let mut points = Vec::new();
+                const N: usize = 48;
+                for i in 0..=N {
+                    let a = (i as f64) / (N as f64) * std::f64::consts::TAU;
+                    let pt = c.point_at_angle(a);
+                    points.push((map(pt.x, pt.y), false));
+                }
+                layer.add_line(printpdf::Line {
+                    points,
+                    is_closed: true,
+                });
+            }
+            Geometry::Dimension(d) => {
+                layer.add_line(printpdf::Line {
+                    points: vec![
+                        (map(d.def1.x, d.def1.y), false),
+                        (map(d.def2.x, d.def2.y), false),
+                    ],
+                    is_closed: false,
+                });
+            }
+            Geometry::Hatch(h) if h.boundary.len() >= 2 => {
+                let points: Vec<_> = h
+                    .boundary
+                    .iter()
+                    .map(|v| (map(v.x, v.y), false))
+                    .collect();
+                layer.add_line(printpdf::Line {
+                    points,
+                    is_closed: true,
+                });
+            }
+            Geometry::Arc(a) => {
+                let mut points = Vec::new();
+                const N: usize = 32;
+                for i in 0..=N {
+                    let t = (i as f64) / (N as f64);
+                    let pt = a.point_at(t);
+                    points.push((map(pt.x, pt.y), false));
+                }
+                layer.add_line(printpdf::Line {
+                    points,
+                    is_closed: false,
+                });
+            }
+            _ => {}
+        }
+    }
 
     let font = doc
         .add_builtin_font(BuiltinFont::Helvetica)
-        .map_err(|e| IoError::Format(e.to_string()))?;
+        .map_err(|e| IoError::Format(format!("{e}")))?;
     layer.use_text("KELICAD", 10.0, Mm(10.0), Mm(200.0), &font);
 
-    doc.save(&mut std::io::Cursor::new({
-        let mut buf = Vec::new();
-        // printpdf save API
-        buf
-    }))
-    .ok();
-
-    // Correct save path:
     let mut buf = Vec::new();
     {
-        let mut cursor = std::io::Cursor::new(&mut buf);
-        doc.save(&mut cursor)
-            .map_err(|e| IoError::Format(e.to_string()))?;
+        let mut writer = BufWriter::new(&mut buf);
+        doc.save(&mut writer)
+            .map_err(|e| IoError::Format(format!("{e}")))?;
     }
-    let _ = font;
     Ok(buf)
 }
 
@@ -92,6 +151,7 @@ fn content_bounds(session: &DocSession) -> (f64, f64, f64, f64) {
             Geometry::Arc(a) => {
                 add(a.center.x, a.center.y);
                 add(a.start_point().x, a.start_point().y);
+                add(a.end_point().x, a.end_point().y);
             }
             Geometry::Insert(i) => add(i.position.x, i.position.y),
             Geometry::Point(p) => add(p.x, p.y),
@@ -102,72 +162,4 @@ fn content_bounds(session: &DocSession) -> (f64, f64, f64, f64) {
     } else {
         (min_x, min_y, max_x, max_y)
     }
-}
-
-fn draw_entities(
-    layer: &PdfLayerReference,
-    session: &DocSession,
-    map: &dyn Fn(f64, f64) -> (Mm, Mm),
-) -> Result<(), IoError> {
-    use printpdf::Line as PdfLine;
-    use printpdf::Point;
-
-    for ent in session.document.entities() {
-        if let Geometry::Line(l) = &ent.geometry {
-            let (x0, y0) = map(l.start.x, l.start.y);
-            let (x1, y1) = map(l.end.x, l.end.y);
-            let line = PdfLine {
-                points: vec![
-                    (Point::new(x0, y0), false),
-                    (Point::new(x1, y1), false),
-                ],
-                is_closed: false,
-            };
-            layer.add_line(line);
-        }
-        if let Geometry::Polyline(p) = &ent.geometry {
-            if p.vertices.len() >= 2 {
-                let points = p
-                    .vertices
-                    .iter()
-                    .map(|v| {
-                        let (x, y) = map(v.x, v.y);
-                        (Point::new(x, y), false)
-                    })
-                    .collect();
-                let line = PdfLine {
-                    points,
-                    is_closed: p.closed,
-                };
-                layer.add_line(line);
-            }
-        }
-        if let Geometry::Circle(c) = &ent.geometry {
-            // Approximate circle with polyline.
-            let mut points = Vec::new();
-            const N: usize = 48;
-            for i in 0..=N {
-                let a = (i as f64) / (N as f64) * std::f64::consts::TAU;
-                let p = c.point_at_angle(a);
-                let (x, y) = map(p.x, p.y);
-                points.push((Point::new(x, y), false));
-            }
-            layer.add_line(PdfLine {
-                points,
-                is_closed: true,
-            });
-        }
-        if let Geometry::Dimension(d) = &ent.geometry {
-            let (x0, y0) = map(d.def1.x, d.def1.y);
-            let (x1, y1) = map(d.def2.x, d.def2.y);
-            layer.add_line(PdfLine {
-                points: vec![
-                    (Point::new(x0, y0), false),
-                    (Point::new(x1, y1), false),
-                ],
-                is_closed: false,
-            });
-        }
-    }
-    Ok(())
 }

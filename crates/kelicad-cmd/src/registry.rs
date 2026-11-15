@@ -35,6 +35,16 @@ pub enum CommandId {
     Undo,
     /// REDO
     Redo,
+    /// TEXT
+    Text,
+    /// DIMLINEAR
+    DimLinear,
+    /// HATCH
+    Hatch,
+    /// BLOCK
+    Block,
+    /// INSERT
+    Insert,
 }
 
 impl CommandId {
