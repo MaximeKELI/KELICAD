@@ -7,6 +7,10 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
   },
+  assetsInclude: ["**/*.wasm"],
+  optimizeDeps: {
+    exclude: ["kelicad_wasm"],
+  },
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
