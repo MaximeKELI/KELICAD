@@ -833,9 +833,119 @@ impl<G: IdGen> CommandEngine<G> {
                 }
                 out.prompt = self.current_prompt();
             }
+            (CommandId::Text, Active::Text { position: None }) => {
+                self.active = Some((CommandId::Text, Active::Text { position: Some(p) }));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::DimLinear,
+                Active::DimLinear {
+                    def1: None,
+                    def2: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::DimLinear,
+                    Active::DimLinear {
+                        def1: Some(p),
+                        def2: None,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::DimLinear,
+                Active::DimLinear {
+                    def1: Some(a),
+                    def2: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::DimLinear,
+                    Active::DimLinear {
+                        def1: Some(a),
+                        def2: Some(p),
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::DimLinear,
+                Active::DimLinear {
+                    def1: Some(a),
+                    def2: Some(b),
+                },
+            ) => {
+                out = self.commit_one(Geometry::Dimension(DimensionGeom {
+                    kind: DimKind::Linear,
+                    def1: a,
+                    def2: b,
+                    dim_line: p,
+                    assoc_a: None,
+                    assoc_b: None,
+                    text_override: None,
+                }));
+                self.active = None;
+            }
+            (CommandId::Hatch, Active::Hatch { mut points }) => {
+                points.push(p);
+                self.active = Some((CommandId::Hatch, Active::Hatch { points }));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Block,
+                Active::Block {
+                    name: Some(name),
+                    base: None,
+                },
+            ) => {
+                out = self.create_block_from_selection(&name, p);
+                self.active = None;
+            }
+            (
+                CommandId::Insert,
+                Active::Insert { name: Some(name) },
+            ) => {
+                if let Some(def) = self.session.document.block_by_name(&name) {
+                    let block_id = def.id;
+                    out = self.commit_one(Geometry::Insert(InsertGeom {
+                        block_id,
+                        position: p,
+                        scale: Vec2::new(1.0, 1.0),
+                        rotation: 0.0,
+                        attribs: Default::default(),
+                    }));
+                } else {
+                    out.echoes.push(format!("Bloc inconnu : {name}"));
+                }
+                self.active = None;
+            }
             _ => {}
         }
         out
+    }
+
+    fn create_block_from_selection(&mut self, name: &str, base: Vec2) -> CommandOutput {
+        let mut entities = Vec::new();
+        let mut delete_ops = Vec::new();
+        for id in self.selection.iter() {
+            if let Some(ent) = self.session.document.get_entity(id) {
+                entities.push(ent.geometry.translated(Vec2::new(-base.x, -base.y)));
+                delete_ops.push(Operation::DeleteEntity { id });
+            }
+        }
+        let block_id = BlockId::from_uuid(Uuid::now_v7());
+        let def = BlockDef {
+            id: block_id,
+            name: name.to_string(),
+            origin: Vec2::ZERO,
+            entities,
+            attributes: vec![],
+        };
+        let mut ops = vec![Operation::UpsertBlock { def }];
+        ops.extend(delete_ops);
+        self.selection.clear();
+        self.apply_batch(ops, format!("Bloc « {name} » créé"))
     }
 
     fn commit_one(&mut self, geometry: Geometry) -> CommandOutput {
