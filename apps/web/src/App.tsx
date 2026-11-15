@@ -9,6 +9,7 @@ import { loadCad } from "./cad/loadCad";
 import { parseCadOutput, type CadSession } from "./cad/types";
 import { CommandLine } from "./components/CommandLine";
 import { DrawingViewport } from "./components/DrawingViewport";
+import { KeliPanel } from "./components/KeliPanel";
 
 const QUICK = [
   "L",
@@ -38,7 +39,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [echoes, setEchoes] = useState<string[]>([
-    "KELICAD M2 — dessin + annotation (DT, DLI, H, B, I) + DXF/SVG.",
+    "KELICAD M3 — dessin + annotation + KELI (panneau à droite).",
   ]);
   const [revision, setRevision] = useState(0);
   const [entityCount, setEntityCount] = useState(0);
@@ -217,7 +218,7 @@ export function App() {
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-700/60 bg-ink-900 px-4 py-2">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-accent-soft">KELICAD</p>
-          <h1 className="text-base font-medium">Dessin 2D — M2</h1>
+          <h1 className="text-base font-medium">Dessin 2D — M3 · KELI</h1>
         </div>
         <div className="flex flex-wrap gap-1">
           {QUICK.map((cmd) => (
@@ -270,9 +271,21 @@ export function App() {
           Entités <span className="text-ink-100">{entityCount}</span>
         </div>
       </header>
-      <main className="min-h-0 flex-1">
-        <DrawingViewport cad={cad} onOutput={onOutput} revision={revision} />
-      </main>
+      <div className="flex min-h-0 flex-1">
+        <main className="min-h-0 min-w-0 flex-1">
+          <DrawingViewport cad={cad} onOutput={onOutput} revision={revision} />
+        </main>
+        <KeliPanel
+          cad={cad}
+          onChanged={() => {
+            setRevision((n) => n + 1);
+            setEntityCount(cad.entity_count());
+          }}
+          onEcho={(lines) =>
+            setEchoes((prev) => [...prev, ...lines].slice(-40))
+          }
+        />
+      </div>
       <CommandLine prompt={prompt} echoes={echoes} onSubmit={onSubmit} />
     </div>
   );

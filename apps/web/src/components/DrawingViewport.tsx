@@ -50,9 +50,13 @@ export function DrawingViewport({ cad, onOutput, revision }: Props) {
         const ghost = toFloat32(
           cad.ghost_line_vertices(hoverRef.current.x, hoverRef.current.y),
         );
-        const merged = new Float32Array(scene.length + ghost.length);
+        const keliGhost = toFloat32(cad.keli_ghost_vertices());
+        const merged = new Float32Array(
+          scene.length + ghost.length + keliGhost.length,
+        );
         merged.set(scene, 0);
         merged.set(ghost, scene.length);
+        merged.set(keliGhost, scene.length + ghost.length);
         rendererRef.current.setLines(merged.length ? merged : new Float32Array([0, 0, 0, 0]));
         rendererRef.current.draw(cameraRef.current);
         raf = requestAnimationFrame(tick);
