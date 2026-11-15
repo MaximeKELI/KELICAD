@@ -11,7 +11,7 @@ use crate::layer::{Layer, LayerId};
 use crate::layout::{Layout, LayoutId};
 
 /// Stored entity record.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct EntityRecord {
     /// Id.
     pub id: EntityId,

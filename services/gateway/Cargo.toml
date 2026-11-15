@@ -1,0 +1,22 @@
+[package]
+name = "kelicad-gateway"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "KELICAD collaboration gateway (rooms + WebSocket sync)"
+publish = false
+
+[[bin]]
+name = "kelicad-gateway"
+path = "src/main.rs"
+
+[dependencies]
+kelicad-sync = { workspace = true }
+axum = { workspace = true }
+tokio = { workspace = true }
+tower-http = { workspace = true }
+futures-util = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }

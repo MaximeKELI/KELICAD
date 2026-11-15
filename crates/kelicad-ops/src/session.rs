@@ -30,6 +30,33 @@ impl DocSession {
         Ok(())
     }
 
+    /// Apply a remote operation without touching the local undo stack.
+    ///
+    /// More permissive than [`Self::apply`]: create upserts, delete is a no-op
+    /// if missing (tombstones handled by the sync layer).
+    pub fn apply_remote(&mut self, op: &Operation) -> Result<(), OpError> {
+        match op {
+            Operation::CreateEntity { record } => {
+                self.document.upsert_entity(record.clone());
+                Ok(())
+            }
+            Operation::DeleteEntity { id } => {
+                let _ = self.document.remove_entity(*id);
+                Ok(())
+            }
+            Operation::Batch { ops } => {
+                for child in ops {
+                    self.apply_remote(child)?;
+                }
+                Ok(())
+            }
+            other => {
+                let _ = other.apply(&mut self.document)?;
+                Ok(())
+            }
+        }
+    }
+
     /// Undo the last operation.
     pub fn undo(&mut self) -> Result<bool, OpError> {
         let Some(inverse) = self.journal.undo_inverse() else {

@@ -9,7 +9,8 @@ use crate::entity::EntityId;
 use crate::geometry::Geometry;
 
 /// Block definition id.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
 pub struct BlockId(Uuid);
 
 impl BlockId {
@@ -31,7 +32,7 @@ impl std::fmt::Display for BlockId {
 }
 
 /// Attribute definition / value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BlockAttribute {
     /// Tag.
     pub tag: String,
@@ -46,7 +47,7 @@ pub struct BlockAttribute {
 }
 
 /// Named block definition (geometry in block coordinates).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BlockDef {
     /// Id.
     pub id: BlockId,
@@ -61,7 +62,7 @@ pub struct BlockDef {
 }
 
 /// Insert / block reference in model space.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct InsertGeom {
     /// Block definition id.
     pub block_id: BlockId,

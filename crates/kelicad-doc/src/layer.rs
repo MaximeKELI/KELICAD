@@ -3,7 +3,8 @@
 use uuid::Uuid;
 
 /// Layer identifier (UUID v7).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
 pub struct LayerId(Uuid);
 
 impl LayerId {
@@ -25,7 +26,7 @@ impl std::fmt::Display for LayerId {
 }
 
 /// Layer visibility / editability flags.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub struct LayerFlags {
     /// Frozen layers are not visible and not editable.
     pub frozen: bool,
@@ -36,7 +37,7 @@ pub struct LayerFlags {
 }
 
 /// A named layer with display attributes.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Layer {
     /// Stable id.
     pub id: LayerId,

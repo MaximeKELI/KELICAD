@@ -6,7 +6,7 @@ use crate::aabb::Aabb;
 use crate::line::Line;
 
 /// Open or closed polyline made of straight segments.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Polyline {
     /// Vertices in order.
     pub vertices: Vec<Vec2>,

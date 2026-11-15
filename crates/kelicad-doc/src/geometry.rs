@@ -14,7 +14,8 @@ use crate::blocks::InsertGeom;
 use crate::entity::EntityKind;
 
 /// Geometry payload for an entity.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum Geometry {
     /// Single point.
     Point(Vec2),

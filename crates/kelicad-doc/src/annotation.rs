@@ -5,7 +5,8 @@ use kelicad_math::Vec2;
 use crate::entity::EntityId;
 
 /// Horizontal/vertical text alignment.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum TextAlign {
     /// Left / baseline.
     #[default]
@@ -19,7 +20,7 @@ pub enum TextAlign {
 }
 
 /// Single-line text entity payload.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TextGeom {
     /// Insertion point.
     pub position: Vec2,
@@ -34,7 +35,7 @@ pub struct TextGeom {
 }
 
 /// Multi-line text (simplified: stored as one string with `\n`).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MTextGeom {
     /// Insertion point.
     pub position: Vec2,
@@ -49,7 +50,8 @@ pub struct MTextGeom {
 }
 
 /// Dimension kind for M2.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum DimKind {
     /// Linear (horizontal or rotated).
     Linear,
@@ -65,7 +67,7 @@ pub enum DimKind {
 
 /// Associative dimension. Measurement is always derived from geometry by the
 /// core (never by the LLM).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DimensionGeom {
     /// Dimension type.
     pub kind: DimKind,
@@ -111,7 +113,8 @@ impl DimensionGeom {
 }
 
 /// Hatch pattern kind (M2: solid + named placeholder).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum HatchPattern {
     /// Solid fill.
     Solid,
@@ -120,7 +123,7 @@ pub enum HatchPattern {
 }
 
 /// Hatch region defined by a closed polyline boundary (+ optional islands later).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct HatchGeom {
     /// Outer boundary vertices (closed implied).
     pub boundary: Vec<Vec2>,

@@ -5,7 +5,7 @@ use kelicad_math::{Tolerance, Vec2};
 use crate::aabb::Aabb;
 
 /// Circle defined by center and radius.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Circle {
     /// Center.
     pub center: Vec2,

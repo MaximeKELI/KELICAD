@@ -23,7 +23,8 @@ pub enum OpError {
 }
 
 /// Atomic document mutation. Inverse is produced when applying for undo.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "op", rename_all = "snake_case")]
 pub enum Operation {
     /// Create an entity; fails if id already exists.
     CreateEntity {

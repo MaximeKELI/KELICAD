@@ -8,7 +8,7 @@ use crate::aabb::Aabb;
 use crate::circle::Circle;
 
 /// Circular arc. Angles are in radians.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Arc {
     /// Center of the supporting circle.
     pub center: Vec2,

@@ -8,6 +8,7 @@ description = "Vectors, matrices, tolerances, and robust geometric predicates fo
 readme = "README.md"
 
 [dependencies]
+serde = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }

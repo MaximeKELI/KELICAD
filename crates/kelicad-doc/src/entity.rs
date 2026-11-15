@@ -3,7 +3,8 @@
 use uuid::Uuid;
 
 /// Stable entity identifier (UUID v7).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
 pub struct EntityId(Uuid);
 
 impl EntityId {
@@ -25,7 +26,8 @@ impl std::fmt::Display for EntityId {
 }
 
 /// High-level entity classification.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum EntityKind {
     /// Point.
     Point,

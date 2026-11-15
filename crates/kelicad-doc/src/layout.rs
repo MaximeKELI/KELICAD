@@ -4,7 +4,8 @@ use kelicad_math::Vec2;
 use uuid::Uuid;
 
 /// Layout id.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
 pub struct LayoutId(Uuid);
 
 impl LayoutId {
@@ -26,7 +27,7 @@ impl std::fmt::Display for LayoutId {
 }
 
 /// Paper size in millimetres.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PaperSize {
     /// Width mm.
     pub width_mm: f64,
@@ -43,7 +44,7 @@ impl PaperSize {
 }
 
 /// Viewport on a layout mapping paper → model.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Viewport {
     /// Center on paper (mm).
     pub center_paper: Vec2,
@@ -56,7 +57,7 @@ pub struct Viewport {
 }
 
 /// Named paper-space layout.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Layout {
     /// Id.
     pub id: LayoutId,

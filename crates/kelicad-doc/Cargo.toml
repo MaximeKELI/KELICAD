@@ -11,5 +11,6 @@ readme = "README.md"
 kelicad-geom = { workspace = true }
 kelicad-math = { workspace = true }
 uuid = { workspace = true }
+serde = { workspace = true }
 
 [dev-dependencies]
