@@ -1,6 +1,6 @@
 //! Command state machine driving a [`kelicad_ops::DocSession`].
 
-use kelicad_doc::{EntityId, EntityKind, EntityRecord, Geometry};
+use kelicad_doc::{EntityId, EntityRecord, Geometry};
 use kelicad_geom::transform::offset_line;
 use kelicad_geom::trim::{extend_line_to, trim_line_by_cut};
 use kelicad_geom::{Arc, Circle, Line, Polyline};
@@ -828,10 +828,8 @@ impl<G: IdGen> CommandEngine<G> {
                     .sqrt(),
                 Geometry::Point(q) => q.distance(p),
             };
-            if d <= self.snap_aperture * 2.0 {
-                if best.map(|(_, bd)| d < bd).unwrap_or(true) {
-                    best = Some((ent.id, d));
-                }
+            if d <= self.snap_aperture * 2.0 && best.map(|(_, bd)| d < bd).unwrap_or(true) {
+                best = Some((ent.id, d));
             }
         }
         best.map(|(id, _)| id)
