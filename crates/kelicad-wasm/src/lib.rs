@@ -350,6 +350,34 @@ fn geometry_from_value(v: &serde_json::Value) -> Result<Geometry, String> {
                 Polyline::new(points)
             }))
         }
+        "text" => Ok(Geometry::Text(kelicad_doc::TextGeom {
+            position: Vec2::new(num(v, "x")?, num(v, "y")?),
+            height: num(v, "height").unwrap_or(2.5),
+            rotation: num(v, "rotation").unwrap_or(0.0),
+            content: v.get("content").and_then(|c| c.as_str()).unwrap_or("").to_string(),
+            align: kelicad_doc::TextAlign::Left,
+        })),
+        "dimension" => Ok(Geometry::Dimension(kelicad_doc::DimensionGeom {
+            kind: kelicad_doc::DimKind::Linear,
+            def1: Vec2::new(num(v, "x1")?, num(v, "y1")?),
+            def2: Vec2::new(num(v, "x2")?, num(v, "y2")?),
+            dim_line: Vec2::new(num(v, "dx").unwrap_or(0.0), num(v, "dy").unwrap_or(0.0)),
+            assoc_a: None,
+            assoc_b: None,
+            text_override: v.get("text_override").and_then(|t| t.as_str()).map(|s| s.to_string()),
+        })),
+        "hatch" => {
+            let verts = v.get("boundary").and_then(|a| a.as_array()).ok_or_else(|| "hatch.boundary".to_string())?;
+            let mut boundary = Vec::new();
+            for item in verts {
+                let arr = item.as_array().ok_or_else(|| "hv".to_string())?;
+                boundary.push(Vec2::new(arr[0].as_f64().unwrap_or(0.0), arr[1].as_f64().unwrap_or(0.0)));
+            }
+            Ok(Geometry::Hatch(kelicad_doc::HatchGeom {
+                boundary,
+                pattern: kelicad_doc::HatchPattern::Solid,
+            }))
+        }
         other => Err(format!("unknown geometry type {other}")),
     }
 }
@@ -377,6 +405,23 @@ fn geometry_value(g: &Geometry) -> serde_json::Value {
             "type":"polyline",
             "closed": p.closed,
             "vertices": p.vertices.iter().map(|v| [v.x, v.y]).collect::<Vec<_>>()
+        }),
+        Geometry::Text(t) => serde_json::json!({
+            "type":"text","x":t.position.x,"y":t.position.y,"height":t.height,
+            "rotation":t.rotation,"content":t.content
+        }),
+        Geometry::MText(t) => serde_json::json!({
+            "type":"mtext","x":t.position.x,"y":t.position.y,"height":t.height,"content":t.content
+        }),
+        Geometry::Dimension(d) => serde_json::json!({
+            "type":"dimension","x1":d.def1.x,"y1":d.def1.y,"x2":d.def2.x,"y2":d.def2.y,
+            "dx":d.dim_line.x,"dy":d.dim_line.y,"text_override":d.text_override
+        }),
+        Geometry::Hatch(h) => serde_json::json!({
+            "type":"hatch","boundary": h.boundary.iter().map(|v| [v.x,v.y]).collect::<Vec<_>>()
+        }),
+        Geometry::Insert(i) => serde_json::json!({
+            "type":"insert","x":i.position.x,"y":i.position.y,"block_id":i.block_id.to_string()
         }),
     }
 }
@@ -432,6 +477,38 @@ fn append_geometry_lines(g: &Geometry, out: &mut Vec<f32>) {
                 (p.y - s) as f32,
                 p.x as f32,
                 (p.y + s) as f32,
+            ]);
+        }
+        Geometry::Text(t) => {
+            let s = 0.2;
+            let p = t.position;
+            out.extend_from_slice(&[(p.x - s) as f32, p.y as f32, (p.x + s) as f32, p.y as f32]);
+        }
+        Geometry::MText(t) => {
+            let s = 0.2;
+            let p = t.position;
+            out.extend_from_slice(&[(p.x - s) as f32, p.y as f32, (p.x + s) as f32, p.y as f32]);
+        }
+        Geometry::Dimension(d) => {
+            out.extend_from_slice(&[
+                d.def1.x as f32, d.def1.y as f32, d.def2.x as f32, d.def2.y as f32,
+                d.def1.x as f32, d.def1.y as f32, d.dim_line.x as f32, d.dim_line.y as f32,
+                d.def2.x as f32, d.def2.y as f32, d.dim_line.x as f32, d.dim_line.y as f32,
+            ]);
+        }
+        Geometry::Hatch(h) => {
+            for seg in h.boundary.windows(2) {
+                out.extend_from_slice(&[
+                    seg[0].x as f32, seg[0].y as f32, seg[1].x as f32, seg[1].y as f32,
+                ]);
+            }
+        }
+        Geometry::Insert(i) => {
+            let s = 0.25;
+            let p = i.position;
+            out.extend_from_slice(&[
+                (p.x - s) as f32, p.y as f32, (p.x + s) as f32, p.y as f32,
+                p.x as f32, (p.y - s) as f32, p.x as f32, (p.y + s) as f32,
             ]);
         }
     }
