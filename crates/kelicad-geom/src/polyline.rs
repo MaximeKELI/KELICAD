@@ -44,7 +44,7 @@ impl Polyline {
     }
 
     /// True if fewer than two distinct points for an open poly, or &lt; 3 when closed.
-    pub fn is_degenerate(self: &Self, tol: Tolerance) -> bool {
+    pub fn is_degenerate(&self, tol: Tolerance) -> bool {
         if self.vertices.len() < 2 {
             return true;
         }

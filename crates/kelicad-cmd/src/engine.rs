@@ -722,24 +722,6 @@ impl<G: IdGen> CommandEngine<G> {
         out
     }
 
-    fn commit_lines_chain(&mut self, points: &[Vec2]) -> CommandOutput {
-        let mut ops = Vec::new();
-        let layer_id = self.session.document.current_layer;
-        for w in points.windows(2) {
-            let id = self.ids.next();
-            let geometry = Geometry::Line(Line::new(w[0], w[1]));
-            ops.push(Operation::CreateEntity {
-                record: EntityRecord {
-                    id,
-                    kind: EntityKind::Line,
-                    geometry,
-                    layer_id,
-                },
-            });
-        }
-        self.apply_batch(ops, format!("{} segment(s)", points.len().saturating_sub(1)))
-    }
-
     fn commit_polyline(&mut self, points: Vec<Vec2>, closed: bool) -> CommandOutput {
         let poly = if closed {
             Polyline::closed(points)
