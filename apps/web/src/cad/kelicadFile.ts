@@ -96,7 +96,9 @@ export async function snapshotToKelicadBytes(snapshotJson: string): Promise<Uint
 }
 
 export function downloadBytes(filename: string, data: Uint8Array): void {
-  const blob = new Blob([data], { type: "application/vnd.kelicad+sqlite3" });
+  const blob = new Blob([Uint8Array.from(data)], {
+    type: "application/vnd.kelicad+sqlite3",
+  });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
