@@ -4,11 +4,15 @@
 
 use kelicad_ai::{AgentMode, DeterministicProvider, KeliAgent, UuidV7Gen as AiUuidV7Gen};
 use kelicad_cmd::{CommandEngine, CommandEvent, CommandId, UuidV7Gen};
+use kelicad_bim::{export_ifc, schedule_csv, BimElement};
 use kelicad_constraints::{solve, Constraint, ConstraintSystem};
 use kelicad_doc::{EntityId, EntityRecord, Geometry, Layer, LayerId};
 use kelicad_geom::{Arc, Circle, Line, Polyline};
 use kelicad_math::Vec2;
 use kelicad_ops::{DocSession, Operation};
+use kelicad_solid::{
+    derive_view, BuiltinSolidKernel, Profile2, SolidBody, SolidKernel, ViewKind,
+};
 use kelicad_sync::{
     ActorId, CommentAnchor, CommentId, HybridTime, OpEnvelope, PresenceState, Replica, WireMessage,
 };
@@ -62,6 +66,8 @@ pub struct WasmCad {
     sync_journal_cursor: usize,
     last_prompt_fr: String,
     constraints: ConstraintSystem,
+    solids: Vec<SolidBody>,
+    bim: Vec<BimElement>,
 }
 
 #[wasm_bindgen]
@@ -77,6 +83,8 @@ impl WasmCad {
             sync_journal_cursor: 0,
             last_prompt_fr: String::new(),
             constraints: ConstraintSystem::new(),
+            solids: Vec::new(),
+            bim: Vec::new(),
         }
     }
 
@@ -618,6 +626,85 @@ impl WasmCad {
         Ok(n)
     }
 
+    /// Extrude selected (or first) closed polyline/rectangle to a solid. Returns JSON summary.
+    pub fn solid_extrude_selected(&mut self, height: f64) -> Result<String, JsValue> {
+        let profile = find_closed_profile(&self.engine.session.document, &self.engine.selection)
+            .ok_or_else(|| JsValue::from_str("no closed polyline/rectangle to extrude"))?;
+        let k = BuiltinSolidKernel;
+        let body = k
+            .extrude(&profile, height)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let elem = BimElement::new(kelicad_bim::BimKind::Wall, body.id)
+            .with_prop("tag", format!("EX-{}", self.solids.len() + 1))
+            .with_prop("height", format!("{height}"));
+        let summary = serde_json::json!({
+            "solid_id": body.id.to_string(),
+            "bim_id": elem.id.to_string(),
+            "aabb": {
+                "min": [body.aabb.min.x, body.aabb.min.y, body.aabb.min.z],
+                "max": [body.aabb.max.x, body.aabb.max.y, body.aabb.max.z],
+            },
+            "triangles": body.mesh.triangle_count(),
+        });
+        self.bim.push(elem);
+        self.solids.push(body);
+        Ok(summary.to_string())
+    }
+
+    /// Derive a 2D view from the last solid and insert geometries (undoable).
+    pub fn view_derive_apply(&mut self, kind: &str) -> Result<u32, JsValue> {
+        let body = self
+            .solids
+            .last()
+            .ok_or_else(|| JsValue::from_str("no solid to derive view from"))?;
+        let view = match kind.to_ascii_lowercase().as_str() {
+            "plan" => ViewKind::Plan,
+            "elevation_x" | "elevx" => ViewKind::ElevationX,
+            "elevation_y" | "elevy" => ViewKind::ElevationY,
+            "section" => ViewKind::Section,
+            other => {
+                return Err(JsValue::from_str(&format!("unknown view kind {other}")));
+            }
+        };
+        let geoms = derive_view(body, view, None);
+        let layer = self.engine.session.document.current_layer;
+        let mut ops = Vec::new();
+        for geom in geoms {
+            let id = EntityId::from_uuid(Uuid::now_v7());
+            ops.push(Operation::CreateEntity {
+                record: EntityRecord {
+                    id,
+                    kind: geom.kind(),
+                    geometry: geom,
+                    layer_id: layer,
+                },
+            });
+        }
+        let n = ops.len() as u32;
+        if !ops.is_empty() {
+            self.engine
+                .session
+                .apply(Operation::Batch { ops })
+                .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        }
+        Ok(n)
+    }
+
+    /// BIM schedule CSV for current elements.
+    pub fn bim_schedule_csv(&self) -> String {
+        schedule_csv(&self.bim, &["material", "height", "thickness", "length"])
+    }
+
+    /// IFC subset export of current BIM + solids.
+    pub fn ifc_export(&self) -> Result<String, JsValue> {
+        export_ifc(&self.bim, &self.solids).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Solid count.
+    pub fn solid_count(&self) -> u32 {
+        self.solids.len() as u32
+    }
+
     /// Handle an inbound wire message JSON (op/presence/comment/snapshot).
     pub fn sync_handle_wire(&mut self, text: &str) -> Result<String, JsValue> {
         let msg: WireMessage =
@@ -945,4 +1032,26 @@ fn append_geometry_lines(g: &Geometry, out: &mut Vec<f32>) {
             ]);
         }
     }
+}
+
+fn find_closed_profile(
+    doc: &kelicad_doc::Document,
+    selection: &kelicad_cmd::Selection,
+) -> Option<Profile2> {
+    let ids: Vec<EntityId> = if selection.is_empty() {
+        doc.entities().map(|e| e.id).collect()
+    } else {
+        selection.to_vec()
+    };
+    for id in ids {
+        let Some(ent) = doc.get_entity(id) else {
+            continue;
+        };
+        if let Geometry::Polyline(p) = &ent.geometry {
+            if p.closed && p.vertices.len() >= 3 {
+                return Profile2::from_vertices(p.vertices.clone()).ok();
+            }
+        }
+    }
+    None
 }

@@ -18,6 +18,8 @@ kelicad-ops = { workspace = true }
 kelicad-plugin = { workspace = true }
 kelicad-vectorize = { workspace = true }
 kelicad-constraints = { workspace = true }
+kelicad-solid = { workspace = true }
+kelicad-bim = { workspace = true }
 clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

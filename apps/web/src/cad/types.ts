@@ -87,6 +87,11 @@ export type CadSession = {
   constraint_solve(): string;
   constraints_json(): string;
   vectorize_bytes(data: Uint8Array, filename_hint: string): number;
+  solid_extrude_selected(height: number): string;
+  view_derive_apply(kind: string): number;
+  bim_schedule_csv(): string;
+  ifc_export(): string;
+  solid_count(): number;
 };
 
 export function parseCadOutput(raw: string): CadOutput {

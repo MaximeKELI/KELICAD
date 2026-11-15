@@ -42,7 +42,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [echoes, setEchoes] = useState<string[]>([
-    "KELICAD M6 — contraintes, vectorisation, contrôles. Gateway optionnel pour /v1/vectorize.",
+    "KELICAD M7 — 3D/BIM: EXTRUDE, SCHED, IFC↑. Dessinez un rectangle fermé puis EXTRUDE.",
   ]);
   const [revision, setRevision] = useState(0);
   const [entityCount, setEntityCount] = useState(0);

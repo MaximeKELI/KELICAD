@@ -22,6 +22,8 @@ kelicad-sync = { workspace = true }
 kelicad-plugin = { workspace = true }
 kelicad-constraints = { workspace = true }
 kelicad-vectorize = { workspace = true }
+kelicad-solid = { workspace = true }
+kelicad-bim = { workspace = true }
 kelicad-io = { path = "../kelicad-io", default-features = false }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -193,7 +193,7 @@ impl DivAssign<f64> for Vec2 {
 }
 
 /// Three-dimensional vector.
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct Vec3 {
     /// X component.
     pub x: f64,

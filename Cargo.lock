@@ -1098,6 +1098,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "kelicad-bim"
+version = "0.1.0"
+dependencies = [
+ "kelicad-math",
+ "kelicad-solid",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "uuid",
+]
+
+[[package]]
 name = "kelicad-cli"
 version = "0.1.0"
 dependencies = [
@@ -1242,6 +1254,19 @@ dependencies = [
  "kelicad-doc",
  "kelicad-geom",
  "kelicad-math",
+ "uuid",
+]
+
+[[package]]
+name = "kelicad-solid"
+version = "0.1.0"
+dependencies = [
+ "kelicad-doc",
+ "kelicad-geom",
+ "kelicad-math",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
  "uuid",
 ]
 
