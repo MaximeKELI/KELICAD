@@ -321,7 +321,10 @@ impl<G: IdGen> CommandEngine<G> {
             (CommandId::Line, Active::Line { points }) if points.is_empty() => {
                 prompt("Premier point", "First point")
             }
-            (CommandId::Line, _) => prompt("Point suivant ou Entrée pour terminer", "Next point or Enter"),
+            (CommandId::Line, _) => prompt(
+                "Point suivant ou Entrée pour terminer",
+                "Next point or Enter",
+            ),
             (CommandId::Pline, Active::Pline { points }) if points.is_empty() => {
                 prompt("Point de départ", "Start point")
             }
@@ -341,13 +344,9 @@ impl<G: IdGen> CommandEngine<G> {
                 prompt("Premier coin", "First corner")
             }
             (CommandId::Rectang, _) => prompt("Coin opposé", "Opposite corner"),
-            (CommandId::Move, Active::Move { base: None }) => {
-                prompt("Point de base", "Base point")
-            }
+            (CommandId::Move, Active::Move { base: None }) => prompt("Point de base", "Base point"),
             (CommandId::Move, _) => prompt("Second point", "Second point"),
-            (CommandId::Copy, Active::Copy { base: None }) => {
-                prompt("Point de base", "Base point")
-            }
+            (CommandId::Copy, Active::Copy { base: None }) => prompt("Point de base", "Base point"),
             (CommandId::Copy, _) => prompt("Second point", "Second point"),
             (CommandId::Rotate, Active::Rotate { origin: None }) => {
                 prompt("Point de base", "Base point")
@@ -360,14 +359,28 @@ impl<G: IdGen> CommandEngine<G> {
             (CommandId::Mirror, Active::Mirror { first: None }) => {
                 prompt("Premier point de l'axe", "First point of mirror line")
             }
-            (CommandId::Mirror, _) => prompt("Second point de l'axe", "Second point of mirror line"),
+            (CommandId::Mirror, _) => {
+                prompt("Second point de l'axe", "Second point of mirror line")
+            }
             (CommandId::Offset, Active::Offset { distance: None }) => {
                 prompt("Distance de décalage", "Offset distance")
             }
-            (CommandId::Offset, _) => prompt("Sélectionnez une ligne à décaler", "Select a line to offset"),
-            (CommandId::Trim, _) => prompt("Sélectionnez le segment à couper (côté à garder près du clic)", "Select segment to trim"),
-            (CommandId::Extend, _) => prompt("Sélectionnez le segment à prolonger", "Select segment to extend"),
-            (CommandId::Erase, _) => prompt("Sélectionnez les objets, Entrée pour effacer", "Select objects, Enter to erase"),
+            (CommandId::Offset, _) => prompt(
+                "Sélectionnez une ligne à décaler",
+                "Select a line to offset",
+            ),
+            (CommandId::Trim, _) => prompt(
+                "Sélectionnez le segment à couper (côté à garder près du clic)",
+                "Select segment to trim",
+            ),
+            (CommandId::Extend, _) => prompt(
+                "Sélectionnez le segment à prolonger",
+                "Select segment to extend",
+            ),
+            (CommandId::Erase, _) => prompt(
+                "Sélectionnez les objets, Entrée pour effacer",
+                "Select objects, Enter to erase",
+            ),
             _ => prompt(id.name(), id.name()),
         })
     }
@@ -385,9 +398,7 @@ impl<G: IdGen> CommandEngine<G> {
                 let last = *points.last().unwrap();
                 vec![Geometry::Line(Line::new(last, cursor))]
             }
-            Active::CircleCenter {
-                center: Some(c),
-            } => {
+            Active::CircleCenter { center: Some(c) } => {
                 let r = c.distance(cursor);
                 vec![Geometry::Circle(Circle::new(*c, r))]
             }
@@ -403,9 +414,7 @@ impl<G: IdGen> CommandEngine<G> {
                 let end_ang = (cursor - *c).angle();
                 vec![Geometry::Arc(Arc::new(*c, r, start_ang, end_ang))]
             }
-            Active::Move {
-                base: Some(b),
-            } => {
+            Active::Move { base: Some(b) } => {
                 let delta = cursor - *b;
                 self.selection
                     .iter()
@@ -413,9 +422,7 @@ impl<G: IdGen> CommandEngine<G> {
                     .map(|e| e.geometry.translated(delta))
                     .collect()
             }
-            Active::Copy {
-                base: Some(b),
-            } => {
+            Active::Copy { base: Some(b) } => {
                 let delta = cursor - *b;
                 self.selection
                     .iter()
@@ -568,10 +575,7 @@ impl<G: IdGen> CommandEngine<G> {
                 out.prompt = self.current_prompt();
             }
             (CommandId::Circle, Active::CircleCenter { center: None }) => {
-                self.active = Some((
-                    CommandId::Circle,
-                    Active::CircleCenter { center: Some(p) },
-                ));
+                self.active = Some((CommandId::Circle, Active::CircleCenter { center: Some(p) }));
                 out.prompt = self.current_prompt();
             }
             (CommandId::Circle, Active::CircleCenter { center: Some(c) }) => {
@@ -589,7 +593,13 @@ impl<G: IdGen> CommandEngine<G> {
                 ));
                 out.prompt = self.current_prompt();
             }
-            (CommandId::Arc, Active::Arc { center: Some(c), start: None }) => {
+            (
+                CommandId::Arc,
+                Active::Arc {
+                    center: Some(c),
+                    start: None,
+                },
+            ) => {
                 self.active = Some((
                     CommandId::Arc,
                     Active::Arc {
@@ -813,9 +823,7 @@ impl<G: IdGen> CommandEngine<G> {
                         if a.contains_angle(ang, tol) {
                             on.distance(p)
                         } else {
-                            a.start_point()
-                                .distance(p)
-                                .min(a.end_point().distance(p))
+                            a.start_point().distance(p).min(a.end_point().distance(p))
                         }
                     } else {
                         a.center.distance(p)

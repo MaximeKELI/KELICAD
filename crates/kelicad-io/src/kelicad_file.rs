@@ -79,11 +79,9 @@ pub fn save_document(path: &Path, session: &DocSession) -> Result<(), IoError> {
 pub fn load_document(path: &Path) -> Result<DocSession, IoError> {
     let conn = Connection::open(path)?;
     let format: String = conn
-        .query_row(
-            "SELECT value FROM meta WHERE key = 'format'",
-            [],
-            |r| r.get(0),
-        )
+        .query_row("SELECT value FROM meta WHERE key = 'format'", [], |r| {
+            r.get(0)
+        })
         .map_err(|_| IoError::Format("missing meta.format".into()))?;
     if format != "kelicad" {
         return Err(IoError::Format(format!("unexpected format {format}")));
@@ -180,9 +178,7 @@ pub fn load_document(path: &Path) -> Result<DocSession, IoError> {
         |r| r.get::<_, String>(0),
     ) {
         if let Ok(u) = Uuid::parse_str(&cur) {
-            let _ = session
-                .document
-                .set_current_layer(LayerId::from_uuid(u));
+            let _ = session.document.set_current_layer(LayerId::from_uuid(u));
         }
     }
 

@@ -94,10 +94,7 @@ pub fn geometry_from_json(s: &str) -> Result<Geometry, IoError> {
             clockwise,
         }),
         GeomDto::Polyline { vertices, closed } => {
-            let verts = vertices
-                .into_iter()
-                .map(|[x, y]| Vec2::new(x, y))
-                .collect();
+            let verts = vertices.into_iter().map(|[x, y]| Vec2::new(x, y)).collect();
             Geometry::Polyline(if closed {
                 Polyline::closed(verts)
             } else {

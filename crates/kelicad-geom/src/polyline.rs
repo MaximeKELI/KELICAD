@@ -100,9 +100,7 @@ impl Polyline {
 
     /// Bounding box.
     pub fn aabb(&self) -> Aabb {
-        self.vertices
-            .iter()
-            .fold(Aabb::EMPTY, |b, &p| b.expand(p))
+        self.vertices.iter().fold(Aabb::EMPTY, |b, &p| b.expand(p))
     }
 }
 

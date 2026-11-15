@@ -7,12 +7,7 @@ use crate::line::Line;
 
 /// Trim `target` using a cutting segment: keep the portion on the side of
 /// `keep_point` relative to the intersection (or unchanged if no hit).
-pub fn trim_line_by_cut(
-    target: Line,
-    cut: Line,
-    keep_point: Vec2,
-    tol: Tolerance,
-) -> Option<Line> {
+pub fn trim_line_by_cut(target: Line, cut: Line, keep_point: Vec2, tol: Tolerance) -> Option<Line> {
     let hit = match line_line(target, cut, tol) {
         LineLineResult::Point(p) => p,
         _ => return None,
@@ -31,12 +26,7 @@ pub fn trim_line_by_cut(
 ///
 /// Extends the endpoint closer to `pick` (or both ends projected). Returns
 /// `None` if parallel / no intersection ahead.
-pub fn extend_line_to(
-    target: Line,
-    boundary: Line,
-    pick: Vec2,
-    tol: Tolerance,
-) -> Option<Line> {
+pub fn extend_line_to(target: Line, boundary: Line, pick: Vec2, tol: Tolerance) -> Option<Line> {
     let r = target.delta();
     let s = boundary.delta();
     let denom = r.cross(s);
@@ -87,7 +77,8 @@ mod tests {
     fn extend_to_vertical() {
         let target = Line::new(Vec2::new(0.0, 0.0), Vec2::new(2.0, 0.0));
         let boundary = Line::new(Vec2::new(5.0, -1.0), Vec2::new(5.0, 1.0));
-        let ext = extend_line_to(target, boundary, Vec2::new(2.0, 0.0), Tolerance::DEFAULT).unwrap();
+        let ext =
+            extend_line_to(target, boundary, Vec2::new(2.0, 0.0), Tolerance::DEFAULT).unwrap();
         assert!(ext.end.nearly_eq(Vec2::new(5.0, 0.0), Tolerance::DEFAULT));
     }
 }

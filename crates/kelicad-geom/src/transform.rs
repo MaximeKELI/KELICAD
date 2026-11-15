@@ -192,7 +192,10 @@ pub fn offset_line(line: Line, distance: f64) -> Option<Line> {
         return None;
     }
     let n = d.perp() / len;
-    Some(Line::new(line.start + n * distance, line.end + n * distance))
+    Some(Line::new(
+        line.start + n * distance,
+        line.end + n * distance,
+    ))
 }
 
 /// Degrees helper for command input.

@@ -191,7 +191,12 @@ impl WasmCad {
 
     /// Selected entity ids as JSON array of strings.
     pub fn selection_json(&self) -> String {
-        let ids: Vec<String> = self.engine.selection.iter().map(|id| id.to_string()).collect();
+        let ids: Vec<String> = self
+            .engine
+            .selection
+            .iter()
+            .map(|id| id.to_string())
+            .collect();
         serde_json::to_string(&ids).unwrap_or_else(|_| "[]".into())
     }
 

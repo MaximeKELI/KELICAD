@@ -1,9 +1,9 @@
 //! Geometry component attached to entities.
 
 use kelicad_geom::transform::{
-    mirror_arc, mirror_circle, mirror_line, mirror_polyline, rotate_arc, rotate_circle, rotate_line,
-    rotate_polyline, scale_arc, scale_circle, scale_line, scale_polyline, translate_arc,
-    translate_circle, translate_line, translate_polyline,
+    mirror_arc, mirror_circle, mirror_line, mirror_polyline, rotate_arc, rotate_circle,
+    rotate_line, rotate_polyline, scale_arc, scale_circle, scale_line, scale_polyline,
+    translate_arc, translate_circle, translate_line, translate_polyline,
 };
 use kelicad_geom::{Arc, Circle, Line, Polyline};
 use kelicad_math::Vec2;
@@ -51,9 +51,7 @@ impl Geometry {
     /// Rotate about origin.
     pub fn rotated(&self, origin: Vec2, radians: f64) -> Self {
         match self {
-            Self::Point(p) => {
-                Self::Point(origin + (*p - origin).rotate(radians))
-            }
+            Self::Point(p) => Self::Point(origin + (*p - origin).rotate(radians)),
             Self::Line(l) => Self::Line(rotate_line(*l, origin, radians)),
             Self::Arc(a) => Self::Arc(rotate_arc(*a, origin, radians)),
             Self::Circle(c) => Self::Circle(rotate_circle(*c, origin, radians)),
