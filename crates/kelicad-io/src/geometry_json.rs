@@ -1,9 +1,14 @@
 //! JSON encoding of geometry components for the entities table.
 
-use kelicad_doc::Geometry;
+use kelicad_doc::{
+    DimKind, DimensionGeom, HatchGeom, HatchPattern, InsertGeom, MTextGeom, TextAlign, TextGeom,
+    Geometry,
+};
+use kelicad_doc::{BlockId, EntityId};
 use kelicad_geom::{Arc, Circle, Line, Polyline};
 use kelicad_math::Vec2;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::error::IoError;
 
@@ -37,6 +42,46 @@ enum GeomDto {
         vertices: Vec<[f64; 2]>,
         closed: bool,
     },
+    Text {
+        x: f64,
+        y: f64,
+        height: f64,
+        rotation: f64,
+        content: String,
+        align: String,
+    },
+    Mtext {
+        x: f64,
+        y: f64,
+        height: f64,
+        rotation: f64,
+        content: String,
+        width: f64,
+    },
+    Dimension {
+        kind: String,
+        x1: f64,
+        y1: f64,
+        x2: f64,
+        y2: f64,
+        dx: f64,
+        dy: f64,
+        text_override: Option<String>,
+        assoc_a: Option<String>,
+        assoc_b: Option<String>,
+    },
+    Hatch {
+        boundary: Vec<[f64; 2]>,
+        pattern: String,
+    },
+    Insert {
+        block_id: String,
+        x: f64,
+        y: f64,
+        sx: f64,
+        sy: f64,
+        rotation: f64,
+    },
 }
 
 /// Serialize geometry to JSON text.
@@ -66,6 +111,62 @@ pub fn geometry_to_json(g: &Geometry) -> Result<String, IoError> {
             vertices: p.vertices.iter().map(|v| [v.x, v.y]).collect(),
             closed: p.closed,
         },
+        Geometry::Text(t) => GeomDto::Text {
+            x: t.position.x,
+            y: t.position.y,
+            height: t.height,
+            rotation: t.rotation,
+            content: t.content.clone(),
+            align: match t.align {
+                TextAlign::Left => "left",
+                TextAlign::Center => "center",
+                TextAlign::Right => "right",
+                TextAlign::Middle => "middle",
+            }
+            .into(),
+        },
+        Geometry::MText(t) => GeomDto::Mtext {
+            x: t.position.x,
+            y: t.position.y,
+            height: t.height,
+            rotation: t.rotation,
+            content: t.content.clone(),
+            width: t.width,
+        },
+        Geometry::Dimension(d) => GeomDto::Dimension {
+            kind: match d.kind {
+                DimKind::Linear => "linear",
+                DimKind::Aligned => "aligned",
+                DimKind::Radius => "radius",
+                DimKind::Diameter => "diameter",
+                DimKind::Angular => "angular",
+            }
+            .into(),
+            x1: d.def1.x,
+            y1: d.def1.y,
+            x2: d.def2.x,
+            y2: d.def2.y,
+            dx: d.dim_line.x,
+            dy: d.dim_line.y,
+            text_override: d.text_override.clone(),
+            assoc_a: d.assoc_a.map(|id| id.to_string()),
+            assoc_b: d.assoc_b.map(|id| id.to_string()),
+        },
+        Geometry::Hatch(h) => GeomDto::Hatch {
+            boundary: h.boundary.iter().map(|v| [v.x, v.y]).collect(),
+            pattern: match &h.pattern {
+                HatchPattern::Solid => "SOLID".into(),
+                HatchPattern::Named(n) => n.clone(),
+            },
+        },
+        Geometry::Insert(i) => GeomDto::Insert {
+            block_id: i.block_id.to_string(),
+            x: i.position.x,
+            y: i.position.y,
+            sx: i.scale.x,
+            sy: i.scale.y,
+            rotation: i.rotation,
+        },
     };
     Ok(serde_json::to_string(&dto)?)
 }
@@ -94,12 +195,102 @@ pub fn geometry_from_json(s: &str) -> Result<Geometry, IoError> {
             clockwise,
         }),
         GeomDto::Polyline { vertices, closed } => {
-            let verts = vertices.into_iter().map(|[x, y]| Vec2::new(x, y)).collect();
+            let verts = vertices
+                .into_iter()
+                .map(|[x, y]| Vec2::new(x, y))
+                .collect();
             Geometry::Polyline(if closed {
                 Polyline::closed(verts)
             } else {
                 Polyline::new(verts)
             })
         }
+        GeomDto::Text {
+            x,
+            y,
+            height,
+            rotation,
+            content,
+            align,
+        } => Geometry::Text(TextGeom {
+            position: Vec2::new(x, y),
+            height,
+            rotation,
+            content,
+            align: match align.as_str() {
+                "center" => TextAlign::Center,
+                "right" => TextAlign::Right,
+                "middle" => TextAlign::Middle,
+                _ => TextAlign::Left,
+            },
+        }),
+        GeomDto::Mtext {
+            x,
+            y,
+            height,
+            rotation,
+            content,
+            width,
+        } => Geometry::MText(MTextGeom {
+            position: Vec2::new(x, y),
+            height,
+            rotation,
+            content,
+            width,
+        }),
+        GeomDto::Dimension {
+            kind,
+            x1,
+            y1,
+            x2,
+            y2,
+            dx,
+            dy,
+            text_override,
+            assoc_a,
+            assoc_b,
+        } => Geometry::Dimension(DimensionGeom {
+            kind: match kind.as_str() {
+                "aligned" => DimKind::Aligned,
+                "radius" => DimKind::Radius,
+                "diameter" => DimKind::Diameter,
+                "angular" => DimKind::Angular,
+                _ => DimKind::Linear,
+            },
+            def1: Vec2::new(x1, y1),
+            def2: Vec2::new(x2, y2),
+            dim_line: Vec2::new(dx, dy),
+            assoc_a: assoc_a
+                .as_deref()
+                .and_then(|s| Uuid::parse_str(s).ok())
+                .map(EntityId::from_uuid),
+            assoc_b: assoc_b
+                .as_deref()
+                .and_then(|s| Uuid::parse_str(s).ok())
+                .map(EntityId::from_uuid),
+            text_override,
+        }),
+        GeomDto::Hatch { boundary, pattern } => Geometry::Hatch(HatchGeom {
+            boundary: boundary.into_iter().map(|[x, y]| Vec2::new(x, y)).collect(),
+            pattern: if pattern.eq_ignore_ascii_case("SOLID") {
+                HatchPattern::Solid
+            } else {
+                HatchPattern::Named(pattern)
+            },
+        }),
+        GeomDto::Insert {
+            block_id,
+            x,
+            y,
+            sx,
+            sy,
+            rotation,
+        } => Geometry::Insert(InsertGeom {
+            block_id: BlockId::from_uuid(Uuid::parse_str(&block_id)?),
+            position: Vec2::new(x, y),
+            scale: Vec2::new(sx, sy),
+            rotation,
+            attribs: Default::default(),
+        }),
     })
 }
