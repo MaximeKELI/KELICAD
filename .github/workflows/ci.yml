@@ -20,6 +20,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -33,11 +34,22 @@ jobs:
       - name: test
         run: cargo test --workspace --exclude kelicad-wasm
 
+      - name: check wasm
+        run: cargo check -p kelicad-wasm --target wasm32-unknown-unknown
+
   web:
-    name: Web (lint, typecheck, test)
+    name: Web (wasm, lint, typecheck, test, build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -48,6 +60,12 @@ jobs:
         run: |
           corepack enable
           corepack prepare pnpm@9.15.0 --activate
+
+      - name: Build WASM package
+        run: |
+          source "$HOME/.cargo/env"
+          wasm-pack build crates/kelicad-wasm --target web --out-dir ../../apps/web/src/wasm/pkg --release
+          rm -f apps/web/src/wasm/pkg/.gitignore
 
       - name: Install
         run: pnpm install --frozen-lockfile
@@ -60,3 +78,6 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      - name: Build
+        run: pnpm build

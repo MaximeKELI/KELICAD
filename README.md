@@ -10,9 +10,9 @@ technical comments are in English.
 
 ## Status
 
-Milestone **M0 — Foundations** implemented (pending product validation):
-math/geometry core, document + ops, WebGPU canvas demo (100k lines), ADRs
-0001–0004, `.kelicad` spec v0.
+Milestone **M1 — Basic 2D drafting** in progress/complete for validation:
+command engine (LINE/PLINE/CIRCLE/ARC/RECTANG + modify/TRIM/EXTEND/ERASE),
+snaps, `.kelicad` I/O (rusqlite + browser sql.js), WebGPU drawing UI + CLI.
 
 ## Repository layout
 
