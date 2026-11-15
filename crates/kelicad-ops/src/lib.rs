@@ -1,14 +1,12 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! Document operations, journal, and undo/redo.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub mod journal;
+pub mod operation;
+pub mod session;
+
+pub use journal::OpJournal;
+pub use operation::{OpError, Operation};
+pub use session::DocSession;

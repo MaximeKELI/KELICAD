@@ -3,7 +3,15 @@ name = "kelicad-ops"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-repository.workspace = true
 rust-version.workspace = true
+description = "Atomic document operations, journal, and undo/redo for KELICAD"
+readme = "README.md"
 
 [dependencies]
+kelicad-doc = { workspace = true }
+kelicad-geom = { workspace = true }
+kelicad-math = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
