@@ -67,6 +67,11 @@ impl CommandId {
             Self::Erase => "ERASE",
             Self::Undo => "UNDO",
             Self::Redo => "REDO",
+            Self::Text => "TEXT",
+            Self::DimLinear => "DIMLINEAR",
+            Self::Hatch => "HATCH",
+            Self::Block => "BLOCK",
+            Self::Insert => "INSERT",
         }
     }
 
@@ -90,6 +95,11 @@ impl CommandId {
             "ERASE" | "E" | "DELETE" => Self::Erase,
             "UNDO" | "U" => Self::Undo,
             "REDO" => Self::Redo,
+            "TEXT" | "DT" => Self::Text,
+            "DIMLINEAR" | "DIMLIN" | "DLI" => Self::DimLinear,
+            "HATCH" | "H" => Self::Hatch,
+            "BLOCK" | "B" => Self::Block,
+            "INSERT" | "I" => Self::Insert,
             _ => return None,
         })
     }
