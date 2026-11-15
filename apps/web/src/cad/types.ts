@@ -83,6 +83,10 @@ export type CadSession = {
   sync_fingerprint(): string;
   sync_handle_wire(text: string): string;
   macro_record_json(): string;
+  constraint_add_json(json: string): string;
+  constraint_solve(): string;
+  constraints_json(): string;
+  vectorize_bytes(data: Uint8Array, filename_hint: string): number;
 };
 
 export function parseCadOutput(raw: string): CadOutput {

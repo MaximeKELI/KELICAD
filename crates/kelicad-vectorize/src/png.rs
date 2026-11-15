@@ -1,6 +1,5 @@
 //! PNG threshold + marching-squares contours → polylines.
 
-use image::GenericImageView;
 use kelicad_doc::Geometry;
 use kelicad_geom::Polyline;
 use kelicad_math::Vec2;
@@ -46,8 +45,8 @@ pub fn vectorize_png(bytes: &[u8], opts: PngOptions) -> Result<Vec<Geometry>, Ve
             1
         }
     };
-    let w = (w0 + scale - 1) / scale;
-    let h = (h0 + scale - 1) / scale;
+    let w = w0.div_ceil(scale);
+    let h = h0.div_ceil(scale);
 
     let mut grid = vec![false; (w * h) as usize];
     for y in 0..h {
@@ -66,7 +65,12 @@ pub fn vectorize_png(bytes: &[u8], opts: PngOptions) -> Result<Vec<Geometry>, Ve
         // Flip Y so image top maps to larger world Y (CAD-ish).
         let verts: Vec<Vec2> = contour
             .into_iter()
-            .map(|(x, y)| Vec2::new(x as f64 * scale as f64, (h0 as f64) - y as f64 * scale as f64))
+            .map(|(x, y)| {
+                Vec2::new(
+                    x as f64 * scale as f64,
+                    (h0 as f64) - y as f64 * scale as f64,
+                )
+            })
             .collect();
         let closed = verts.len() >= 3
             && (verts[0].x - verts[verts.len() - 1].x).abs() < 1.5 * scale as f64
@@ -77,10 +81,7 @@ pub fn vectorize_png(bytes: &[u8], opts: PngOptions) -> Result<Vec<Geometry>, Ve
             verts
         };
         if vertices.len() >= 2 {
-            out.push(Geometry::Polyline(Polyline {
-                vertices,
-                closed,
-            }));
+            out.push(Geometry::Polyline(Polyline { vertices, closed }));
         }
     }
 

@@ -42,7 +42,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [echoes, setEchoes] = useState<string[]>([
-    "KELICAD M4 — collab: lancez `cargo run -p kelicad-gateway` puis Nouvelle salle.",
+    "KELICAD M6 — contraintes, vectorisation, contrôles. Gateway optionnel pour /v1/vectorize.",
   ]);
   const [revision, setRevision] = useState(0);
   const [entityCount, setEntityCount] = useState(0);
@@ -294,6 +294,76 @@ export function App() {
             }}
           >
             MACRO
+          </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={() => {
+              try {
+                const sel = JSON.parse(cad.selection_json()) as string[];
+                const id = sel[0];
+                if (!id) {
+                  setEchoes((prev) => [
+                    ...prev,
+                    "CONSTR: sélectionnez une ligne (Horizontal+Distance)",
+                  ]);
+                  return;
+                }
+                cad.constraint_add_json(
+                  JSON.stringify({ kind: "horizontal", entity: id }),
+                );
+                cad.constraint_add_json(
+                  JSON.stringify({
+                    kind: "distance",
+                    entity: id,
+                    value: 5,
+                  }),
+                );
+                const result = cad.constraint_solve();
+                setRevision((n) => n + 1);
+                setEntityCount(cad.entity_count());
+                setEchoes((prev) => [...prev, `CONSTR solve: ${result}`]);
+              } catch (e) {
+                setEchoes((prev) => [...prev, `CONSTR erreur: ${String(e)}`]);
+              }
+            }}
+          >
+            CONSTR
+          </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={() => {
+              const input = document.createElement("input");
+              input.type = "file";
+              input.accept = ".svg,.png,image/svg+xml,image/png";
+              input.onchange = () => {
+                const file = input.files?.[0];
+                if (!file) return;
+                void file.arrayBuffer().then((buf) => {
+                  try {
+                    const n = cad.vectorize_bytes(
+                      new Uint8Array(buf),
+                      file.name,
+                    );
+                    setRevision((r) => r + 1);
+                    setEntityCount(cad.entity_count());
+                    setEchoes((prev) => [
+                      ...prev,
+                      `VECTORIZE: ${n} entité(s) depuis ${file.name}`,
+                    ]);
+                  } catch (e) {
+                    setEchoes((prev) => [
+                      ...prev,
+                      `VECTORIZE erreur: ${String(e)}`,
+                    ]);
+                  }
+                });
+              };
+              input.click();
+            }}
+          >
+            VECTORIZE
           </button>
         </div>
         <div className="font-mono text-xs text-ink-500">

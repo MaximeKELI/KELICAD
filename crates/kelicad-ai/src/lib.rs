@@ -11,6 +11,7 @@ pub mod journal;
 pub mod plan;
 pub mod planner;
 pub mod provider;
+pub mod ruleset;
 pub mod safety;
 pub mod tools;
 
@@ -21,4 +22,5 @@ pub use id_gen::{IdGen, SequentialIdGen, UuidV7Gen};
 pub use journal::{AiJournal, AiJournalEntry, JournalOutcome};
 pub use plan::{AgentMode, PlanStep, Proposal};
 pub use provider::{DeterministicProvider, LlmProvider};
+pub use ruleset::{load_ruleset, run_ruleset, CheckFinding, CheckReport, Ruleset};
 pub use tools::{execute_tool, tool_names, ToolCall, ToolContext, ToolExecResult};

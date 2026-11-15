@@ -135,15 +135,45 @@ pub fn plan_utterance(utterance: &str) -> Result<Vec<ToolCall>, AiError> {
         return Ok(calls);
     }
 
+    if norm.contains("nettoie")
+        || norm.contains("nettoyage")
+        || norm.contains("cleanup")
+        || norm.contains("clean up")
+    {
+        calls.push(ToolCall {
+            name: "cleanup_drawing".into(),
+            args: json!({}),
+        });
+        return Ok(calls);
+    }
+
+    if norm.contains("cote auto")
+        || norm.contains("cotation auto")
+        || norm.contains("auto dimension")
+        || norm.contains("autodim")
+        || (norm.contains("cote") && norm.contains("automat"))
+    {
+        calls.push(ToolCall {
+            name: "auto_dimension".into(),
+            args: json!({}),
+        });
+        return Ok(calls);
+    }
+
     if norm.contains("contrôle")
         || norm.contains("controle")
         || norm.contains("check")
         || norm.contains("vérifie")
         || norm.contains("verifie")
     {
+        let ruleset = if norm.contains("pmr") {
+            "pmr_distances"
+        } else {
+            "default"
+        };
         calls.push(ToolCall {
             name: "run_check".into(),
-            args: json!({ "ruleset": "basic" }),
+            args: json!({ "ruleset": ruleset }),
         });
         return Ok(calls);
     }
@@ -436,5 +466,16 @@ mod tests {
         assert_eq!(plan[0].args["width"], 4.0);
         assert_eq!(plan[0].args["height"], 3.0);
         assert_eq!(plan[2].args["delta"][0], 2.0);
+    }
+
+    #[test]
+    fn cleanup_and_autodim_and_check() {
+        let a = plan_utterance("nettoie le dessin").unwrap();
+        assert_eq!(a[0].name, "cleanup_drawing");
+        let b = plan_utterance("cote auto").unwrap();
+        assert_eq!(b[0].name, "auto_dimension");
+        let c = plan_utterance("vérifie PMR").unwrap();
+        assert_eq!(c[0].name, "run_check");
+        assert_eq!(c[0].args["ruleset"], "pmr_distances");
     }
 }

@@ -1,0 +1,9 @@
+{
+  "id": "default",
+  "rules": [
+    { "type": "empty_document" },
+    { "type": "open_polyline", "min_vertices": 3 },
+    { "type": "min_segment_length", "min_length": 0.01 },
+    { "type": "duplicate_line", "tolerance": 1e-6 }
+  ]
+}

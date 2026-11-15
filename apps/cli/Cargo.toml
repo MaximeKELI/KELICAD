@@ -16,6 +16,8 @@ kelicad-doc = { workspace = true }
 kelicad-io = { workspace = true, features = ["native"] }
 kelicad-ops = { workspace = true }
 kelicad-plugin = { workspace = true }
+kelicad-vectorize = { workspace = true }
+kelicad-constraints = { workspace = true }
 clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

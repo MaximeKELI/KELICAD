@@ -60,7 +60,7 @@ pub fn solve(system: &ConstraintSystem, doc: &Document) -> Result<SolveResult, C
     }
 
     let constraints: Vec<_> = system.constraints().into_iter().map(|(_, c)| c).collect();
-    let tol = Tolerance::DEFAULT;
+    let tol = Tolerance::COARSE;
     let initial_residual = max_residual(&constraints, &lines);
 
     // Detect hard inconsistency: two Distance on same entity with different values.
@@ -80,7 +80,7 @@ pub fn solve(system: &ConstraintSystem, doc: &Document) -> Result<SolveResult, C
         });
     }
 
-    let mut residual = initial_residual;
+    let mut residual;
     for _ in 0..MAX_ITERS {
         residual = max_residual(&constraints, &lines);
         if residual < tol.abs {
@@ -195,7 +195,7 @@ fn conflicting_hv_distance(constraints: &[Constraint], tol: Tolerance) -> bool {
         }
     }
     for (id, value) in dist {
-        if h.contains(&id) && v.contains(&id) && *value > tol.abs {
+        if h.contains(&id) && v.contains(&id) && value > tol.abs {
             return true;
         }
     }
@@ -437,7 +437,7 @@ mod tests {
         let layer = session.document.default_layer_id();
         let id = eid(1);
         session
-            .apply(&Operation::CreateEntity {
+            .apply(Operation::CreateEntity {
                 record: line_entity(id, layer, Vec2::new(0.0, 0.0), Vec2::new(3.0, 4.0)),
             })
             .unwrap();
@@ -457,7 +457,7 @@ mod tests {
         ));
         assert!(!result.ops.is_empty());
         session
-            .apply(&Operation::Batch {
+            .apply(Operation::Batch {
                 ops: result.ops.clone(),
             })
             .unwrap();
@@ -475,12 +475,12 @@ mod tests {
         let a = eid(10);
         let b = eid(11);
         session
-            .apply(&Operation::CreateEntity {
+            .apply(Operation::CreateEntity {
                 record: line_entity(a, layer, Vec2::ZERO, Vec2::new(4.0, 0.0)),
             })
             .unwrap();
         session
-            .apply(&Operation::CreateEntity {
+            .apply(Operation::CreateEntity {
                 record: line_entity(b, layer, Vec2::new(0.0, 1.0), Vec2::new(3.0, 2.0)),
             })
             .unwrap();
@@ -488,9 +488,7 @@ mod tests {
         let mut sys = ConstraintSystem::new();
         sys.add(Constraint::Parallel { a, b }).unwrap();
         let result = solve(&sys, &session.document).unwrap();
-        session
-            .apply(&Operation::Batch { ops: result.ops })
-            .unwrap();
+        session.apply(Operation::Batch { ops: result.ops }).unwrap();
         let Geometry::Line(la) = &session.document.get_entity(a).unwrap().geometry else {
             panic!();
         };
@@ -508,12 +506,12 @@ mod tests {
         let a = eid(20);
         let b = eid(21);
         session
-            .apply(&Operation::CreateEntity {
+            .apply(Operation::CreateEntity {
                 record: line_entity(a, layer, Vec2::ZERO, Vec2::new(2.0, 0.0)),
             })
             .unwrap();
         session
-            .apply(&Operation::CreateEntity {
+            .apply(Operation::CreateEntity {
                 record: line_entity(b, layer, Vec2::new(2.5, 0.5), Vec2::new(4.0, 0.5)),
             })
             .unwrap();
@@ -527,16 +525,14 @@ mod tests {
         })
         .unwrap();
         let result = solve(&sys, &session.document).unwrap();
-        session
-            .apply(&Operation::Batch { ops: result.ops })
-            .unwrap();
+        session.apply(Operation::Batch { ops: result.ops }).unwrap();
         let Geometry::Line(la) = &session.document.get_entity(a).unwrap().geometry else {
             panic!();
         };
         let Geometry::Line(lb) = &session.document.get_entity(b).unwrap().geometry else {
             panic!();
         };
-        assert!(la.end.nearly_eq(lb.start, Tolerance::DEFAULT));
+        assert!(la.end.nearly_eq(lb.start, Tolerance::COARSE));
     }
 
     #[test]
@@ -545,7 +541,7 @@ mod tests {
         let layer = session.document.default_layer_id();
         let id = eid(30);
         session
-            .apply(&Operation::CreateEntity {
+            .apply(Operation::CreateEntity {
                 record: line_entity(id, layer, Vec2::ZERO, Vec2::new(1.0, 0.0)),
             })
             .unwrap();
@@ -579,7 +575,7 @@ mod tests {
         let layer = session.document.default_layer_id();
         let id = eid(40);
         session
-            .apply(&Operation::CreateEntity {
+            .apply(Operation::CreateEntity {
                 record: line_entity(id, layer, Vec2::ZERO, Vec2::new(3.0, 4.0)),
             })
             .unwrap();

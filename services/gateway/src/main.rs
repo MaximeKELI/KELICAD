@@ -4,13 +4,17 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use axum::body::Bytes;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
+use axum::http::header::CONTENT_TYPE;
+use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use futures_util::{SinkExt, StreamExt};
 use kelicad_sync::{Comment, OpEnvelope, RestorePoint, WireMessage};
+use kelicad_vectorize::vectorize_bytes;
 use serde::Serialize;
 use tokio::sync::{broadcast, Mutex};
 use tower_http::cors::CorsLayer;
@@ -53,6 +57,7 @@ async fn main() {
         .route("/rooms/:id/ws", get(ws_handler))
         .route("/v1/rooms/:id/snapshot", get(get_snapshot))
         .route("/v1/rooms/:id/ops", post(post_ops))
+        .route("/v1/vectorize", post(vectorize))
         .layer(CorsLayer::permissive())
         .with_state(state);
 
@@ -139,6 +144,44 @@ async fn post_ops(
         }
     }
     Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+#[derive(serde::Deserialize)]
+struct VectorizeQuery {
+    /// Filename hint, e.g. plan.svg / scan.png
+    #[serde(default)]
+    filename: Option<String>,
+}
+
+async fn vectorize(
+    Query(q): Query<VectorizeQuery>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<Json<serde_json::Value>, axum::http::StatusCode> {
+    let ct = headers
+        .get(CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    let hint = q.filename.unwrap_or_else(|| {
+        if ct.contains("svg") {
+            "input.svg".into()
+        } else if ct.contains("png") {
+            "input.png".into()
+        } else {
+            "input.bin".into()
+        }
+    });
+    let geoms =
+        vectorize_bytes(&body, Some(&hint)).map_err(|_| axum::http::StatusCode::BAD_REQUEST)?;
+    let entities: Vec<_> = geoms
+        .into_iter()
+        .map(|g| serde_json::json!({ "geometry": g }))
+        .collect();
+    Ok(Json(serde_json::json!({
+        "ok": true,
+        "count": entities.len(),
+        "entities": entities,
+    })))
 }
 
 async fn handle_socket(socket: WebSocket, room_id: String, state: Arc<AppState>) {

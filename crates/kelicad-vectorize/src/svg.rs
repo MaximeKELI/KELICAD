@@ -109,12 +109,11 @@ fn iter_tags(text: &str) -> Vec<String> {
 }
 
 fn tag_name(tag: &str) -> &str {
-    tag.split_whitespace()
-        .next()
-        .unwrap_or(tag)
-        .split_once(|c: char| c == '/' || c == '\n')
+    let first = tag.split_whitespace().next().unwrap_or(tag);
+    first
+        .split_once(['/', '\n'])
         .map(|(a, _)| a)
-        .unwrap_or(tag)
+        .unwrap_or(first)
         .trim()
 }
 
@@ -183,11 +182,7 @@ fn parse_path(d: &str) -> Vec<Geometry> {
                     flush(&mut verts, &mut closed, &mut geoms);
                     let rel = c == 'm';
                     if let Some(p) = read_pair(&tokens, &mut i) {
-                        cursor = if rel {
-                            cursor + p
-                        } else {
-                            p
-                        };
+                        cursor = if rel { cursor + p } else { p };
                         start = cursor;
                         verts.push(cursor);
                         // Implicit lineto pairs after moveto.

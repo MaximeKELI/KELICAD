@@ -1,0 +1,22 @@
+[
+  {
+    "id": "m6-001",
+    "utterance": "contrôle le dessin",
+    "expect_tools": ["run_check"]
+  },
+  {
+    "id": "m6-002",
+    "utterance": "nettoie le dessin",
+    "expect_tools": ["cleanup_drawing"]
+  },
+  {
+    "id": "m6-003",
+    "utterance": "cote auto",
+    "expect_tools": ["auto_dimension"]
+  },
+  {
+    "id": "m6-004",
+    "utterance": "vérifie PMR",
+    "expect_tools": ["run_check"]
+  }
+]

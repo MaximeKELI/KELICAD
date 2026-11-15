@@ -4,6 +4,7 @@
 
 use kelicad_ai::{AgentMode, DeterministicProvider, KeliAgent, UuidV7Gen as AiUuidV7Gen};
 use kelicad_cmd::{CommandEngine, CommandEvent, CommandId, UuidV7Gen};
+use kelicad_constraints::{solve, Constraint, ConstraintSystem};
 use kelicad_doc::{EntityId, EntityRecord, Geometry, Layer, LayerId};
 use kelicad_geom::{Arc, Circle, Line, Polyline};
 use kelicad_math::Vec2;
@@ -11,6 +12,7 @@ use kelicad_ops::{DocSession, Operation};
 use kelicad_sync::{
     ActorId, CommentAnchor, CommentId, HybridTime, OpEnvelope, PresenceState, Replica, WireMessage,
 };
+use kelicad_vectorize::vectorize_bytes;
 use serde::Deserialize;
 use serde::Serialize;
 use uuid::Uuid;
@@ -59,6 +61,7 @@ pub struct WasmCad {
     replica: Replica,
     sync_journal_cursor: usize,
     last_prompt_fr: String,
+    constraints: ConstraintSystem,
 }
 
 #[wasm_bindgen]
@@ -73,6 +76,7 @@ impl WasmCad {
             replica: Replica::new(actor, "Anonyme", [80, 180, 220]),
             sync_journal_cursor: 0,
             last_prompt_fr: String::new(),
+            constraints: ConstraintSystem::new(),
         }
     }
 
@@ -550,6 +554,68 @@ impl WasmCad {
     pub fn macro_record_json(&self) -> String {
         let script = kelicad_plugin::record_macro(&self.engine.session);
         kelicad_plugin::macro_to_json(&script).unwrap_or_else(|_| "{}".into())
+    }
+
+    /// Add a constraint from JSON (`Constraint` serde). Returns constraint id.
+    pub fn constraint_add_json(&mut self, json: &str) -> Result<String, JsValue> {
+        let c: Constraint =
+            serde_json::from_str(json).map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let id = self
+            .constraints
+            .add(c)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        Ok(id.to_string())
+    }
+
+    /// Solve the constraint system and apply geometry ops (one undoable batch).
+    pub fn constraint_solve(&mut self) -> Result<String, JsValue> {
+        let result = solve(&self.constraints, &self.engine.session.document)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let n = result.ops.len();
+        if !result.ops.is_empty() {
+            self.engine
+                .session
+                .apply(Operation::Batch { ops: result.ops })
+                .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        }
+        Ok(serde_json::json!({
+            "status": result.status,
+            "residual": result.residual,
+            "ops": n,
+        })
+        .to_string())
+    }
+
+    /// Constraint system JSON.
+    pub fn constraints_json(&self) -> String {
+        serde_json::to_string(&self.constraints).unwrap_or_else(|_| "{}".into())
+    }
+
+    /// Vectorize SVG/PNG bytes; insert entities on the current layer. Returns count.
+    pub fn vectorize_bytes(&mut self, data: &[u8], filename_hint: &str) -> Result<u32, JsValue> {
+        let geoms = vectorize_bytes(data, Some(filename_hint))
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let layer = self.engine.session.document.current_layer;
+        let mut ops = Vec::new();
+        for geom in geoms {
+            let id = EntityId::from_uuid(Uuid::now_v7());
+            ops.push(Operation::CreateEntity {
+                record: EntityRecord {
+                    id,
+                    kind: geom.kind(),
+                    geometry: geom,
+                    layer_id: layer,
+                },
+            });
+        }
+        let n = ops.len() as u32;
+        if !ops.is_empty() {
+            self.engine
+                .session
+                .apply(Operation::Batch { ops })
+                .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        }
+        Ok(n)
     }
 
     /// Handle an inbound wire message JSON (op/presence/comment/snapshot).

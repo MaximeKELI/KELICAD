@@ -87,6 +87,8 @@ pub fn execute_tool(
         "highlight" => control_highlight(call, ctx),
         "propose_plan" => control_propose_plan(call),
         "run_check" => control_run_check(call, ctx),
+        "cleanup_drawing" => write_cleanup_drawing(call, ctx),
+        "auto_dimension" => write_auto_dimension(call, ctx, ids),
         other => Err(AiError::UnknownTool(other.to_string())),
     }
 }
@@ -121,6 +123,8 @@ pub fn tool_names() -> &'static [&'static str] {
         "highlight",
         "propose_plan",
         "run_check",
+        "cleanup_drawing",
+        "auto_dimension",
     ]
 }
 
@@ -1225,38 +1229,350 @@ fn control_propose_plan(call: &ToolCall) -> Result<ToolExecResult, AiError> {
 }
 
 fn control_run_check(call: &ToolCall, ctx: &ToolContext<'_>) -> Result<ToolExecResult, AiError> {
-    let mut warnings = Vec::new();
-    if ctx.session.document.entity_count() == 0 {
-        warnings.push("document is empty");
-    }
-    for e in ctx.session.document.entities() {
-        if let Geometry::Polyline(p) = &e.geometry {
-            if !p.closed && p.vertices.len() >= 3 {
-                warnings.push("open polyline with ≥3 vertices");
-                break;
-            }
-        }
-    }
-    let result = json!({ "warnings": warnings, "ok": warnings.is_empty() });
+    let name = call
+        .args
+        .get("ruleset")
+        .and_then(|v| v.as_str())
+        .unwrap_or("default");
+    let ruleset = crate::ruleset::load_ruleset(name).map_err(AiError::Execution)?;
+    let report = crate::ruleset::run_ruleset(&ruleset, &ctx.session.document);
+    let result = serde_json::to_value(&report).unwrap_or_else(|_| json!({}));
+    let ghosts: Vec<Geometry> = report
+        .findings
+        .iter()
+        .flat_map(|f| f.entity_ids.iter())
+        .filter_map(|id_str| {
+            let id = EntityId::from_uuid(uuid::Uuid::parse_str(id_str).ok()?);
+            ctx.session
+                .document
+                .get_entity(id)
+                .map(|e| e.geometry.clone())
+        })
+        .collect();
     Ok(ToolExecResult {
         step: step(
             "run_check",
             &call.args,
-            if warnings.is_empty() {
+            if report.ok {
                 "contrôle OK"
             } else {
                 "avertissements"
             },
-            if warnings.is_empty() {
-                "check OK"
-            } else {
-                "warnings"
-            },
+            if report.ok { "check OK" } else { "warnings" },
             true,
             Some(result),
         ),
         ops: vec![],
+        ghosts,
+        bindings: HashMap::new(),
+    })
+}
+
+fn write_cleanup_drawing(
+    call: &ToolCall,
+    ctx: &ToolContext<'_>,
+) -> Result<ToolExecResult, AiError> {
+    let tool = "cleanup_drawing";
+    let gap = call
+        .args
+        .get("gap_tol")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.05);
+    let colinear_tol = call
+        .args
+        .get("colinear_tol")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(1e-3);
+    let dup_tol = kelicad_math::Tolerance::new(
+        call.args
+            .get("duplicate_tol")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(1e-6),
+    );
+
+    let lines: Vec<_> = ctx
+        .session
+        .document
+        .entities()
+        .filter_map(|e| match &e.geometry {
+            Geometry::Line(l) => Some((e.id, *l)),
+            _ => None,
+        })
+        .collect();
+
+    let mut delete = std::collections::HashSet::new();
+    // Duplicates: keep first, delete later.
+    for i in 0..lines.len() {
+        if delete.contains(&lines[i].0) {
+            continue;
+        }
+        for j in (i + 1)..lines.len() {
+            if delete.contains(&lines[j].0) {
+                continue;
+            }
+            let (a, b) = (lines[i].1, lines[j].1);
+            let same = (a.start.nearly_eq(b.start, dup_tol) && a.end.nearly_eq(b.end, dup_tol))
+                || (a.start.nearly_eq(b.end, dup_tol) && a.end.nearly_eq(b.start, dup_tol));
+            if same {
+                delete.insert(lines[j].0);
+            }
+        }
+    }
+
+    let mut ops: Vec<Operation> = delete
+        .iter()
+        .map(|id| Operation::DeleteEntity { id: *id })
+        .collect();
+
+    // Close small gaps: snap nearby endpoints.
+    let remaining: Vec<_> = lines
+        .iter()
+        .filter(|(id, _)| !delete.contains(id))
+        .copied()
+        .collect();
+    let mut endpoints: Vec<(EntityId, bool, Vec2)> = Vec::new();
+    for (id, l) in &remaining {
+        endpoints.push((*id, true, l.start));
+        endpoints.push((*id, false, l.end));
+    }
+    let mut geom_updates: HashMap<EntityId, Line> = HashMap::new();
+    for (id, l) in &remaining {
+        geom_updates.insert(*id, *l);
+    }
+    for i in 0..endpoints.len() {
+        for j in (i + 1)..endpoints.len() {
+            if endpoints[i].0 == endpoints[j].0 {
+                continue;
+            }
+            let d = endpoints[i].2.distance(endpoints[j].2);
+            if d > 1e-12 && d <= gap {
+                let mid = (endpoints[i].2 + endpoints[j].2) * 0.5;
+                for &(idx, is_start) in &[(i, endpoints[i].1), (j, endpoints[j].1)] {
+                    let eid = endpoints[idx].0;
+                    let line = geom_updates
+                        .entry(eid)
+                        .or_insert_with(|| remaining.iter().find(|(id, _)| *id == eid).unwrap().1);
+                    if is_start {
+                        line.start = mid;
+                    } else {
+                        line.end = mid;
+                    }
+                }
+            }
+        }
+    }
+
+    // Merge near-colinear overlapping segments on shared direction: shorten duplicate span by deleting shorter.
+    for i in 0..remaining.len() {
+        if delete.contains(&remaining[i].0) {
+            continue;
+        }
+        for j in (i + 1)..remaining.len() {
+            if delete.contains(&remaining[j].0) {
+                continue;
+            }
+            let a = geom_updates
+                .get(&remaining[i].0)
+                .copied()
+                .unwrap_or(remaining[i].1);
+            let b = geom_updates
+                .get(&remaining[j].0)
+                .copied()
+                .unwrap_or(remaining[j].1);
+            let da = a.delta();
+            let db = b.delta();
+            let la = da.length();
+            let lb = db.length();
+            if la < 1e-12 || lb < 1e-12 {
+                continue;
+            }
+            let cross = (da.x * db.y - da.y * db.x).abs() / (la * lb);
+            if cross > colinear_tol {
+                continue;
+            }
+            // If B's start/end project near A's infinite line and endpoints are close → drop shorter.
+            let d1 = a.distance_squared(b.start).sqrt();
+            let d2 = a.distance_squared(b.end).sqrt();
+            if d1 <= gap && d2 <= gap {
+                if lb <= la {
+                    delete.insert(remaining[j].0);
+                } else {
+                    delete.insert(remaining[i].0);
+                }
+            }
+        }
+    }
+    // Refresh deletes after colinear pass.
+    for id in &delete {
+        if !ops
+            .iter()
+            .any(|o| matches!(o, Operation::DeleteEntity { id: x } if x == id))
+        {
+            ops.push(Operation::DeleteEntity { id: *id });
+        }
+    }
+    for (id, line) in geom_updates {
+        if delete.contains(&id) {
+            continue;
+        }
+        let Some(prev) = ctx.session.document.get_entity(id) else {
+            continue;
+        };
+        let Geometry::Line(old) = &prev.geometry else {
+            continue;
+        };
+        if !old
+            .start
+            .nearly_eq(line.start, kelicad_math::Tolerance::COARSE)
+            || !old.end.nearly_eq(line.end, kelicad_math::Tolerance::COARSE)
+        {
+            ops.push(Operation::SetGeometry {
+                id,
+                geometry: Geometry::Line(line),
+            });
+        }
+    }
+
+    if ops.is_empty() {
+        return Ok(ToolExecResult {
+            step: step(
+                tool,
+                &call.args,
+                "nettoyage: rien à faire",
+                "cleanup: nothing to do",
+                true,
+                Some(json!({ "ops": 0 })),
+            ),
+            ops: vec![],
+            ghosts: vec![],
+            bindings: HashMap::new(),
+        });
+    }
+
+    let n = ops.len();
+    Ok(ToolExecResult {
+        step: step(
+            tool,
+            &call.args,
+            &format!("nettoyage ({n} ops)"),
+            &format!("cleanup ({n} ops)"),
+            false,
+            None,
+        ),
+        ops,
         ghosts: vec![],
+        bindings: HashMap::new(),
+    })
+}
+
+fn write_auto_dimension(
+    call: &ToolCall,
+    ctx: &ToolContext<'_>,
+    ids: &mut dyn IdGen,
+) -> Result<ToolExecResult, AiError> {
+    let tool = "auto_dimension";
+    let selected: Vec<EntityId> = if call.args.get("entity_ids").is_some() {
+        parse_entity_ids(tool, &call.args, "entity_ids")?
+    } else if !ctx.selection.is_empty() {
+        ctx.selection.to_vec()
+    } else {
+        vec![]
+    };
+    let candidates: Vec<_> = if selected.is_empty() {
+        ctx.session
+            .document
+            .entities()
+            .filter(|e| matches!(e.geometry, Geometry::Line(_)))
+            .map(|e| e.id)
+            .collect()
+    } else {
+        selected
+            .into_iter()
+            .filter(|id| {
+                matches!(
+                    ctx.session.document.get_entity(*id).map(|e| &e.geometry),
+                    Some(Geometry::Line(_))
+                )
+            })
+            .collect()
+    };
+
+    // Lines already covered by a dimension association or identical def1/def2.
+    let mut covered: Vec<(Vec2, Vec2)> = Vec::new();
+    for e in ctx.session.document.entities() {
+        if let Geometry::Dimension(d) = &e.geometry {
+            covered.push((d.def1, d.def2));
+            if let Some(a) = d.assoc_a {
+                let _ = a;
+            }
+        }
+    }
+    let tol = kelicad_math::Tolerance::COARSE;
+    let already = |a: Vec2, b: Vec2| {
+        covered.iter().any(|(c1, c2)| {
+            (c1.nearly_eq(a, tol) && c2.nearly_eq(b, tol))
+                || (c1.nearly_eq(b, tol) && c2.nearly_eq(a, tol))
+        })
+    };
+
+    let layer = resolve_layer(ctx, &call.args);
+    let offset = call
+        .args
+        .get("offset")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.5);
+    let mut ops = Vec::new();
+    let mut ghosts = Vec::new();
+    for id in candidates {
+        let Some(ent) = ctx.session.document.get_entity(id) else {
+            continue;
+        };
+        let Geometry::Line(l) = &ent.geometry else {
+            continue;
+        };
+        if already(l.start, l.end) {
+            continue;
+        }
+        let mid = (l.start + l.end) * 0.5;
+        let dir = l.delta();
+        let len = dir.length();
+        let perp = if len > 1e-12 {
+            Vec2::new(-dir.y / len, dir.x / len) * offset
+        } else {
+            Vec2::new(0.0, offset)
+        };
+        let dim = DimensionGeom {
+            kind: DimKind::Aligned,
+            def1: l.start,
+            def2: l.end,
+            dim_line: mid + perp,
+            assoc_a: Some(id),
+            assoc_b: None,
+            text_override: None,
+        };
+        let geom = Geometry::Dimension(dim);
+        let nid = ids.next_entity();
+        ops.push(create_entity_op(nid, layer, geom.clone()));
+        ghosts.push(geom);
+    }
+
+    if ops.is_empty() {
+        return Err(AiError::Execution(
+            "auto_dimension: no undimensioned lines".into(),
+        ));
+    }
+    let n = ops.len();
+    Ok(ToolExecResult {
+        step: step(
+            tool,
+            &call.args,
+            &format!("cotation auto ({n})"),
+            &format!("auto dimension ({n})"),
+            false,
+            None,
+        ),
+        ops,
+        ghosts,
         bindings: HashMap::new(),
     })
 }

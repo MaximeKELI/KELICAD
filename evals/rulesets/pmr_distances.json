@@ -1,0 +1,8 @@
+{
+  "id": "pmr_distances",
+  "rules": [
+    { "type": "empty_document" },
+    { "type": "min_clearance", "min_distance": 0.90 },
+    { "type": "min_segment_length", "min_length": 0.05 }
+  ]
+}

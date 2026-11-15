@@ -39,5 +39,5 @@ All document mutation via `Operation`. Core is I/O-free and clock-free.
 
 ## Milestone in progress
 
-**M5 — Plugins & API.** See ADR 0009 (`kelicad-plugin`, CLI, OpenAPI). Prior: M0–M4
-delivered.
+**M6 — Paramétrique et IA avancée.** See ADR 0010 (constraints, vectorize,
+compliance/cleanup/auto-dim). Prior: M0–M5 delivered.

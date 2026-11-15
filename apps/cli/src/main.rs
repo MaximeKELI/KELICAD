@@ -1,14 +1,17 @@
-//! kelicad-cli — batch convert, validate, plugins, macros.
+//! kelicad-cli — batch convert, validate, plugins, macros, vectorize.
 
 use std::fs;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
+use kelicad_doc::{EntityId, EntityRecord};
 use kelicad_io::{export_dxf, import_dxf};
-use kelicad_ops::DocSession;
+use kelicad_ops::{DocSession, Operation};
 use kelicad_plugin::{
     macro_from_json, macro_to_json, record_macro, replay_macro, Manifest, PluginHost, ScriptGuest,
 };
+use kelicad_vectorize::vectorize_bytes;
+use uuid::Uuid;
 
 #[derive(Parser)]
 #[command(name = "kelicad-cli", about = "KELICAD batch / plugin CLI")]
@@ -44,6 +47,14 @@ enum Commands {
     Macro {
         #[command(subcommand)]
         cmd: MacroCmd,
+    },
+    /// Vectorize SVG or PNG into snapshot JSON entities.
+    Vectorize {
+        /// Input .svg or .png.
+        input: PathBuf,
+        /// Output snapshot JSON path (stdout if omitted).
+        #[arg(short, long)]
+        output: Option<PathBuf>,
     },
 }
 
@@ -221,5 +232,58 @@ fn run(cli: Cli) -> Result<(), String> {
                 Ok(())
             }
         },
+        Commands::Vectorize { input, output } => {
+            let bytes = fs::read(&input).map_err(|e| e.to_string())?;
+            let hint = input
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("input.svg");
+            let geoms = vectorize_bytes(&bytes, Some(hint)).map_err(|e| e.to_string())?;
+            let mut session = DocSession::new();
+            let layer = session.document.current_layer;
+            let mut ops = Vec::new();
+            for geom in geoms {
+                let id = EntityId::from_uuid(Uuid::now_v7());
+                ops.push(Operation::CreateEntity {
+                    record: EntityRecord {
+                        id,
+                        kind: geom.kind(),
+                        geometry: geom,
+                        layer_id: layer,
+                    },
+                });
+            }
+            let n = ops.len();
+            if !ops.is_empty() {
+                session
+                    .apply(Operation::Batch { ops })
+                    .map_err(|e| e.to_string())?;
+            }
+            let entities: Vec<serde_json::Value> = session
+                .document
+                .entities()
+                .map(|e| {
+                    serde_json::json!({
+                        "id": e.id.to_string(),
+                        "kind": format!("{:?}", e.kind).to_ascii_lowercase(),
+                        "layer_id": e.layer_id.to_string(),
+                        "geometry": e.geometry,
+                    })
+                })
+                .collect();
+            let snap = serde_json::json!({
+                "schema_version": 1,
+                "entity_count": n,
+                "entities": entities,
+            });
+            let text = serde_json::to_string_pretty(&snap).map_err(|e| e.to_string())?;
+            if let Some(out) = output {
+                fs::write(out, text).map_err(|e| e.to_string())?;
+            } else {
+                print!("{text}");
+            }
+            eprintln!("vectorize ok: entities={n}");
+            Ok(())
+        }
     }
 }

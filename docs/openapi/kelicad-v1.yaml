@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: KELICAD Collaboration API
   version: 0.1.0
-  description: M5 REST surface for rooms, snapshots, and op append.
+  description: REST surface for rooms, snapshots, ops, and vectorize (M5/M6).
 servers:
   - url: http://127.0.0.1:8787
 paths:
@@ -64,3 +64,46 @@ paths:
           description: Accepted
         "404":
           description: Unknown room
+  /v1/vectorize:
+    post:
+      summary: Deterministic SVG/PNG → editable geometries
+      parameters:
+        - name: filename
+          in: query
+          required: false
+          schema:
+            type: string
+            example: plan.svg
+      requestBody:
+        required: true
+        content:
+          image/svg+xml:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Geometries extracted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  count:
+                    type: integer
+                  entities:
+                    type: array
+                    items:
+                      type: object
+        "400":
+          description: Unsupported or empty input

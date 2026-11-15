@@ -97,12 +97,14 @@ impl Constraint {
     pub fn entity_ids(&self) -> Vec<EntityId> {
         match self {
             Self::Coincident { a, b, .. } => vec![*a, *b],
-            Self::Horizontal { entity } | Self::Vertical { entity } | Self::Distance { entity, .. } => {
+            Self::Horizontal { entity }
+            | Self::Vertical { entity }
+            | Self::Distance { entity, .. } => {
                 vec![*entity]
             }
-            Self::Parallel { a, b }
-            | Self::Perpendicular { a, b }
-            | Self::EqualLength { a, b } => vec![*a, *b],
+            Self::Parallel { a, b } | Self::Perpendicular { a, b } | Self::EqualLength { a, b } => {
+                vec![*a, *b]
+            }
         }
     }
 }
