@@ -367,8 +367,23 @@ impl<G: IdGen> CommandEngine<G> {
     }
 
     fn snap_point(&self, cursor: Vec2, out: &mut CommandOutput) -> Vec2 {
+        let mut p = cursor;
+        if self.ortho {
+            if let Some(base) = self.last_point {
+                let dx = (cursor.x - base.x).abs();
+                let dy = (cursor.y - base.y).abs();
+                p = if dx >= dy {
+                    Vec2::new(cursor.x, base.y)
+                } else {
+                    Vec2::new(base.x, cursor.y)
+                };
+            }
+        }
+        if !self.osnap_enabled {
+            return p;
+        }
         let q = SnapQuery {
-            cursor,
+            cursor: p,
             aperture: self.snap_aperture,
             base: self.last_point,
         };
@@ -376,7 +391,7 @@ impl<G: IdGen> CommandEngine<G> {
             out.snap = Some(hit.clone());
             hit.point
         } else {
-            cursor
+            p
         }
     }
 
