@@ -1902,9 +1902,130 @@ impl<G: IdGen> CommandEngine<G> {
                 out = self.commit_one(Geometry::Circle(Circle::new(c, r)));
                 self.active = None;
             }
-            (CommandId::Offset, Active::Offset { distance: None, through: false, multiple: false, erase_source: false }) => {
-                self.active = Some((CommandId::Offset, Active::Offset { distance: Some(n), through: false, multiple: false, erase_source: false }));
+            (CommandId::Offset, Active::Offset { distance: None, through, multiple, erase_source }) => {
+                self.active = Some((
+                    CommandId::Offset,
+                    Active::Offset {
+                        distance: Some(n),
+                        through,
+                        multiple,
+                        erase_source,
+                    },
+                ));
+                let _ = self.sysvars.set("OFFSETDIST", SysVarValue::Real(n.abs()));
                 out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Pline,
+                Active::Pline {
+                    points,
+                    wait_width: true,
+                    ..
+                },
+            ) => {
+                let _ = self.sysvars.set("PLINEWID", SysVarValue::Real(n.abs()));
+                self.active = Some((
+                    CommandId::Pline,
+                    Active::Pline {
+                        points,
+                        width: n.abs(),
+                        wait_width: false,
+                    },
+                ));
+                out.echoes.push(format!("Largeur = {n}"));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Rectang,
+                Active::Rectang {
+                    first,
+                    wait_fillet: true,
+                    chamfer,
+                    ..
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::Rectang,
+                    Active::Rectang {
+                        first,
+                        fillet: n.abs(),
+                        chamfer,
+                        wait_fillet: false,
+                        wait_chamfer: false,
+                        wait_dims: false,
+                        dim_w: None,
+                    },
+                ));
+                out.echoes.push(format!("Congé rectangle = {n}"));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Rectang,
+                Active::Rectang {
+                    first,
+                    fillet,
+                    wait_chamfer: true,
+                    ..
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::Rectang,
+                    Active::Rectang {
+                        first,
+                        fillet,
+                        chamfer: n.abs(),
+                        wait_fillet: false,
+                        wait_chamfer: false,
+                        wait_dims: false,
+                        dim_w: None,
+                    },
+                ));
+                out.echoes.push(format!("Chanfrein rectangle = {n}"));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Fillet,
+                Active::Fillet {
+                    wait_radius: true,
+                    multiple,
+                    ..
+                },
+            ) => {
+                let _ = self.sysvars.set("FILLETRAD", SysVarValue::Real(n.abs()));
+                self.active = Some((
+                    CommandId::Fillet,
+                    Active::Fillet {
+                        radius: Some(n.abs()),
+                        multiple,
+                        wait_radius: false,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Divide, Active::Divide { count: None, target }) => {
+                self.active = Some((
+                    CommandId::Divide,
+                    Active::Divide {
+                        count: Some(n.round().max(2.0) as usize),
+                        target,
+                    },
+                ));
+                out.prompt = Some(prompt("Objet à diviser", "Object to divide"));
+            }
+            (CommandId::Measure, Active::Measure { spacing: None, target }) => {
+                self.active = Some((
+                    CommandId::Measure,
+                    Active::Measure {
+                        spacing: Some(n.abs()),
+                        target,
+                    },
+                ));
+                out.prompt = Some(prompt("Objet à mesurer", "Object to measure"));
+            }
+            (CommandId::Ddptype, Active::Ddptype) => {
+                let _ = self.sysvars.set("PDMODE", SysVarValue::Int(n.round() as i64));
+                out.echoes.push(format!("PDMODE = {}", n.round()));
+                self.active = None;
             }
             (CommandId::Rotate, Active::Rotate { origin: Some(o), copy, reference, ref_angle }) => {
                 let rad = n.to_radians();
