@@ -18,7 +18,7 @@ compose skeleton (ADR 0012).
 
 ```
 crates/     Rust core (math → geom → doc → ops → … → wasm)
-apps/       web (React + Vite), desktop (Tauri), cli
+apps/       web (React + Vite + WebGPU 2D/3D), desktop (Tauri 2), cli, dwg-worker
 services/   backend (later milestones)
 sdk/        plugin SDKs
 formats/    .kelicad specification + test corpus
