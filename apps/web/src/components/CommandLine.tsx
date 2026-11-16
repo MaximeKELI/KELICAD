@@ -36,6 +36,13 @@ export function CommandLine({ prompt, echoes, onSubmit }: Props) {
               e.stopPropagation();
               onSubmit(value);
               setValue("");
+              return;
+            }
+            // AutoCAD: Space with empty input = Enter (finish / accept).
+            if (e.code === "Space" && value.trim() === "") {
+              e.preventDefault();
+              e.stopPropagation();
+              onSubmit("");
             }
           }}
           spellCheck={false}

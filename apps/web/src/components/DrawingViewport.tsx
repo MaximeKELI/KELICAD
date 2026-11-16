@@ -265,14 +265,22 @@ export function DrawingViewport({
       if (sd?.active && e.button === 0) {
         const dx = Math.abs(sd.clientX1 - sd.clientX0);
         const dy = Math.abs(sd.clientY1 - sd.clientY0);
-        // Pendant une commande (LINE, PLINE…), toujours pick — pas de fenêtre.
-        const cmdActive = Boolean(cad.prompt_fr()?.trim());
-        if (!cmdActive && (dx > 4 || dy > 4)) {
+        const prompt = cad.prompt_fr()?.trim() ?? "";
+        const gathering =
+          /sélectionnez/i.test(prompt) || /select objects/i.test(prompt);
+        // Pendant dessin (LINE…), toujours pick. Pendant sélection (MOVE/ERASE…),
+        // autoriser la fenêtre.
+        if (gathering && (dx > 4 || dy > 4)) {
+          const crossing = sd.clientX1 < sd.clientX0;
+          onOutput(
+            cad.select_rect(sd.x0, sd.y0, sd.x1, sd.y1, crossing, true),
+          );
+        } else if (!prompt && (dx > 4 || dy > 4)) {
           const crossing = sd.clientX1 < sd.clientX0;
           onOutput(
             cad.select_rect(sd.x0, sd.y0, sd.x1, sd.y1, crossing, sd.shift),
           );
-        } else if (sd.shift && !cmdActive) {
+        } else if (sd.shift && !prompt) {
           onOutput(cad.pick_toggle(sd.x0, sd.y0));
         } else {
           onOutput(cad.pick(sd.x0, sd.y0));

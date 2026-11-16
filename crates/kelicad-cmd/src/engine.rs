@@ -132,6 +132,8 @@ enum Active {
     Trim,
     Extend,
     Erase,
+    /// Verb-noun: pick objects then Enter to continue the pending command.
+    GatherSelection,
     Text {
         position: Option<Vec2>,
     },
@@ -202,6 +204,11 @@ enum Active {
     },
     Leader {
         points: Vec<Vec2>,
+    },
+    /// Leader waiting for annotation text after vertices.
+    LeaderText {
+        start: Vec2,
+        end: Vec2,
     },
     ArrayRect {
         cols: Option<usize>,
@@ -386,8 +393,15 @@ impl<G: IdGen> CommandEngine<G> {
                 crossing,
                 additive,
             } => {
-                if self.active.is_none() {
-                    out = self.select_by_rect(a, b, crossing, additive);
+                let gathering = matches!(
+                    self.active.as_ref().map(|(_, s)| s),
+                    Some(Active::GatherSelection | Active::Erase)
+                );
+                if self.active.is_none() || gathering {
+                    out = self.select_by_rect(a, b, crossing, additive || gathering);
+                    if gathering {
+                        out.prompt = self.current_prompt();
+                    }
                 }
             }
             CommandEvent::Start(id) => {
@@ -563,8 +577,12 @@ impl<G: IdGen> CommandEngine<G> {
             }
             CommandId::Block => {
                 if self.selection.is_empty() {
-                    out.echoes
-                        .push("Sélectionnez des objets avant BLOCK.".into());
+                    self.active = Some((id, Active::GatherSelection));
+                    self.last_command = Some(id);
+                    out.prompt = Some(prompt(
+                        "Sélectionnez les objets du bloc, puis Entrée",
+                        "Select block objects, then Enter",
+                    ));
                     return out;
                 }
                 self.active = Some((
@@ -591,8 +609,12 @@ impl<G: IdGen> CommandEngine<G> {
                         .and_then(|id| self.session.document.get_entity(id))
                         .is_some_and(|e| matches!(e.geometry, Geometry::Polyline(_)));
                 if self.selection.len() < 2 && !ok_poly {
-                    out.echoes
-                        .push("Sélectionnez 2 lignes ou 1 polyligne avant FILLET/CHAMFER.".into());
+                    self.active = Some((id, Active::GatherSelection));
+                    self.last_command = Some(id);
+                    out.prompt = Some(prompt(
+                        "Sélectionnez 2 lignes (ou 1 polyligne), puis Entrée",
+                        "Select 2 lines (or 1 polyline), then Enter",
+                    ));
                     return out;
                 }
                 let active = match id {
@@ -615,8 +637,12 @@ impl<G: IdGen> CommandEngine<G> {
                 if self.selection.is_empty()
                     && !matches!(id, CommandId::Offset | CommandId::Trim | CommandId::Extend)
                 {
-                    out.echoes
-                        .push("Sélectionnez des objets avant la commande.".into());
+                    self.active = Some((id, Active::GatherSelection));
+                    self.last_command = Some(id);
+                    out.prompt = Some(prompt(
+                        "Sélectionnez des objets, puis Entrée",
+                        "Select objects, then Enter",
+                    ));
                     return out;
                 }
                 let active = match id {
@@ -682,8 +708,12 @@ impl<G: IdGen> CommandEngine<G> {
                 if self.selection.is_empty()
                     && !matches!(id, CommandId::Break | CommandId::Lengthen)
                 {
-                    out.echoes
-                        .push("Sélectionnez des objets avant la commande.".into());
+                    self.active = Some((id, Active::GatherSelection));
+                    self.last_command = Some(id);
+                    out.prompt = Some(prompt(
+                        "Sélectionnez des objets, puis Entrée",
+                        "Select objects, then Enter",
+                    ));
                     return out;
                 }
                 let active = match id {
@@ -887,6 +917,13 @@ impl<G: IdGen> CommandEngine<G> {
                 "Sélectionnez les objets, Entrée pour effacer",
                 "Select objects, Enter to erase",
             ),
+            (_, Active::GatherSelection) => prompt(
+                "Sélectionnez des objets, puis Entrée",
+                "Select objects, then Enter",
+            ),
+            (CommandId::Leader, Active::LeaderText { .. }) => {
+                prompt("Texte du repère", "Leader text")
+            },
             (CommandId::Text, Active::Text { position: None }) => {
                 prompt("Point d'insertion du texte", "Text insertion point")
             }
@@ -1387,6 +1424,21 @@ impl<G: IdGen> CommandEngine<G> {
                 out = self.erase_selection();
                 self.active = None;
             }
+            Active::GatherSelection => {
+                if self.selection.is_empty() {
+                    out.echoes
+                        .push("Aucun objet sélectionné — continuez ou Échap.".into());
+                    out.prompt = self.current_prompt();
+                } else {
+                    // Resume the pending command now that selection exists.
+                    out = self.start_command(id);
+                }
+            }
+            Active::LeaderText { start, end } => {
+                // Enter without text → empty annotation.
+                out = self.commit_one(Geometry::Leader(LeaderGeom::new(start, end, "")));
+                self.active = None;
+            }
             Active::Hatch { points } => {
                 if points.len() >= 3 {
                     let mut boundary = points;
@@ -1413,16 +1465,16 @@ impl<G: IdGen> CommandEngine<G> {
             }
             Active::Leader { points } => {
                 if points.len() >= 2 {
-                    out = self.commit_one(Geometry::Leader(LeaderGeom::new(
-                        points[0],
-                        *points.last().unwrap(),
-                        "",
-                    )));
-                    // Keep waiting for text via on_text if empty — commit leader now
+                    let start = points[0];
+                    let end = *points.last().unwrap();
+                    self.active = Some((id, Active::LeaderText { start, end }));
+                    out.prompt = self.current_prompt();
+                    out.echoes
+                        .push("Repère placé — saisissez le texte puis Entrée.".into());
                 } else {
                     out.echoes.push("LEADER : au moins 2 points.".into());
+                    self.active = None;
                 }
-                self.active = None;
             }
             _ => {
                 out.echoes.push(format!(
@@ -1460,6 +1512,15 @@ impl<G: IdGen> CommandEngine<G> {
                 style_id: None,
                 annotative: false,
             }));
+            self.active = None;
+            return out;
+        }
+        if let Some((
+            CommandId::Leader,
+            Active::LeaderText { start, end },
+        )) = self.active.clone()
+        {
+            let out = self.commit_one(Geometry::Leader(LeaderGeom::new(start, end, t)));
             self.active = None;
             return out;
         }
@@ -1920,6 +1981,10 @@ impl<G: IdGen> CommandEngine<G> {
                                 let signed = if side >= 0.0 { d } else { -d };
                                 if let Some(off) = offset_line(*line, signed) {
                                     out = self.commit_one(Geometry::Line(off));
+                                    self.active = None;
+                                } else {
+                                    out.echoes.push("OFFSET impossible sur cette ligne.".into());
+                                    out.prompt = self.current_prompt();
                                 }
                             }
                             Geometry::Polyline(poly) => {
@@ -1933,27 +1998,37 @@ impl<G: IdGen> CommandEngine<G> {
                                 match offset_polyline(poly, signed, Tolerance::DEFAULT) {
                                     Some(off) => {
                                         out = self.commit_one(Geometry::Polyline(off));
+                                        self.active = None;
                                     }
-                                    None => out.echoes.push("OFFSET polyligne impossible.".into()),
+                                    None => {
+                                        out.echoes.push("OFFSET polyligne impossible.".into());
+                                        out.prompt = self.current_prompt();
+                                    }
                                 }
                             }
-                            _ => out
-                                .echoes
-                                .push("OFFSET : ligne ou polyligne requise.".into()),
+                            _ => {
+                                out.echoes
+                                    .push("OFFSET : ligne ou polyligne requise.".into());
+                                out.prompt = self.current_prompt();
+                            }
                         }
                     }
+                } else {
+                    out.echoes.push("OFFSET : aucun objet sous le curseur.".into());
+                    out.prompt = self.current_prompt();
                 }
-                self.active = None;
             }
             (CommandId::Trim, Active::Trim) => {
                 out = self.trim_at(p);
-                self.active = None;
+                // Stay in TRIM for multiple cuts (AutoCAD-like).
+                out.prompt = self.current_prompt();
             }
             (CommandId::Extend, Active::Extend) => {
                 out = self.extend_at(p);
-                self.active = None;
+                out.prompt = self.current_prompt();
             }
-            (CommandId::Erase, Active::Erase) => {
+            (CommandId::Erase, Active::Erase)
+            | (_, Active::GatherSelection) => {
                 if let Some(eid) = self.pick_entity(p) {
                     self.selection.toggle(eid);
                     out.echoes
@@ -4140,7 +4215,9 @@ mod tests {
         eng.handle(CommandEvent::Start(CommandId::Leader));
         eng.handle(CommandEvent::Pick(Vec2::new(1.0, 1.0)));
         eng.handle(CommandEvent::Pick(Vec2::new(3.0, 3.0)));
-        eng.handle(CommandEvent::Enter);
+        eng.handle(CommandEvent::Enter); // wait for text
+        assert_eq!(eng.session.document.entity_count(), 1);
+        eng.handle(CommandEvent::Text("note".into()));
         assert_eq!(eng.session.document.entity_count(), 2);
     }
 
