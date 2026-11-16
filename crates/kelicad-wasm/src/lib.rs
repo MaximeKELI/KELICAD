@@ -9,8 +9,8 @@ use kelicad_bim::{export_ifc, schedule_csv, BimElement};
 use kelicad_cmd::{CommandEngine, CommandEvent, CommandId, UuidV7Gen};
 use kelicad_constraints::{solve, Constraint, ConstraintSystem};
 use kelicad_doc::{
-    template_entities, BlockDef, BlockId, EntityId, EntityRecord, Geometry, Layer, LayerId,
-    TemplateKind,
+    expand_insert, geometry_aabb, template_entities, BlockDef, BlockId, Document, DrawingUnits,
+    EntityId, EntityRecord, Geometry, Layer, LayerId, TemplateKind,
 };
 use kelicad_geom::{Arc, Circle, Line, Polyline};
 use kelicad_math::Vec2;
@@ -80,6 +80,12 @@ struct SnapshotDto {
     entities: Vec<EntityDto>,
     #[serde(default)]
     blocks: Vec<BlockDto>,
+    #[serde(default)]
+    units: String,
+    #[serde(default)]
+    project_title: String,
+    #[serde(default)]
+    project_scale: String,
 }
 
 /// Interactive CAD session for the web UI.
@@ -148,6 +154,42 @@ impl WasmCad {
         Ok(output_json(&out))
     }
 
+    /// Idle pick that toggles selection (Shift+click).
+    pub fn pick_toggle(&mut self, x: f64, y: f64) -> Result<String, JsValue> {
+        let out = self
+            .engine
+            .handle(CommandEvent::PickToggle(Vec2::new(x, y)));
+        self.remember(&out);
+        Ok(output_json(&out))
+    }
+
+    /// Window / crossing selection. `crossing` = intersect; `additive` keeps prior selection.
+    pub fn select_rect(
+        &mut self,
+        x0: f64,
+        y0: f64,
+        x1: f64,
+        y1: f64,
+        crossing: bool,
+        additive: bool,
+    ) -> Result<String, JsValue> {
+        let out = self.engine.handle(CommandEvent::SelectRect {
+            a: Vec2::new(x0, y0),
+            b: Vec2::new(x1, y1),
+            crossing,
+            additive,
+        });
+        self.remember(&out);
+        Ok(output_json(&out))
+    }
+
+    /// Clear selection.
+    pub fn select_clear(&mut self) -> Result<String, JsValue> {
+        let out = self.engine.handle(CommandEvent::SelectClear);
+        self.remember(&out);
+        Ok(output_json(&out))
+    }
+
     /// Hover for ghost / snap.
     pub fn hover(&mut self, x: f64, y: f64) -> Result<String, JsValue> {
         let out = self.engine.handle(CommandEvent::Hover(Vec2::new(x, y)));
@@ -197,6 +239,12 @@ impl WasmCad {
             entities: Vec<InEntity>,
             #[serde(default)]
             blocks: Vec<InBlock>,
+            #[serde(default)]
+            units: Option<String>,
+            #[serde(default)]
+            project_title: Option<String>,
+            #[serde(default)]
+            project_scale: Option<String>,
         }
         #[derive(Deserialize)]
         struct InLayer {
@@ -279,6 +327,15 @@ impl WasmCad {
         if let Ok(u) = Uuid::parse_str(&snap.current_layer) {
             let _ = session.document.set_current_layer(LayerId::from_uuid(u));
         }
+        if let Some(u) = snap.units.as_deref().and_then(DrawingUnits::parse) {
+            session.document.units = u;
+        }
+        if let Some(t) = snap.project_title {
+            session.document.project_title = t;
+        }
+        if let Some(s) = snap.project_scale {
+            session.document.project_scale = s;
+        }
         // Reset journal so undo doesn't walk the import batch as user history.
         session.journal = kelicad_ops::OpJournal::new();
         self.engine = CommandEngine::new(session, UuidV7Gen);
@@ -357,6 +414,9 @@ impl WasmCad {
             layers,
             entities,
             blocks,
+            units: doc.units.as_str().into(),
+            project_title: doc.project_title.clone(),
+            project_scale: doc.project_scale.clone(),
         };
         serde_json::to_string(&snap).map_err(|e| JsValue::from_str(&e.to_string()))
     }
@@ -459,14 +519,15 @@ impl WasmCad {
     /// Interleaved line vertices for GPU: all line segments in the document
     /// plus polyline edges and circle tessellations (32 segments).
     pub fn scene_line_vertices(&self) -> Vec<f32> {
+        let doc = &self.engine.session.document;
         let mut out = Vec::new();
-        for ent in self.engine.session.document.entities() {
-            if let Some(layer) = self.engine.session.document.get_layer(ent.layer_id) {
+        for ent in doc.entities() {
+            if let Some(layer) = doc.get_layer(ent.layer_id) {
                 if layer.flags.frozen {
                     continue;
                 }
             }
-            append_geometry_lines(&ent.geometry, &mut out);
+            append_geometry_lines(doc, &ent.geometry, &mut out);
         }
         out
     }
@@ -479,6 +540,7 @@ impl WasmCad {
         let selected: HashSet<_> = self.engine.selection.iter().collect();
         let mut map: BTreeMap<[u8; 3], Vec<f32>> = BTreeMap::new();
         let mut sel_verts = Vec::new();
+        let mut grip_verts = Vec::new();
         for ent in doc.entities() {
             if let Some(layer) = doc.get_layer(ent.layer_id) {
                 if layer.flags.frozen {
@@ -486,7 +548,8 @@ impl WasmCad {
                 }
             }
             if selected.contains(&ent.id) {
-                append_geometry_lines(&ent.geometry, &mut sel_verts);
+                append_geometry_lines(doc, &ent.geometry, &mut sel_verts);
+                append_entity_grips(doc, &ent.geometry, &mut grip_verts);
                 continue;
             }
             let color = doc
@@ -494,7 +557,7 @@ impl WasmCad {
                 .map(|l| l.color)
                 .unwrap_or([140, 200, 255]);
             let bucket = map.entry(color).or_default();
-            append_geometry_lines(&ent.geometry, bucket);
+            append_geometry_lines(doc, &ent.geometry, bucket);
         }
         let mut batches: Vec<SceneBatchDto> = map
             .into_iter()
@@ -513,6 +576,14 @@ impl WasmCad {
                 verts: sel_verts,
             });
         }
+        if !grip_verts.is_empty() {
+            batches.push(SceneBatchDto {
+                r: 1.0,
+                g: 0.45,
+                b: 0.1,
+                verts: grip_verts,
+            });
+        }
         serde_json::to_string(&batches).unwrap_or_else(|_| "[]".into())
     }
 
@@ -529,10 +600,11 @@ impl WasmCad {
         self.constraints = ConstraintSystem::new();
     }
 
-    /// Apply a paper template (`blank`/`a3`/`a4`/`mech`). Returns entity count added.
+    /// Apply a paper template (`blank`/`a0`–`a4`/`mech`/`arch`). Returns entity count added.
     pub fn apply_template(&mut self, name: &str) -> Result<u32, JsValue> {
-        let kind = TemplateKind::parse(name)
-            .ok_or_else(|| JsValue::from_str("unknown template (blank|a3|a4|mech)"))?;
+        let kind = TemplateKind::parse(name).ok_or_else(|| {
+            JsValue::from_str("unknown template (blank|a0|a1|a2|a3|a4|mech|arch)")
+        })?;
         if matches!(kind, TemplateKind::Blank) {
             self.new_drawing();
             return Ok(0);
@@ -600,8 +672,9 @@ impl WasmCad {
             .handle(CommandEvent::Hover(Vec2::new(hover_x, hover_y)));
         self.remember(&out);
         let mut verts = Vec::new();
+        let doc = &self.engine.session.document;
         for g in &out.ghost {
-            append_geometry_lines(g, &mut verts);
+            append_geometry_lines(doc, g, &mut verts);
         }
         verts
     }
@@ -615,6 +688,75 @@ impl WasmCad {
             .map(|id| id.to_string())
             .collect();
         serde_json::to_string(&ids).unwrap_or_else(|_| "[]".into())
+    }
+
+    /// Detailed selection for properties panel.
+    pub fn selection_detail_json(&self) -> String {
+        let doc = &self.engine.session.document;
+        let items: Vec<_> = self
+            .engine
+            .selection
+            .iter()
+            .filter_map(|id| {
+                let ent = doc.get_entity(id)?;
+                let layer = doc.get_layer(ent.layer_id).map(|l| l.name.clone());
+                let aabb = geometry_aabb(&ent.geometry);
+                Some(serde_json::json!({
+                    "id": id.to_string(),
+                    "kind": format!("{:?}", ent.kind).to_ascii_lowercase(),
+                    "layer": layer,
+                    "layer_id": ent.layer_id.to_string(),
+                    "bbox": {
+                        "min": [aabb.min.x, aabb.min.y],
+                        "max": [aabb.max.x, aabb.max.y],
+                    },
+                    "geometry": geometry_value(&ent.geometry),
+                }))
+            })
+            .collect();
+        serde_json::to_string(&items).unwrap_or_else(|_| "[]".into())
+    }
+
+    /// Project properties JSON (units, title, scale).
+    pub fn project_props_json(&self) -> String {
+        let d = &self.engine.session.document;
+        serde_json::json!({
+            "units": d.units.as_str(),
+            "title": d.project_title,
+            "scale": d.project_scale,
+        })
+        .to_string()
+    }
+
+    /// Set project units (`mm`/`m`/`in`/`unitless`).
+    pub fn set_project_units(&mut self, units: &str) -> Result<(), JsValue> {
+        let u = DrawingUnits::parse(units).ok_or_else(|| JsValue::from_str("bad units"))?;
+        self.engine.session.document.units = u;
+        Ok(())
+    }
+
+    /// Set project title.
+    pub fn set_project_title(&mut self, title: &str) {
+        self.engine.session.document.project_title = title.to_string();
+    }
+
+    /// Set project scale label.
+    pub fn set_project_scale(&mut self, scale: &str) {
+        self.engine.session.document.project_scale = scale.to_string();
+    }
+
+    /// Templates list JSON.
+    pub fn templates_json(&self) -> String {
+        let list: Vec<_> = TemplateKind::all_named()
+            .iter()
+            .map(|k| {
+                serde_json::json!({
+                    "id": k.name(),
+                    "name": k.name(),
+                })
+            })
+            .collect();
+        serde_json::to_string(&list).unwrap_or_else(|_| "[]".into())
     }
 
     /// Active prompt (French) or empty.
@@ -1442,7 +1584,66 @@ fn push_seg(out: &mut Vec<f32>, a: Vec2, b: Vec2) {
     out.extend_from_slice(&[a.x as f32, a.y as f32, b.x as f32, b.y as f32]);
 }
 
-fn append_geometry_lines(g: &Geometry, out: &mut Vec<f32>) {
+fn append_grip_square(out: &mut Vec<f32>, p: Vec2, s: f64) {
+    let hx = s * 0.5;
+    let a = Vec2::new(p.x - hx, p.y - hx);
+    let b = Vec2::new(p.x + hx, p.y - hx);
+    let c = Vec2::new(p.x + hx, p.y + hx);
+    let d = Vec2::new(p.x - hx, p.y + hx);
+    push_seg(out, a, b);
+    push_seg(out, b, c);
+    push_seg(out, c, d);
+    push_seg(out, d, a);
+}
+
+fn append_entity_grips(doc: &Document, g: &Geometry, out: &mut Vec<f32>) {
+    let s = 0.18;
+    match g {
+        Geometry::Line(l) => {
+            append_grip_square(out, l.start, s);
+            append_grip_square(out, l.end, s);
+            append_grip_square(out, l.start.lerp(l.end, 0.5), s);
+        }
+        Geometry::Circle(c) => {
+            append_grip_square(out, c.center, s);
+            append_grip_square(out, c.center + Vec2::new(c.radius, 0.0), s);
+        }
+        Geometry::Arc(a) => {
+            append_grip_square(out, a.center, s);
+            append_grip_square(out, a.start_point(), s);
+            append_grip_square(out, a.end_point(), s);
+        }
+        Geometry::Polyline(p) => {
+            for v in &p.vertices {
+                append_grip_square(out, *v, s);
+            }
+        }
+        Geometry::Insert(i) => {
+            append_grip_square(out, i.position, s);
+            if let Some(def) = doc.get_block(i.block_id) {
+                let box_ = expand_insert(def, i)
+                    .iter()
+                    .fold(kelicad_geom::Aabb::EMPTY, |acc, eg| {
+                        acc.union(geometry_aabb(eg))
+                    });
+                if box_.min.x.is_finite() {
+                    append_grip_square(out, box_.min, s);
+                    append_grip_square(out, box_.max, s);
+                    append_grip_square(out, Vec2::new(box_.min.x, box_.max.y), s);
+                    append_grip_square(out, Vec2::new(box_.max.x, box_.min.y), s);
+                }
+            }
+        }
+        other => {
+            let b = geometry_aabb(other);
+            if b.min.x.is_finite() && b.min.x <= b.max.x {
+                append_grip_square(out, b.center(), s);
+            }
+        }
+    }
+}
+
+fn append_geometry_lines(doc: &Document, g: &Geometry, out: &mut Vec<f32>) {
     match g {
         Geometry::Line(l) => {
             push_seg(out, l.start, l.end);
@@ -1602,18 +1803,24 @@ fn append_geometry_lines(g: &Geometry, out: &mut Vec<f32>) {
             }
         }
         Geometry::Insert(i) => {
-            let s = 0.25;
-            let p = i.position;
-            out.extend_from_slice(&[
-                (p.x - s) as f32,
-                p.y as f32,
-                (p.x + s) as f32,
-                p.y as f32,
-                p.x as f32,
-                (p.y - s) as f32,
-                p.x as f32,
-                (p.y + s) as f32,
-            ]);
+            if let Some(def) = doc.get_block(i.block_id) {
+                for eg in expand_insert(def, i) {
+                    append_geometry_lines(doc, &eg, out);
+                }
+            } else {
+                let s = 0.25;
+                let p = i.position;
+                out.extend_from_slice(&[
+                    (p.x - s) as f32,
+                    p.y as f32,
+                    (p.x + s) as f32,
+                    p.y as f32,
+                    p.x as f32,
+                    (p.y - s) as f32,
+                    p.x as f32,
+                    (p.y + s) as f32,
+                ]);
+            }
         }
 
         Geometry::Leader(l) => {

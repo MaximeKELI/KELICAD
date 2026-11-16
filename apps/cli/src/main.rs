@@ -118,7 +118,7 @@ enum DocCmd {
         /// Output path.
         #[arg(short, long)]
         output: PathBuf,
-        /// Template: blank|a3|a4|mech.
+        /// Template: blank|a0|a1|a2|a3|a4|mech|arch.
         #[arg(long, default_value = "blank")]
         template: String,
     },
@@ -519,7 +519,7 @@ fn run(cli: Cli) -> Result<(), String> {
             }
             DocCmd::Template { name, output } => {
                 let kind = TemplateKind::parse(&name)
-                    .ok_or_else(|| "unknown template (blank|a3|a4|mech)".to_string())?;
+                    .ok_or_else(|| "unknown template (blank|a0|a1|a2|a3|a4|mech|arch)".to_string())?;
                 let mut session = DocSession::new();
                 apply_template_to_session(&mut session, kind)?;
                 save_document(&output, &session).map_err(|e| e.to_string())?;

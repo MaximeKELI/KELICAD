@@ -3,8 +3,11 @@
 use std::path::Path;
 
 use kelicad_doc::document::EntityRecord;
-use kelicad_doc::{Document, EntityId, Layer, LayerFlags, LayerId};
-use kelicad_ops::DocSession;
+use kelicad_doc::{
+    BlockDef, BlockId, Document, DrawingUnits, EntityId, Layer, LayerFlags, LayerId,
+};
+use kelicad_math::Vec2;
+use kelicad_ops::{DocSession, Operation};
 use rusqlite::{params, Connection};
 use uuid::Uuid;
 
@@ -25,13 +28,18 @@ pub fn save_document(path: &Path, session: &DocSession) -> Result<(), IoError> {
     let mut conn = Connection::open(path)?;
     let tx = conn.transaction()?;
     init_schema(&tx)?;
-    tx.execute_batch("DELETE FROM entities; DELETE FROM layers; DELETE FROM meta;")?;
+    tx.execute_batch(
+        "DELETE FROM entities; DELETE FROM layers; DELETE FROM blocks; DELETE FROM meta;",
+    )?;
 
     upsert_meta(&tx, "format", "kelicad")?;
     upsert_meta(&tx, "schema_version", &SCHEMA_VERSION.to_string())?;
     let doc_id = Uuid::now_v7();
     upsert_meta(&tx, "doc_id", &doc_id.to_string())?;
     upsert_meta(&tx, "tolerance_abs", "1e-9")?;
+    upsert_meta(&tx, "units", session.document.units.as_str())?;
+    upsert_meta(&tx, "project_title", &session.document.project_title)?;
+    upsert_meta(&tx, "project_scale", &session.document.project_scale)?;
 
     for layer in session.document.layers() {
         tx.execute(
@@ -61,6 +69,26 @@ pub fn save_document(path: &Path, session: &DocSession) -> Result<(), IoError> {
                 kind_str(ent.kind),
                 ent.layer_id.as_uuid().as_bytes().as_slice(),
                 geom,
+            ],
+        )?;
+    }
+
+    for blk in session.document.blocks() {
+        let mut ents = Vec::new();
+        for g in &blk.entities {
+            ents.push(geometry_to_json(g)?);
+        }
+        let entities_json = serde_json::to_string(&ents)
+            .map_err(|e| IoError::Format(format!("block entities json: {e}")))?;
+        tx.execute(
+            "INSERT INTO blocks (id, name, origin_x, origin_y, entities_json)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                blk.id.as_uuid().as_bytes().as_slice(),
+                blk.name,
+                blk.origin.x,
+                blk.origin.y,
+                entities_json,
             ],
         )?;
     }
@@ -182,6 +210,66 @@ pub fn load_document(path: &Path) -> Result<DocSession, IoError> {
         }
     }
 
+    if let Ok(u) = conn.query_row(
+        "SELECT value FROM meta WHERE key = 'units'",
+        [],
+        |r| r.get::<_, String>(0),
+    ) {
+        if let Some(units) = DrawingUnits::parse(&u) {
+            session.document.units = units;
+        }
+    }
+    if let Ok(t) = conn.query_row(
+        "SELECT value FROM meta WHERE key = 'project_title'",
+        [],
+        |r| r.get::<_, String>(0),
+    ) {
+        session.document.project_title = t;
+    }
+    if let Ok(s) = conn.query_row(
+        "SELECT value FROM meta WHERE key = 'project_scale'",
+        [],
+        |r| r.get::<_, String>(0),
+    ) {
+        session.document.project_scale = s;
+    }
+
+    // Blocks table may be absent on very old files — ignore missing table.
+    if let Ok(mut stmt) =
+        conn.prepare("SELECT id, name, origin_x, origin_y, entities_json FROM blocks")
+    {
+        let rows = stmt.query_map([], |row| {
+            let id_blob: Vec<u8> = row.get(0)?;
+            Ok((
+                id_blob,
+                row.get::<_, String>(1)?,
+                row.get::<_, f64>(2)?,
+                row.get::<_, f64>(3)?,
+                row.get::<_, String>(4)?,
+            ))
+        })?;
+        for row in rows {
+            let (id_blob, name, ox, oy, ents_s) = row?;
+            let id = BlockId::from_uuid(Uuid::from_slice(&id_blob)?);
+            let raw: Vec<String> = serde_json::from_str(&ents_s)
+                .map_err(|e| IoError::Format(format!("block entities: {e}")))?;
+            let mut entities = Vec::new();
+            for g in raw {
+                entities.push(geometry_from_json(&g)?);
+            }
+            let def = BlockDef {
+                id,
+                name,
+                origin: Vec2::new(ox, oy),
+                entities,
+                attributes: vec![],
+            };
+            session
+                .apply(Operation::UpsertBlock { def })
+                .map_err(|e| IoError::Format(e.to_string()))?;
+        }
+    }
+
     Ok(session)
 }
 
@@ -244,6 +332,13 @@ fn init_schema(conn: &Connection) -> Result<(), IoError> {
             created_at INTEGER NOT NULL,
             blob BLOB NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS blocks (
+            id BLOB PRIMARY KEY NOT NULL,
+            name TEXT NOT NULL,
+            origin_x REAL NOT NULL DEFAULT 0,
+            origin_y REAL NOT NULL DEFAULT 0,
+            entities_json TEXT NOT NULL
+        );
         "#,
     )?;
     Ok(())
@@ -261,7 +356,7 @@ fn upsert_meta(conn: &Connection, key: &str, value: &str) -> Result<(), IoError>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kelicad_doc::{EntityKind, Geometry};
+    use kelicad_doc::{BlockDef, BlockId, DrawingUnits, EntityKind, Geometry};
     use kelicad_geom::Line;
     use kelicad_math::Vec2;
     use kelicad_ops::Operation;
@@ -294,5 +389,35 @@ mod tests {
             }
             _ => panic!("expected line"),
         }
+    }
+
+    #[test]
+    fn round_trip_block_and_units() {
+        let mut session = DocSession::new();
+        session.document.units = DrawingUnits::Meters;
+        session.document.project_title = "Tour".into();
+        let bid = BlockId::from_uuid(Uuid::from_u128(7));
+        session
+            .apply(Operation::UpsertBlock {
+                def: BlockDef {
+                    id: bid,
+                    name: "DOOR".into(),
+                    origin: Vec2::ZERO,
+                    entities: vec![Geometry::Line(Line::new(
+                        Vec2::ZERO,
+                        Vec2::new(1.0, 0.0),
+                    ))],
+                    attributes: vec![],
+                },
+            })
+            .unwrap();
+        let file = NamedTempFile::new().unwrap();
+        let path = file.path().with_extension("kelicad");
+        save_document(&path, &session).unwrap();
+        let loaded = load_document(&path).unwrap();
+        assert_eq!(loaded.document.units, DrawingUnits::Meters);
+        assert_eq!(loaded.document.project_title, "Tour");
+        let blk = loaded.document.block_by_name("DOOR").unwrap();
+        assert_eq!(blk.entities.len(), 1);
     }
 }

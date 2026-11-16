@@ -1,9 +1,9 @@
 //! Command state machine driving a [`kelicad_ops::DocSession`].
 
 use kelicad_doc::{
-    BlockDef, BlockId, DimKind, DimensionGeom, EntityId, EntityKind, EntityRecord, Geometry,
-    HatchGeom, InsertGeom, LeaderGeom, RayGeom, TextAlign, TextGeom, XLineGeom, XrefDef,
-    XrefId, XrefInsertGeom, XrefKind,
+    aabb_inside_rect, aabb_intersects_rect, expand_insert, geometry_aabb, BlockDef, BlockId,
+    DimKind, DimensionGeom, EntityId, EntityKind, EntityRecord, Geometry, HatchGeom, InsertGeom,
+    LeaderGeom, RayGeom, TextAlign, TextGeom, XLineGeom, XrefDef, XrefId, XrefInsertGeom, XrefKind,
 };
 use kelicad_geom::construct::{
     arrow, capsule, center_mark, centerline, chamfer_lines, circle_from_2_points,
@@ -53,6 +53,20 @@ pub enum CommandEvent {
     SelectSet(Vec<EntityId>),
     /// Clear selection.
     SelectClear,
+    /// Idle pick that toggles (Shift+click).
+    PickToggle(Vec2),
+    /// Window / crossing selection rectangle.
+    /// `crossing` = true → intersect (right→left AutoCAD style); false → fully inside.
+    SelectRect {
+        /// First corner.
+        a: Vec2,
+        /// Opposite corner.
+        b: Vec2,
+        /// Crossing (intersect) vs window (contain).
+        crossing: bool,
+        /// Keep existing selection and add.
+        additive: bool,
+    },
 }
 
 /// Prompt shown in the command line / dynamic input.
@@ -124,6 +138,17 @@ enum Active {
     DimLinear {
         def1: Option<Vec2>,
         def2: Option<Vec2>,
+    },
+    DimContinue {
+        next: Option<Vec2>,
+        offset: Option<Vec2>,
+    },
+    DimBaseline {
+        next: Option<Vec2>,
+        offset: Option<Vec2>,
+    },
+    Section {
+        a: Option<Vec2>,
     },
     Hatch {
         points: Vec<Vec2>,
@@ -287,6 +312,8 @@ pub struct CommandEngine<G: IdGen> {
     active: Option<(CommandId, Active)>,
     /// Last finished command (repeat with Enter).
     last_command: Option<CommandId>,
+    /// Last linear/aligned dimension (for DIMCONTINUE / DIMBASELINE).
+    last_dim: Option<DimensionGeom>,
 }
 
 impl<G: IdGen> CommandEngine<G> {
@@ -303,6 +330,7 @@ impl<G: IdGen> CommandEngine<G> {
             osnap_enabled: true,
             active: None,
             last_command: None,
+            last_dim: None,
         }
     }
 
@@ -336,6 +364,30 @@ impl<G: IdGen> CommandEngine<G> {
             CommandEvent::SelectToggle(id) => {
                 if self.active.is_none() {
                     self.selection.toggle(id);
+                }
+            }
+            CommandEvent::PickToggle(p) => {
+                if self.active.is_none() {
+                    let snapped = self.snap_point(p, &mut out);
+                    self.last_point = Some(snapped);
+                    if let Some(eid) = self.pick_entity(snapped) {
+                        self.selection.toggle(eid);
+                        out.echoes
+                            .push(format!("Sélection : {} objet(s)", self.selection.len()));
+                    }
+                } else {
+                    let snapped = self.snap_point(p, &mut out);
+                    out = Self::merge_out(out, self.on_point(snapped));
+                }
+            }
+            CommandEvent::SelectRect {
+                a,
+                b,
+                crossing,
+                additive,
+            } => {
+                if self.active.is_none() {
+                    out = self.select_by_rect(a, b, crossing, additive);
                 }
             }
             CommandEvent::Start(id) => {
@@ -462,6 +514,45 @@ impl<G: IdGen> CommandEngine<G> {
                         def2: None,
                     },
                 ));
+                self.last_command = Some(id);
+                out.prompt = self.current_prompt();
+            }
+            CommandId::DimContinue => {
+                if self.last_dim.is_none() {
+                    out.echoes
+                        .push("DIMCONTINUE : créez d'abord une cote linéaire/alignée.".into());
+                    self.active = None;
+                } else {
+                    self.active = Some((
+                        id,
+                        Active::DimContinue {
+                            next: None,
+                            offset: None,
+                        },
+                    ));
+                    self.last_command = Some(id);
+                    out.prompt = self.current_prompt();
+                }
+            }
+            CommandId::DimBaseline => {
+                if self.last_dim.is_none() {
+                    out.echoes
+                        .push("DIMBASELINE : créez d'abord une cote linéaire/alignée.".into());
+                    self.active = None;
+                } else {
+                    self.active = Some((
+                        id,
+                        Active::DimBaseline {
+                            next: None,
+                            offset: None,
+                        },
+                    ));
+                    self.last_command = Some(id);
+                    out.prompt = self.current_prompt();
+                }
+            }
+            CommandId::Section => {
+                self.active = Some((id, Active::Section { a: None }));
                 self.last_command = Some(id);
                 out.prompt = self.current_prompt();
             }
@@ -809,6 +900,22 @@ impl<G: IdGen> CommandEngine<G> {
             (CommandId::DimLinear, _) => {
                 prompt("Emplacement de la ligne de cote", "Dimension line location")
             }
+            (CommandId::DimContinue, Active::DimContinue { next: None, .. }) => {
+                prompt("Point suivant de la cote", "Next dimension point")
+            }
+            (CommandId::DimContinue, _) => {
+                prompt("Emplacement de la ligne de cote", "Dimension line location")
+            }
+            (CommandId::DimBaseline, Active::DimBaseline { next: None, .. }) => {
+                prompt("Point suivant (base)", "Next baseline point")
+            }
+            (CommandId::DimBaseline, _) => {
+                prompt("Emplacement ligne de cote", "Dimension line location")
+            }
+            (CommandId::Section, Active::Section { a: None }) => {
+                prompt("Début du trait de coupe", "Section cut start")
+            }
+            (CommandId::Section, _) => prompt("Fin du trait de coupe", "Section cut end"),
             (CommandId::Hatch, _) => prompt(
                 "Point du contour (Entrée pour fermer)",
                 "Boundary point (Enter to close)",
@@ -1897,7 +2004,7 @@ impl<G: IdGen> CommandEngine<G> {
                     def2: Some(b),
                 },
             ) => {
-                out = self.commit_one(Geometry::Dimension(DimensionGeom {
+                let dim = DimensionGeom {
                     kind: DimKind::Linear,
                     def1: a,
                     def2: b,
@@ -1908,7 +2015,9 @@ impl<G: IdGen> CommandEngine<G> {
                     style_id: Some(self.session.document.current_dim_style),
                     annotative: false,
                     angle_p3: None,
-                }));
+                };
+                self.last_dim = Some(dim.clone());
+                out = self.commit_one(Geometry::Dimension(dim));
                 self.active = None;
             }
             (CommandId::Hatch, Active::Hatch { mut points }) => {
@@ -2528,7 +2637,7 @@ impl<G: IdGen> CommandEngine<G> {
                     def2: Some(b),
                 },
             ) => {
-                out = self.commit_one(Geometry::Dimension(DimensionGeom {
+                let dim = DimensionGeom {
                     kind: DimKind::Aligned,
                     def1: a,
                     def2: b,
@@ -2539,7 +2648,107 @@ impl<G: IdGen> CommandEngine<G> {
                     style_id: Some(self.session.document.current_dim_style),
                     annotative: false,
                     angle_p3: None,
-                }));
+                };
+                self.last_dim = Some(dim.clone());
+                out = self.commit_one(Geometry::Dimension(dim));
+                self.active = None;
+            }
+            // DIMCONTINUE: next point + dim line offset; chains from last_dim.def2
+            (
+                CommandId::DimContinue,
+                Active::DimContinue {
+                    next: None,
+                    ..
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::DimContinue,
+                    Active::DimContinue {
+                        next: Some(p),
+                        offset: None,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::DimContinue,
+                Active::DimContinue {
+                    next: Some(next),
+                    offset: None,
+                },
+            ) => {
+                if let Some(prev) = self.last_dim.clone() {
+                    let dim = DimensionGeom {
+                        kind: prev.kind,
+                        def1: prev.def2,
+                        def2: next,
+                        dim_line: p,
+                        assoc_a: None,
+                        assoc_b: None,
+                        text_override: None,
+                        style_id: Some(self.session.document.current_dim_style),
+                        annotative: false,
+                        angle_p3: None,
+                    };
+                    self.last_dim = Some(dim.clone());
+                    out = self.commit_one(Geometry::Dimension(dim));
+                } else {
+                    out.echoes
+                        .push("DIMCONTINUE : aucune cote précédente.".into());
+                }
+                self.active = None;
+            }
+            // DIMBASELINE: next point; shares def1 with last_dim, offset dim line
+            (
+                CommandId::DimBaseline,
+                Active::DimBaseline {
+                    next: None,
+                    ..
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::DimBaseline,
+                    Active::DimBaseline {
+                        next: Some(p),
+                        offset: None,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::DimBaseline,
+                Active::DimBaseline {
+                    next: Some(next),
+                    offset: None,
+                },
+            ) => {
+                if let Some(prev) = self.last_dim.clone() {
+                    let dim = DimensionGeom {
+                        kind: prev.kind,
+                        def1: prev.def1,
+                        def2: next,
+                        dim_line: p,
+                        assoc_a: None,
+                        assoc_b: None,
+                        text_override: None,
+                        style_id: Some(self.session.document.current_dim_style),
+                        annotative: false,
+                        angle_p3: None,
+                    };
+                    self.last_dim = Some(dim.clone());
+                    out = self.commit_one(Geometry::Dimension(dim));
+                } else {
+                    out.echoes
+                        .push("DIMBASELINE : aucune cote précédente.".into());
+                }
+                self.active = None;
+            }
+            (CommandId::Section, Active::Section { a: None }) => {
+                self.active = Some((CommandId::Section, Active::Section { a: Some(p) }));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Section, Active::Section { a: Some(a) }) => {
+                out = self.commit_section_mark(a, p);
                 self.active = None;
             }
             (CommandId::DimRadius, Active::DimRadius { center: None }) => {
@@ -3240,17 +3449,8 @@ impl<G: IdGen> CommandEngine<G> {
                         continue;
                     };
                     ops.push(Operation::DeleteEntity { id });
-                    for g in &def.entities {
+                    for geom in expand_insert(&def, &ins) {
                         let new_id = self.ids.next();
-                        let sx = if ins.scale.x.abs() < 1e-12 {
-                            1.0
-                        } else {
-                            ins.scale.x
-                        };
-                        let geom = g
-                            .scaled(Vec2::ZERO, sx)
-                            .rotated(Vec2::ZERO, ins.rotation)
-                            .translated(ins.position);
                         ops.push(Operation::CreateEntity {
                             record: EntityRecord {
                                 id: new_id,
@@ -3431,6 +3631,108 @@ impl<G: IdGen> CommandEngine<G> {
         out
     }
 
+    fn select_by_rect(
+        &mut self,
+        a: Vec2,
+        b: Vec2,
+        crossing: bool,
+        additive: bool,
+    ) -> CommandOutput {
+        let min = Vec2::new(a.x.min(b.x), a.y.min(b.y));
+        let max = Vec2::new(a.x.max(b.x), a.y.max(b.y));
+        if !additive {
+            self.selection.clear();
+        }
+        let mut n = 0usize;
+        for ent in self.session.document.entities() {
+            let mut box_ = geometry_aabb(&ent.geometry);
+            if let Geometry::Insert(ins) = &ent.geometry {
+                if let Some(def) = self.session.document.get_block(ins.block_id) {
+                    let mut b = kelicad_geom::Aabb::EMPTY;
+                    for g in expand_insert(def, ins) {
+                        b = b.union(geometry_aabb(&g));
+                    }
+                    box_ = b;
+                }
+            }
+            let hit = if crossing {
+                aabb_intersects_rect(&box_, min, max)
+            } else {
+                aabb_inside_rect(&box_, min, max)
+            };
+            if hit {
+                self.selection.add(ent.id);
+                n += 1;
+            }
+        }
+        let mode = if crossing { "crossing" } else { "fenêtre" };
+        CommandOutput {
+            echoes: vec![format!("Sélection {mode} : {n} objet(s)")],
+            ..Default::default()
+        }
+    }
+
+    fn commit_section_mark(&mut self, a: Vec2, b: Vec2) -> CommandOutput {
+        let dir = (b - a).try_normalize(Tolerance::DEFAULT).unwrap_or(Vec2::X);
+        let nrm = dir.perp();
+        let tick = 2.5;
+        let layer_id = self.session.document.current_layer;
+        let mut ops = Vec::new();
+        // Main cut line
+        let id0 = self.ids.next();
+        ops.push(Operation::CreateEntity {
+            record: EntityRecord {
+                id: id0,
+                kind: EntityKind::Line,
+                geometry: Geometry::Line(Line::new(a, b)),
+                layer_id,
+            },
+        });
+        // End ticks (section arrows)
+        for (p, sign) in [(a, 1.0), (b, -1.0)] {
+            let tip = p + nrm * tick * sign;
+            let id = self.ids.next();
+            ops.push(Operation::CreateEntity {
+                record: EntityRecord {
+                    id,
+                    kind: EntityKind::Line,
+                    geometry: Geometry::Line(Line::new(p, tip)),
+                    layer_id,
+                },
+            });
+            let id2 = self.ids.next();
+            ops.push(Operation::CreateEntity {
+                record: EntityRecord {
+                    id: id2,
+                    kind: EntityKind::Line,
+                    geometry: Geometry::Line(Line::new(tip, tip + dir * tick * 0.6 - nrm * tick * 0.35 * sign)),
+                    layer_id,
+                },
+            });
+        }
+        // Labels A / A
+        for (p, label, side) in [(a, "A", 1.0_f64), (b, "A", -1.0_f64)] {
+            let id = self.ids.next();
+            ops.push(Operation::CreateEntity {
+                record: EntityRecord {
+                    id,
+                    kind: EntityKind::Text,
+                    geometry: Geometry::Text(TextGeom {
+                        position: p + nrm * (tick + 1.5) * side,
+                        height: 2.5,
+                        rotation: 0.0,
+                        content: label.into(),
+                        align: TextAlign::Left,
+                        style_id: None,
+                        annotative: false,
+                    }),
+                    layer_id,
+                },
+            });
+        }
+        self.apply_batch(ops, "Trait de coupe SECTION.".into())
+    }
+
     fn pick_entity(&self, p: Vec2) -> Option<EntityId> {
         let tol = Tolerance::COARSE;
         let mut best: Option<(EntityId, f64)> = None;
@@ -3470,7 +3772,32 @@ impl<G: IdGen> CommandEngine<G> {
                     .iter()
                     .map(|q| q.distance(p))
                     .fold(f64::INFINITY, f64::min),
-                Geometry::Insert(i) => i.position.distance(p),
+                Geometry::Insert(i) => {
+                    if let Some(def) = self.session.document.get_block(i.block_id) {
+                        expand_insert(def, i)
+                            .iter()
+                            .map(|g| match g {
+                                Geometry::Line(l) => l.distance_squared(p).sqrt(),
+                                Geometry::Circle(c) => c.signed_distance(p).abs(),
+                                Geometry::Polyline(poly) => poly
+                                    .segments()
+                                    .map(|s| s.distance_squared(p))
+                                    .fold(f64::INFINITY, f64::min)
+                                    .sqrt(),
+                                Geometry::Arc(a) => {
+                                    let radial = ((p - a.center).length() - a.radius).abs();
+                                    a.start_point()
+                                        .distance(p)
+                                        .min(a.end_point().distance(p))
+                                        .min(radial)
+                                }
+                                other => geometry_aabb(other).center().distance(p),
+                            })
+                            .fold(f64::INFINITY, f64::min)
+                    } else {
+                        i.position.distance(p)
+                    }
+                }
                 Geometry::Ellipse(e) => e
                     .to_polyline(32)
                     .segments()

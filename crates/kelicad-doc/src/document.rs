@@ -25,6 +25,46 @@ pub struct EntityRecord {
     pub layer_id: LayerId,
 }
 
+/// Drawing units for the project (display / property inspector).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DrawingUnits {
+    /// Millimetres (paper CAD default).
+    #[default]
+    Millimeters,
+    /// Metres.
+    Meters,
+    /// Inches.
+    Inches,
+    /// Unitless / abstract.
+    Unitless,
+}
+
+impl DrawingUnits {
+    /// Parse FR/EN aliases.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "mm" | "millimeter" | "millimeters" | "millimetre" | "millimetres" => {
+                Some(Self::Millimeters)
+            }
+            "m" | "meter" | "meters" | "metre" | "metres" => Some(Self::Meters),
+            "in" | "inch" | "inches" | "pouce" | "pouces" => Some(Self::Inches),
+            "none" | "unitless" | "sans" => Some(Self::Unitless),
+            _ => None,
+        }
+    }
+
+    /// Canonical short name.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Millimeters => "mm",
+            Self::Meters => "m",
+            Self::Inches => "in",
+            Self::Unitless => "unitless",
+        }
+    }
+}
+
 /// Document state derived from the operation journal.
 #[derive(Debug, Clone)]
 pub struct Document {
@@ -58,6 +98,12 @@ pub struct Document {
     xrefs: HashMap<XrefId, XrefDef>,
     /// Plot style tables by name.
     plot_styles: HashMap<String, PlotStyle>,
+    /// Project drawing units.
+    pub units: DrawingUnits,
+    /// Free-form project title (title block / properties).
+    pub project_title: String,
+    /// Project scale label (e.g. `1:100`).
+    pub project_scale: String,
 }
 
 impl Document {
@@ -95,6 +141,9 @@ impl Document {
             current_dim_style: DimStyleId::STANDARD,
             xrefs: HashMap::new(),
             plot_styles,
+            units: DrawingUnits::Millimeters,
+            project_title: "KELICAD".into(),
+            project_scale: "1:100".into(),
         }
     }
 

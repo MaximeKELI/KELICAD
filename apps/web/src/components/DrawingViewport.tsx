@@ -28,11 +28,30 @@ export function DrawingViewport({
   const spacePan = useRef(false);
   const dragging = useRef(false);
   const lastPtr = useRef({ x: 0, y: 0 });
+  const selectDrag = useRef<{
+    active: boolean;
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
+    clientX0: number;
+    clientY0: number;
+    clientX1: number;
+    clientY1: number;
+    shift: boolean;
+  } | null>(null);
   const rendererRef = useRef<LineRenderer | null>(null);
   const hoverRef = useRef({ x: 0, y: 0 });
   const onHoverRef = useRef(onHoverWorld);
   onHoverRef.current = onHoverWorld;
   const [camVersion, setCamVersion] = useState(0);
+  const [band, setBand] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    crossing: boolean;
+  } | null>(null);
   void peerTick;
   void camVersion;
 
@@ -166,7 +185,19 @@ export function DrawingViewport({
       }
       if (e.button === 0) {
         const w = worldFromClient(e.clientX, e.clientY);
-        onOutput(cad.pick(w.x, w.y));
+        selectDrag.current = {
+          active: true,
+          x0: w.x,
+          y0: w.y,
+          x1: w.x,
+          y1: w.y,
+          clientX0: e.clientX,
+          clientY0: e.clientY,
+          clientX1: e.clientX,
+          clientY1: e.clientY,
+          shift: e.shiftKey,
+        };
+        canvas.setPointerCapture(e.pointerId);
       }
     };
     const onMove = (e: PointerEvent) => {
@@ -184,9 +215,45 @@ export function DrawingViewport({
         lastPtr.current = { x: e.clientX, y: e.clientY };
         setCamVersion((n) => n + 1);
       }
+      const sd = selectDrag.current;
+      if (sd?.active) {
+        sd.x1 = w.x;
+        sd.y1 = w.y;
+        sd.clientX1 = e.clientX;
+        sd.clientY1 = e.clientY;
+        const rect = wrap.getBoundingClientRect();
+        const left = Math.min(sd.clientX0, sd.clientX1) - rect.left;
+        const top = Math.min(sd.clientY0, sd.clientY1) - rect.top;
+        const width = Math.abs(sd.clientX1 - sd.clientX0);
+        const height = Math.abs(sd.clientY1 - sd.clientY0);
+        // AutoCAD: left→right = window (contain), right→left = crossing
+        const crossing = sd.clientX1 < sd.clientX0;
+        if (width > 4 || height > 4) {
+          setBand({ left, top, width, height, crossing });
+        } else {
+          setBand(null);
+        }
+      }
     };
     const onUp = (e: PointerEvent) => {
       dragging.current = false;
+      const sd = selectDrag.current;
+      selectDrag.current = null;
+      setBand(null);
+      if (sd?.active && e.button === 0) {
+        const dx = Math.abs(sd.clientX1 - sd.clientX0);
+        const dy = Math.abs(sd.clientY1 - sd.clientY0);
+        if (dx > 4 || dy > 4) {
+          const crossing = sd.clientX1 < sd.clientX0;
+          onOutput(
+            cad.select_rect(sd.x0, sd.y0, sd.x1, sd.y1, crossing, sd.shift),
+          );
+        } else if (sd.shift) {
+          onOutput(cad.pick_toggle(sd.x0, sd.y0));
+        } else {
+          onOutput(cad.pick(sd.x0, sd.y0));
+        }
+      }
       try {
         canvas.releasePointerCapture(e.pointerId);
       } catch {
@@ -261,8 +328,24 @@ export function DrawingViewport({
           </div>
         );
       })}
+      {band && (
+        <div
+          className="pointer-events-none absolute z-20 border"
+          style={{
+            left: band.left,
+            top: band.top,
+            width: band.width,
+            height: band.height,
+            borderColor: band.crossing ? "rgb(80,200,120)" : "rgb(80,160,255)",
+            background: band.crossing
+              ? "rgba(80,200,120,0.12)"
+              : "rgba(80,160,255,0.10)",
+            borderStyle: band.crossing ? "dashed" : "solid",
+          }}
+        />
+      )}
       <p className="pointer-events-none absolute bottom-3 left-3 rounded bg-ink-900/80 px-3 py-1 font-mono text-xs text-ink-100">
-        Clic = point · Molette = zoom · Molette clic / Espace+glisser = pan · Échap = annuler
+        Clic = pick · Shift = multi · Glisser L→R fenêtre / R→L crossing · Espace+pan · Échap
       </p>
     </div>
   );

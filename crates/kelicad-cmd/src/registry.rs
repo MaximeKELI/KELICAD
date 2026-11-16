@@ -125,6 +125,12 @@ pub enum CommandId {
     Table,
     /// WIPEOUT mask rectangle
     Wipeout,
+    /// DIMCONTINUE — chain from last dimension
+    DimContinue,
+    /// DIMBASELINE — baseline from last dimension
+    DimBaseline,
+    /// SECTION — section cut mark with labels
+    Section,
 }
 
 impl CommandId {
@@ -192,6 +198,9 @@ impl CommandId {
             Self::Centerline => "CENTERLINE",
             Self::Table => "TABLE",
             Self::Wipeout => "WIPEOUT",
+            Self::DimContinue => "DIMCONTINUE",
+            Self::DimBaseline => "DIMBASELINE",
+            Self::Section => "SECTION",
         }
     }
 
@@ -260,6 +269,9 @@ impl CommandId {
             "CENTERLINE" | "CLINE" | "CL" => Self::Centerline,
             "TABLE" | "TBL" => Self::Table,
             "WIPEOUT" | "WIPE" | "WO" => Self::Wipeout,
+            "DIMCONTINUE" | "DIMCONT" | "DCO" => Self::DimContinue,
+            "DIMBASELINE" | "DIMBASE" | "DBA" => Self::DimBaseline,
+            "SECTION" | "COUPE" | "SEC" => Self::Section,
             _ => return None,
         })
     }
@@ -270,7 +282,7 @@ impl CommandId {
     }
 }
 
-const ALL_COMMANDS: [CommandId; 61] = [
+const ALL_COMMANDS: [CommandId; 64] = [
     CommandId::Line,
     CommandId::Pline,
     CommandId::Circle,
@@ -332,4 +344,7 @@ const ALL_COMMANDS: [CommandId; 61] = [
     CommandId::Centerline,
     CommandId::Table,
     CommandId::Wipeout,
+    CommandId::DimContinue,
+    CommandId::DimBaseline,
+    CommandId::Section,
 ];

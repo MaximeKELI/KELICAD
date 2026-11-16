@@ -83,7 +83,7 @@ pub struct BlockSource {
     pub entity_ids: Vec<EntityId>,
 }
 
-/// Expand an insert into world-space geometries (scale → rotate → translate).
+/// Expand an insert into world-space geometries (origin → scale → rotate → translate).
 pub fn expand_insert(def: &BlockDef, ins: &InsertGeom) -> Vec<Geometry> {
     let sx = if ins.scale.x.abs() < 1e-12 {
         1.0
@@ -101,12 +101,47 @@ pub fn expand_insert(def: &BlockDef, ins: &InsertGeom) -> Vec<Geometry> {
     } else {
         (sx.abs() + sy.abs()) * 0.5
     };
+    let origin = def.origin;
     def.entities
         .iter()
         .map(|g| {
-            g.scaled(Vec2::ZERO, s)
+            g.translated(Vec2::new(-origin.x, -origin.y))
+                .scaled(Vec2::ZERO, s)
                 .rotated(Vec2::ZERO, ins.rotation)
                 .translated(ins.position)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kelicad_geom::Line;
+
+    #[test]
+    fn expand_translates_and_scales() {
+        let id = BlockId::from_uuid(uuid::Uuid::nil());
+        let def = BlockDef {
+            id,
+            name: "T".into(),
+            origin: Vec2::ZERO,
+            entities: vec![Geometry::Line(Line::new(Vec2::ZERO, Vec2::new(2.0, 0.0)))],
+            attributes: vec![],
+        };
+        let ins = InsertGeom {
+            block_id: id,
+            position: Vec2::new(10.0, 5.0),
+            scale: Vec2::new(2.0, 2.0),
+            rotation: 0.0,
+            attribs: Default::default(),
+        };
+        let out = expand_insert(&def, &ins);
+        match &out[0] {
+            Geometry::Line(l) => {
+                assert!((l.start - Vec2::new(10.0, 5.0)).length() < 1e-9);
+                assert!((l.end - Vec2::new(14.0, 5.0)).length() < 1e-9);
+            }
+            _ => panic!("expected line"),
+        }
+    }
 }

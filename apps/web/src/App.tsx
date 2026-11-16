@@ -14,12 +14,15 @@ import {
   saveAutosave,
 } from "./cad/projectStore";
 import { parseCadOutput, type CadSession } from "./cad/types";
+import { BlockLibrary } from "./components/BlockLibrary";
 import { CollabBar } from "./components/CollabBar";
 import { CommentsPanel } from "./components/CommentsPanel";
 import { CommandLine } from "./components/CommandLine";
 import { DrawingViewport } from "./components/DrawingViewport";
 import { KeliPanel } from "./components/KeliPanel";
 import { LayerPanel } from "./components/LayerPanel";
+import { PropertiesPanel } from "./components/PropertiesPanel";
+import { SelectionPanel } from "./components/SelectionPanel";
 import { ShapePalette } from "./components/ShapePalette";
 import { StatusBar } from "./components/StatusBar";
 
@@ -38,7 +41,12 @@ const QUICK = [
   "AR",
   "APOLAR",
   "DLI",
+  "DCO",
+  "DBA",
+  "SEC",
   "H",
+  "B",
+  "I",
   "E",
   "U",
 ];
@@ -48,7 +56,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [echoes, setEchoes] = useState<string[]>([
-    "KELICAD P1 — gabarits A3/A4 · NEW · Undo · sélection jaune · blocs persistés · CLI doc.",
+    "KELICAD P1+ — blocs rendus · fenêtre/crossing · grips · gabarits A0–A4/arch · DIMCONTINUE · props.",
   ]);
   const [revision, setRevision] = useState(0);
   const [entityCount, setEntityCount] = useState(0);
@@ -122,8 +130,9 @@ export function App() {
       if (out.echoes.length) {
         setEchoes((prev) => [...prev, ...out.echoes].slice(-40));
       }
+      // Always refresh panels (selection / props) even when geometry unchanged.
+      setRevision((n) => n + 1);
       if (out.document_changed) {
-        setRevision((n) => n + 1);
         collab?.flush();
       }
       setEntityCount(session.entity_count());
@@ -559,6 +568,18 @@ export function App() {
               }}
             />
           </div>
+          <SelectionPanel
+            cad={cad}
+            revision={revision}
+            onEcho={(lines) => setEchoes((prev) => [...prev, ...lines].slice(-40))}
+            onChanged={() => setRevision((n) => n + 1)}
+          />
+          <BlockLibrary
+            cad={cad}
+            revision={revision}
+            onCommand={(raw) => applyOutput(raw, cad)}
+            onEcho={(lines) => setEchoes((prev) => [...prev, ...lines].slice(-40))}
+          />
         </aside>
         <main className="min-h-0 min-w-0 flex-1">
           <DrawingViewport
@@ -574,6 +595,15 @@ export function App() {
             }}
           />
         </main>
+        <PropertiesPanel
+          cad={cad}
+          revision={revision}
+          onChanged={() => {
+            setRevision((n) => n + 1);
+            setEntityCount(cad.entity_count());
+          }}
+          onEcho={(lines) => setEchoes((prev) => [...prev, ...lines].slice(-40))}
+        />
         <CommentsPanel
           cad={cad}
           collab={collab}

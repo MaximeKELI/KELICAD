@@ -5,6 +5,7 @@
 
 pub mod annotation;
 pub mod blocks;
+pub mod bounds;
 pub mod document;
 pub mod entity;
 pub mod geometry;
@@ -20,8 +21,9 @@ pub mod xref;
 pub use annotation::{
     DimKind, DimensionGeom, HatchGeom, HatchPattern, LeaderGeom, MTextGeom, TextAlign, TextGeom,
 };
-pub use blocks::{BlockAttribute, BlockDef, BlockId, InsertGeom};
-pub use document::{DocError, Document, EntityRecord};
+pub use blocks::{expand_insert, BlockAttribute, BlockDef, BlockId, InsertGeom};
+pub use bounds::{aabb_inside_rect, aabb_intersects_rect, geometry_aabb};
+pub use document::{DocError, Document, DrawingUnits, EntityRecord};
 pub use entity::{EntityId, EntityKind};
 pub use geometry::Geometry;
 pub use layer::{Layer, LayerFlags, LayerId};

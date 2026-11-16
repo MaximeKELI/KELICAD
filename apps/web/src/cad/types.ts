@@ -75,6 +75,16 @@ export type CadSession = {
   submit_text(text: string): string;
   start_command(name: string): string;
   pick(x: number, y: number): string;
+  pick_toggle(x: number, y: number): string;
+  select_rect(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    crossing: boolean,
+    additive: boolean,
+  ): string;
+  select_clear(): string;
   hover(x: number, y: number): string;
   enter(): string;
   cancel(): string;
@@ -89,11 +99,17 @@ export type CadSession = {
   export_pdf(): Uint8Array | number[];
   new_drawing(): void;
   apply_template(name: string): number;
+  templates_json(): string;
   blocks_json(): string;
   scene_line_vertices(): Float32Array | number[];
   scene_batches_json(): string;
   ghost_line_vertices(x: number, y: number): Float32Array | number[];
   selection_json(): string;
+  selection_detail_json(): string;
+  project_props_json(): string;
+  set_project_units(units: string): void;
+  set_project_title(title: string): void;
+  set_project_scale(scale: string): void;
   layers_json(): string;
   set_current_layer(id: string): void;
   create_layer(name: string, r: number, g: number, b: number): string;

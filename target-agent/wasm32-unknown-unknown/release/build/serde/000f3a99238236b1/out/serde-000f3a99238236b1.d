@@ -1,0 +1,14 @@
+/home/admin20/KELICAD/target-agent/wasm32-unknown-unknown/release/build/serde/000f3a99238236b1/out/serde-000f3a99238236b1.d: /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/admin20/KELICAD/target-agent/wasm32-unknown-unknown/release/build/serde/de16e86aa3786bee/out/private.rs
+
+/home/admin20/KELICAD/target-agent/wasm32-unknown-unknown/release/build/serde/000f3a99238236b1/out/libserde-000f3a99238236b1.rlib: /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/admin20/KELICAD/target-agent/wasm32-unknown-unknown/release/build/serde/de16e86aa3786bee/out/private.rs
+
+/home/admin20/KELICAD/target-agent/wasm32-unknown-unknown/release/build/serde/000f3a99238236b1/out/libserde-000f3a99238236b1.rmeta: /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/admin20/KELICAD/target-agent/wasm32-unknown-unknown/release/build/serde/de16e86aa3786bee/out/private.rs
+
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs:
+/home/admin20/KELICAD/target-agent/wasm32-unknown-unknown/release/build/serde/de16e86aa3786bee/out/private.rs:
+
+# env-dep:OUT_DIR=/home/admin20/KELICAD/target-agent/wasm32-unknown-unknown/release/build/serde/de16e86aa3786bee/out

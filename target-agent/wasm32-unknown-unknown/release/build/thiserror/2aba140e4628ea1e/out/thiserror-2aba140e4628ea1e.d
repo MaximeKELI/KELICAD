@@ -1,0 +1,14 @@
+/home/admin20/KELICAD/target-agent/wasm32-unknown-unknown/release/build/thiserror/2aba140e4628ea1e/out/thiserror-2aba140e4628ea1e.d: /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs /home/admin20/KELICAD/target-agent/wasm32-unknown-unknown/release/build/thiserror/c339fd0e0ec2de8f/out/private.rs
+
+/home/admin20/KELICAD/target-agent/wasm32-unknown-unknown/release/build/thiserror/2aba140e4628ea1e/out/libthiserror-2aba140e4628ea1e.rlib: /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs /home/admin20/KELICAD/target-agent/wasm32-unknown-unknown/release/build/thiserror/c339fd0e0ec2de8f/out/private.rs
+
+/home/admin20/KELICAD/target-agent/wasm32-unknown-unknown/release/build/thiserror/2aba140e4628ea1e/out/libthiserror-2aba140e4628ea1e.rmeta: /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs /home/admin20/KELICAD/target-agent/wasm32-unknown-unknown/release/build/thiserror/c339fd0e0ec2de8f/out/private.rs
+
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs:
+/home/admin20/KELICAD/target-agent/wasm32-unknown-unknown/release/build/thiserror/c339fd0e0ec2de8f/out/private.rs:
+
+# env-dep:OUT_DIR=/home/admin20/KELICAD/target-agent/wasm32-unknown-unknown/release/build/thiserror/c339fd0e0ec2de8f/out
