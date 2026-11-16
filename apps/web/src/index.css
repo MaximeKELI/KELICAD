@@ -134,7 +134,7 @@ body {
   display: flex;
   gap: 0;
   padding: 4px 6px 2px;
-  min-height: 78px;
+  min-height: 92px;
   overflow-x: auto;
   background: #222;
 }
@@ -165,6 +165,201 @@ body {
   color: var(--cad-muted);
   margin-top: 2px;
   letter-spacing: 0.04em;
+}
+
+/* Dense AutoCAD-like tool buttons */
+.cad-toolbtn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--cad-text);
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 2px 4px;
+  gap: 1px;
+  line-height: 1.05;
+}
+
+.cad-toolbtn:hover {
+  background: #333;
+  border-color: #4a4a4a;
+}
+
+.cad-toolbtn:active,
+.cad-toolbtn.is-active {
+  background: #1a3a5c;
+  border-color: var(--cad-accent-dim);
+}
+
+.cad-toolbtn-lg {
+  min-width: 56px;
+  height: 54px;
+  padding: 4px 6px;
+}
+
+.cad-toolbtn-lg .cad-toolbtn-glyph {
+  font-size: 22px;
+}
+
+.cad-toolbtn-lg .cad-toolbtn-text {
+  font-size: 10px;
+  max-width: 64px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cad-toolbtn-md {
+  min-width: 44px;
+  height: 40px;
+  padding: 2px 3px;
+}
+
+.cad-toolbtn-md .cad-toolbtn-glyph {
+  font-size: 15px;
+}
+
+.cad-toolbtn-md .cad-toolbtn-text {
+  font-size: 9px;
+  max-width: 52px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cad-toolbtn-sm {
+  flex-direction: row;
+  min-width: 28px;
+  height: 22px;
+  padding: 1px 4px;
+  gap: 3px;
+}
+
+.cad-toolbtn-sm .cad-toolbtn-glyph {
+  font-size: 12px;
+}
+
+.cad-toolbtn-sm .cad-toolbtn-text {
+  font-size: 9px;
+}
+
+.cad-toolbtn-glyph {
+  display: block;
+  line-height: 1;
+}
+
+.cad-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cad-flyout {
+  position: relative;
+  display: inline-flex;
+}
+
+.cad-flyout-main {
+  display: flex;
+  align-items: stretch;
+}
+
+.cad-flyout-main .cad-toolbtn {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.cad-flyout-caret {
+  width: 14px;
+  border: 1px solid transparent;
+  border-left: none;
+  background: transparent;
+  color: var(--cad-muted);
+  border-radius: 0 2px 2px 0;
+  cursor: pointer;
+  font-size: 9px;
+  padding: 0;
+}
+
+.cad-flyout-caret:hover,
+.cad-flyout:hover .cad-flyout-caret {
+  background: #333;
+  border-color: #4a4a4a;
+  color: var(--cad-text);
+}
+
+.cad-flyout-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 40;
+  min-width: 168px;
+  background: #2a2a2a;
+  border: 1px solid #4a4a4a;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  padding: 2px;
+}
+
+.cad-flyout-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--cad-text);
+  text-align: left;
+  padding: 5px 8px;
+  cursor: pointer;
+  font-size: 11px;
+  border-radius: 2px;
+}
+
+.cad-flyout-menu button:hover {
+  background: #1a3a5c;
+}
+
+.cad-flyout-menu button span:first-child {
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.cad-flyout-menu small {
+  display: block;
+  font-size: 9px;
+  color: var(--cad-muted);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.cad-mini {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  align-items: center;
+}
+
+.cad-mini button {
+  width: 22px;
+  height: 20px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--cad-text);
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  padding: 0;
+}
+
+.cad-mini button:hover {
+  background: #333;
+  border-color: #4a4a4a;
 }
 
 .cad-rbtn {

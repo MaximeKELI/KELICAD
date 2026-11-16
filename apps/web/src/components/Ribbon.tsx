@@ -358,7 +358,7 @@ export function Ribbon(props: Props) {
                   { cmd: "TR", label: "Ajuster (Trim)", glyph: "✂" },
                   { cmd: "EX", label: "Prolonger", glyph: "↦" },
                   { cmd: "LEN", label: "Allonger", glyph: "⟷" },
-                  { cmd: "BR", label: "Coupure", glyph: " dur".trim() || " dur" },
+                  { cmd: "BR", label: "Coupure", glyph: "⊥" },
                 ]}
               />
               <Flyout
@@ -490,10 +490,9 @@ export function Ribbon(props: Props) {
                   ))}
                 </select>
               </div>
-              <Stack>
+              <div className="cad-mini">
                 <button
                   type="button"
-                  className="cad-mini"
                   title="Calque courant → sélection"
                   onClick={() => {
                     if (!current) return;
@@ -506,7 +505,20 @@ export function Ribbon(props: Props) {
                 </button>
                 <button
                   type="button"
-                  className="cad-mini"
+                  title="Geler / Dégeler"
+                  onClick={() => onEcho(["Geler calque (à brancher)"])}
+                >
+                  ❄
+                </button>
+                <button
+                  type="button"
+                  title="Verrouiller"
+                  onClick={() => onEcho(["Verrouiller calque (à brancher)"])}
+                >
+                  🔒
+                </button>
+                <button
+                  type="button"
                   title="Nouveau calque"
                   onClick={() => {
                     const name = `Calque${layers.length}`;
@@ -518,7 +530,7 @@ export function Ribbon(props: Props) {
                 >
                   +
                 </button>
-              </Stack>
+              </div>
             </Panel>
 
             <Panel title="Bloc">
@@ -823,7 +835,7 @@ export function Ribbon(props: Props) {
               <Tool
                 size="md"
                 onCommand={() => onViewMode("3d")}
-                t={{ cmd: "3D", label: "3D", glyph: "キューブ" }}
+                t={{ cmd: "3D", label: "3D", glyph: "▣" }}
               />
             </Panel>
             <Panel title="Gabarits">
