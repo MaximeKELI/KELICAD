@@ -4,9 +4,9 @@ use std::collections::BTreeMap;
 
 use kelicad_doc::{
     aabb_inside_rect, aabb_intersects_rect, expand_insert, geometry_aabb, BlockDef, BlockId,
-    DimKind, DimensionGeom, EntityId, EntityKind, EntityRecord, Geometry, HatchGeom, InsertGeom,
-    LeaderGeom, MTextGeom, RayGeom, TextAlign, TextGeom, XLineGeom,
-    XrefDef, XrefId, XrefInsertGeom, XrefKind,
+    DimKind, DimensionGeom, EntityId, EntityKind, EntityProps, EntityRecord, Geometry, HatchGeom,
+    InsertGeom, LeaderGeom, MTextGeom, RayGeom, TextAlign, TextGeom, XLineGeom, XrefDef, XrefId,
+    XrefInsertGeom, XrefKind,
 };
 use kelicad_geom::construct::{
     arrow, capsule, center_mark, centerline, chamfer_lines, circle_from_2_points,
@@ -467,6 +467,16 @@ impl<G: IdGen> CommandEngine<G> {
         }
     }
 
+    /// Current drafting overrides from CECOLOR / CELTYPE / CELWEIGHT.
+    pub fn drafting_props(&self) -> EntityProps {
+        EntityProps {
+            color: parse_cecolor(&self.sysvars.get_str("CECOLOR")),
+            linetype: parse_celtype(&self.sysvars.get_str("CELTYPE")),
+            lineweight: parse_celweight(self.sysvars.get_int("CELWEIGHT")),
+            draw_order: 0,
+        }
+    }
+
     /// Active command option chips for UI.
     pub fn active_option_chips(&self) -> Vec<crate::options::OptionChip> {
         match self.active_command() {
@@ -585,15 +595,31 @@ impl<G: IdGen> CommandEngine<G> {
 
     fn snap_point(&self, cursor: Vec2, out: &mut CommandOutput) -> Vec2 {
         let mut p = cursor;
+        // Grid snap (F9 / SNAPMODE) — before ortho/polar so constraints stay on grid.
+        if self.sysvars.get_int("SNAPMODE") != 0 {
+            let sp = self.sysvars.get_real("SNAPUNIT").max(1e-6);
+            p = Vec2::new((p.x / sp).round() * sp, (p.y / sp).round() * sp);
+        }
         if self.ortho {
             if let Some(base) = self.last_point {
-                let dx = (cursor.x - base.x).abs();
-                let dy = (cursor.y - base.y).abs();
+                let dx = (p.x - base.x).abs();
+                let dy = (p.y - base.y).abs();
                 p = if dx >= dy {
-                    Vec2::new(cursor.x, base.y)
+                    Vec2::new(p.x, base.y)
                 } else {
-                    Vec2::new(base.x, cursor.y)
+                    Vec2::new(base.x, p.y)
                 };
+            }
+        } else if self.sysvars.get_int("POLARMODE") != 0 {
+            if let Some(base) = self.last_point {
+                let v = p - base;
+                let len = v.length();
+                if len > 1e-9 {
+                    let ang = v.y.atan2(v.x);
+                    let step = std::f64::consts::FRAC_PI_4; // 45°
+                    let snapped = (ang / step).round() * step;
+                    p = base + Vec2::new(snapped.cos(), snapped.sin()) * len;
+                }
             }
         }
         if !self.osnap_enabled {
@@ -606,8 +632,7 @@ impl<G: IdGen> CommandEngine<G> {
         };
         if let Some(hit) = self.snap.resolve(&self.session.document, q) {
             out.snap = Some(hit.clone());
-            hit.point
-        } else {
+            hit.point        } else {
             p
         }
     }
