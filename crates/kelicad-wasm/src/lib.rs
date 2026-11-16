@@ -52,6 +52,7 @@ struct LayerDto {
     color: [u8; 3],
     frozen: bool,
     locked: bool,
+    off: bool,
     no_plot: bool,
     current: bool,
 }
@@ -387,6 +388,7 @@ impl WasmCad {
                 color: l.color,
                 frozen: l.flags.frozen,
                 locked: l.flags.locked,
+                off: l.flags.off,
                 no_plot: l.flags.no_plot,
                 current: l.id == current,
             })
@@ -434,6 +436,7 @@ impl WasmCad {
                 color: l.color,
                 frozen: l.flags.frozen,
                 locked: l.flags.locked,
+                off: l.flags.off,
                 no_plot: l.flags.no_plot,
                 current: l.id == current,
             })
@@ -448,6 +451,38 @@ impl WasmCad {
         self.engine
             .session
             .apply(Operation::SetCurrentLayer { id })
+            .map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Toggle/set layer flags. Pass empty string to leave a flag unchanged;
+    /// `"1"`/`"0"`/`"true"`/`"false"` to set; `"toggle"` to flip.
+    pub fn set_layer_flags(
+        &mut self,
+        layer_id: &str,
+        off: &str,
+        frozen: &str,
+        locked: &str,
+    ) -> Result<(), JsValue> {
+        let u = Uuid::parse_str(layer_id).map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let id = LayerId::from_uuid(u);
+        let Some(mut layer) = self.engine.session.document.get_layer(id).cloned() else {
+            return Err(JsValue::from_str("layer not found"));
+        };
+        let parse = |raw: &str, cur: bool| -> bool {
+            match raw.trim().to_ascii_lowercase().as_str() {
+                "" => cur,
+                "toggle" => !cur,
+                "1" | "true" | "on" | "yes" => true,
+                "0" | "false" | "off" | "no" => false,
+                _ => cur,
+            }
+        };
+        layer.flags.off = parse(off, layer.flags.off);
+        layer.flags.frozen = parse(frozen, layer.flags.frozen);
+        layer.flags.locked = parse(locked, layer.flags.locked);
+        self.engine
+            .session
+            .apply(Operation::UpdateLayer { layer })
             .map_err(|e| JsValue::from_str(&e.to_string()))
     }
 

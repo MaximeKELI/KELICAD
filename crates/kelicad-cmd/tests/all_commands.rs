@@ -334,3 +334,36 @@ fn drafting_props_and_polar_snap() {
     assert!((pt.x - 10.0).abs() < 1e-9);
     assert!((pt.y - 15.0).abs() < 1e-9);
 }
+
+
+#[test]
+fn copy_multiple_before_base() {
+    let mut e = eng();
+    seed_line(&mut e, Vec2::ZERO, Vec2::new(5.0, 0.0));
+    select_all(&mut e);
+    e.handle(CommandEvent::Start(CommandId::Copy));
+    e.handle(CommandEvent::Text("Multiple".into()));
+    e.handle(CommandEvent::Pick(Vec2::ZERO));
+    e.handle(CommandEvent::Pick(Vec2::new(0.0, 10.0)));
+    assert!(e.session.document.entity_count() >= 2);
+    e.handle(CommandEvent::Enter);
+}
+
+#[test]
+fn rotate_copy_and_rectang_dimensions_keywords() {
+    let mut e = eng();
+    seed_line(&mut e, Vec2::ZERO, Vec2::new(4.0, 0.0));
+    select_all(&mut e);
+    e.handle(CommandEvent::Start(CommandId::Rotate));
+    e.handle(CommandEvent::Text("Copy".into()));
+    e.handle(CommandEvent::Pick(Vec2::ZERO));
+    e.handle(CommandEvent::Text("90".into()));
+    assert!(e.session.document.entity_count() >= 2);
+
+    e.handle(CommandEvent::Start(CommandId::Rectang));
+    e.handle(CommandEvent::Text("Dimensions".into()));
+    e.handle(CommandEvent::Pick(Vec2::new(20.0, 20.0)));
+    e.handle(CommandEvent::Text("10".into()));
+    e.handle(CommandEvent::Text("5".into()));
+    assert!(e.session.document.entity_count() >= 3);
+}

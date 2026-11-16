@@ -163,6 +163,13 @@ export function App() {
       } catch {
         setOptionChips([]);
       }
+      // Keep ribbon highlight in sync with engine (instant cmds clear immediately).
+      try {
+        const st = JSON.parse(session.status_json()) as { active?: string | null };
+        setActiveCmd(st.active ?? null);
+      } catch {
+        if (!session.prompt_fr()?.trim()) setActiveCmd(null);
+      }
     },
     [collab],
   );
@@ -357,7 +364,6 @@ export function App() {
   const runCmd = useCallback(
     (cmd: string) => {
       if (!cad) return;
-      setActiveCmd(cmd);
       applyOutput(cad.start_command(cmd), cad);
     },
     [applyOutput, cad],
@@ -894,6 +900,12 @@ export function App() {
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         onPick={(cmd) => {
+          if (!cad) return;
+          try {
+            applyOutput(cad.cancel(), cad);
+          } catch {
+            /* idle */
+          }
           runCmd(cmd);
           setPaletteOpen(false);
         }}

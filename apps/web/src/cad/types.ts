@@ -49,6 +49,7 @@ export type CadLayer = {
   color: [number, number, number];
   frozen: boolean;
   locked: boolean;
+  off?: boolean;
   no_plot: boolean;
   current: boolean;
 };
@@ -119,6 +120,7 @@ export type CadSession = {
   set_project_scale(scale: string): void;
   layers_json(): string;
   set_current_layer(id: string): void;
+  set_layer_flags(id: string, off: string, frozen: string, locked: string): void;
   create_layer(name: string, r: number, g: number, b: number): string;
   set_selection_layer(id: string): number;
   set_selection_props(color: string, linetype: string, lineweight: string): number;

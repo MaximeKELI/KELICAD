@@ -1123,7 +1123,7 @@ impl<G: IdGen> CommandEngine<G> {
             (CommandId::Rectang, _) => prompt("Coin opposé", "Opposite corner"),
             (CommandId::Move, Active::Move { base: None }) => prompt("Point de base", "Base point"),
             (CommandId::Move, _) => prompt("Second point", "Second point"),
-            (CommandId::Copy, Active::Copy { base: None, multiple: false }) => prompt("Point de base", "Base point"),
+            (CommandId::Copy, Active::Copy { base: None, .. }) => prompt("Point de base", "Base point"),
             (CommandId::Copy, _) => prompt("Second point", "Second point"),
             (CommandId::Rotate, Active::Rotate { origin: None, copy: false, reference: false, ref_angle: None }) => {
                 prompt("Point de base", "Base point")
@@ -1994,6 +1994,8 @@ impl<G: IdGen> CommandEngine<G> {
                     first,
                     wait_fillet: true,
                     chamfer,
+                    wait_dims,
+                    dim_w,
                     ..
                 },
             ) => {
@@ -2005,8 +2007,8 @@ impl<G: IdGen> CommandEngine<G> {
                         chamfer,
                         wait_fillet: false,
                         wait_chamfer: false,
-                        wait_dims: false,
-                        dim_w: None,
+                        wait_dims,
+                        dim_w,
                     },
                 ));
                 out.echoes.push(format!("Congé rectangle = {n}"));
@@ -2018,6 +2020,8 @@ impl<G: IdGen> CommandEngine<G> {
                     first,
                     fillet,
                     wait_chamfer: true,
+                    wait_dims,
+                    dim_w,
                     ..
                 },
             ) => {
@@ -2029,12 +2033,84 @@ impl<G: IdGen> CommandEngine<G> {
                         chamfer: n.abs(),
                         wait_fillet: false,
                         wait_chamfer: false,
-                        wait_dims: false,
-                        dim_w: None,
+                        wait_dims,
+                        dim_w,
                     },
                 ));
                 out.echoes.push(format!("Chanfrein rectangle = {n}"));
                 out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Rectang,
+                Active::Rectang {
+                    first,
+                    fillet,
+                    chamfer,
+                    wait_dims: true,
+                    dim_w: None,
+                    ..
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::Rectang,
+                    Active::Rectang {
+                        first,
+                        fillet,
+                        chamfer,
+                        wait_fillet: false,
+                        wait_chamfer: false,
+                        wait_dims: true,
+                        dim_w: Some(n.abs()),
+                    },
+                ));
+                out.echoes.push(format!("Largeur = {n}"));
+                out.prompt = Some(prompt("Hauteur (pick ou nombre)", "Height (pick or number)"));
+            }
+            (
+                CommandId::Rectang,
+                Active::Rectang {
+                    first: Some(a),
+                    fillet,
+                    chamfer,
+                    wait_dims: true,
+                    dim_w: Some(w),
+                    ..
+                },
+            ) => {
+                let h = n.abs();
+                let corner = Vec2::new(a.x + w, a.y + h);
+                let mut poly = Polyline::rectangle(a, corner);
+                let tol = Tolerance::DEFAULT;
+                if fillet > 1e-9 {
+                    if let Some(f) = fillet_polyline(&poly, fillet, 8, tol) {
+                        poly = f;
+                    }
+                } else if chamfer > 1e-9 {
+                    if let Some(c) = chamfer_polyline(&poly, chamfer, tol) {
+                        poly = c;
+                    }
+                }
+                out = self.commit_one(Geometry::Polyline(poly));
+                self.active = None;
+            }
+            (
+                CommandId::Xline,
+                Active::XlineMode {
+                    mode: XlineKind::Ang,
+                    first,
+                    angle_deg: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::Xline,
+                    Active::XlineMode {
+                        mode: XlineKind::Ang,
+                        first,
+                        angle_deg: Some(n),
+                    },
+                ));
+                out.echoes.push(format!("Angle = {n}°"));
+                out.prompt = Some(prompt("Point de passage", "Through point"));
             }
             (
                 CommandId::Fillet,
@@ -2080,13 +2156,21 @@ impl<G: IdGen> CommandEngine<G> {
                 out.echoes.push(format!("PDMODE = {}", n.round()));
                 self.active = None;
             }
-            (CommandId::Rotate, Active::Rotate { origin: Some(o), copy, reference, ref_angle }) => {
+            (CommandId::Rotate, Active::Rotate { origin: Some(o), copy, .. }) => {
                 let rad = n.to_radians();
-                out = self.transform_selection(|g| g.rotated(o, rad));
+                out = if copy {
+                    self.copy_transform_selection(|g| g.rotated(o, rad))
+                } else {
+                    self.transform_selection(|g| g.rotated(o, rad))
+                };
                 self.active = None;
             }
-            (CommandId::Scale, Active::Scale { origin: Some(o), copy, reference, ref_len }) => {
-                out = self.transform_selection(|g| g.scaled(o, n));
+            (CommandId::Scale, Active::Scale { origin: Some(o), copy, .. }) => {
+                out = if copy {
+                    self.copy_transform_selection(|g| g.scaled(o, n))
+                } else {
+                    self.transform_selection(|g| g.scaled(o, n))
+                };
                 self.active = None;
             }
             (CommandId::Polygon, Active::Polygon { sides: None, center, .. }) => {
@@ -2442,20 +2526,63 @@ impl<G: IdGen> CommandEngine<G> {
                 }
                 self.active = None;
             }
-            (CommandId::Rectang, Active::Rectang { first: None, .. }) => {
+            (
+                CommandId::Rectang,
+                Active::Rectang {
+                    first: None,
+                    fillet,
+                    chamfer,
+                    wait_fillet,
+                    wait_chamfer,
+                    wait_dims,
+                    dim_w,
+                },
+            ) => {
                 self.active = Some((
                     CommandId::Rectang,
                     Active::Rectang {
                         first: Some(p),
-                        fillet: 0.0,
-                        chamfer: 0.0,
-                        wait_fillet: false,
-                        wait_chamfer: false,
-                        wait_dims: false,
-                        dim_w: None,
+                        fillet,
+                        chamfer,
+                        wait_fillet,
+                        wait_chamfer,
+                        wait_dims,
+                        dim_w,
                     },
                 ));
-                out.prompt = self.current_prompt();
+                out.prompt = if wait_dims {
+                    Some(prompt("Largeur", "Width"))
+                } else {
+                    self.current_prompt()
+                };
+            }
+            (
+                CommandId::Rectang,
+                Active::Rectang {
+                    first: Some(a),
+                    fillet,
+                    chamfer,
+                    wait_dims: true,
+                    dim_w: Some(w),
+                    ..
+                },
+            ) => {
+                // Height from second pick delta Y (or absolute Y distance).
+                let h = (p.y - a.y).abs().max(1e-9);
+                let corner = Vec2::new(a.x + w.copysign(p.x - a.x), a.y + h.copysign(p.y - a.y));
+                let mut poly = Polyline::rectangle(a, corner);
+                let tol = Tolerance::DEFAULT;
+                if fillet > 1e-9 {
+                    if let Some(f) = fillet_polyline(&poly, fillet, 8, tol) {
+                        poly = f;
+                    }
+                } else if chamfer > 1e-9 {
+                    if let Some(c) = chamfer_polyline(&poly, chamfer, tol) {
+                        poly = c;
+                    }
+                }
+                out = self.commit_one(Geometry::Polyline(poly));
+                self.active = None;
             }
             (CommandId::Rectang, Active::Rectang { first: Some(a), fillet, chamfer, .. }) => {
                 let mut poly = Polyline::rectangle(a, p);
@@ -2488,6 +2615,15 @@ impl<G: IdGen> CommandEngine<G> {
                         }));
                         self.active = None;
                     }
+                    XlineKind::Ang if angle_deg.is_some() => {
+                        let deg = angle_deg.unwrap_or(0.0);
+                        let rad = deg.to_radians();
+                        out = self.commit_one(Geometry::XLine(XLineGeom {
+                            point: p,
+                            direction: Vec2::new(rad.cos(), rad.sin()),
+                        }));
+                        self.active = None;
+                    }
                     _ => {
                         self.active = Some((
                             CommandId::Xline,
@@ -2497,9 +2633,29 @@ impl<G: IdGen> CommandEngine<G> {
                                 angle_deg,
                             },
                         ));
-                        out.prompt = self.current_prompt();
+                        out.prompt = Some(prompt(
+                            "Direction (2e point) ou angle",
+                            "Direction (2nd point) or angle",
+                        ));
                     }
                 }
+            }
+            (
+                CommandId::Xline,
+                Active::XlineMode {
+                    mode: XlineKind::Ang | XlineKind::Offset | XlineKind::TwoPoint,
+                    first: Some(a),
+                    ..
+                },
+            ) => {
+                let dir = (p - a)
+                    .try_normalize(Tolerance::DEFAULT)
+                    .unwrap_or(Vec2::X);
+                out = self.commit_one(Geometry::XLine(XLineGeom {
+                    point: a,
+                    direction: dir,
+                }));
+                self.active = None;
             }
             (CommandId::Move, Active::Move { base: None }) => {
                 self.active = Some((CommandId::Move, Active::Move { base: Some(p) }));
@@ -2510,8 +2666,14 @@ impl<G: IdGen> CommandEngine<G> {
                 out = self.transform_selection(|g| g.translated(delta));
                 self.active = None;
             }
-            (CommandId::Copy, Active::Copy { base: None, multiple: false }) => {
-                self.active = Some((CommandId::Copy, Active::Copy { base: Some(p), multiple: false }));
+            (CommandId::Copy, Active::Copy { base: None, multiple }) => {
+                self.active = Some((
+                    CommandId::Copy,
+                    Active::Copy {
+                        base: Some(p),
+                        multiple,
+                    },
+                ));
                 out.prompt = self.current_prompt();
             }
             (CommandId::Copy, Active::Copy { base: Some(b), multiple }) => {
@@ -2534,26 +2696,101 @@ impl<G: IdGen> CommandEngine<G> {
                     self.active = None;
                 }
             }
-            (CommandId::Rotate, Active::Rotate { origin: None, copy: false, reference: false, ref_angle: None }) => {
-                self.active = Some((CommandId::Rotate, Active::Rotate { origin: Some(p), copy: false, reference: false, ref_angle: None }));
-                out.prompt = self.current_prompt();
+            (CommandId::Rotate, Active::Rotate { origin: None, copy, reference, ref_angle }) => {
+                self.active = Some((
+                    CommandId::Rotate,
+                    Active::Rotate {
+                        origin: Some(p),
+                        copy,
+                        reference,
+                        ref_angle,
+                    },
+                ));
+                out.prompt = if reference {
+                    Some(prompt("Angle de référence", "Reference angle"))
+                } else {
+                    self.current_prompt()
+                };
+            }
+            (CommandId::Rotate, Active::Rotate { origin: Some(o), copy, reference, ref_angle: None })
+                if reference =>
+            {
+                self.active = Some((
+                    CommandId::Rotate,
+                    Active::Rotate {
+                        origin: Some(o),
+                        copy,
+                        reference: true,
+                        ref_angle: Some((p - o).angle()),
+                    },
+                ));
+                out.prompt = Some(prompt("Nouvel angle", "New angle"));
             }
             (CommandId::Rotate, Active::Rotate { origin: Some(o), copy, reference, ref_angle }) => {
-                let ang = (p - o).angle();
-                out = self.transform_selection(|g| g.rotated(o, ang));
+                let ang = if reference {
+                    (p - o).angle() - ref_angle.unwrap_or(0.0)
+                } else {
+                    (p - o).angle()
+                };
+                out = if copy {
+                    self.copy_transform_selection(|g| g.rotated(o, ang))
+                } else {
+                    self.transform_selection(|g| g.rotated(o, ang))
+                };
                 self.active = None;
             }
-            (CommandId::Scale, Active::Scale { origin: None, copy: false, reference: false, ref_len: None }) => {
-                self.active = Some((CommandId::Scale, Active::Scale { origin: Some(p), copy: false, reference: false, ref_len: None }));
-                out.prompt = self.current_prompt();
+            (CommandId::Scale, Active::Scale { origin: None, copy, reference, ref_len }) => {
+                self.active = Some((
+                    CommandId::Scale,
+                    Active::Scale {
+                        origin: Some(p),
+                        copy,
+                        reference,
+                        ref_len,
+                    },
+                ));
+                out.prompt = if reference {
+                    Some(prompt("Longueur de référence", "Reference length"))
+                } else {
+                    self.current_prompt()
+                };
+            }
+            (CommandId::Scale, Active::Scale { origin: Some(o), copy, reference, ref_len: None })
+                if reference =>
+            {
+                self.active = Some((
+                    CommandId::Scale,
+                    Active::Scale {
+                        origin: Some(o),
+                        copy,
+                        reference: true,
+                        ref_len: Some(o.distance(p).max(1e-12)),
+                    },
+                ));
+                out.prompt = Some(prompt("Nouvelle longueur", "New length"));
             }
             (CommandId::Scale, Active::Scale { origin: Some(o), copy, reference, ref_len }) => {
-                let factor = o.distance(p);
-                out = self.transform_selection(|g| g.scaled(o, factor.max(1e-12)));
+                let factor = if reference {
+                    o.distance(p) / ref_len.unwrap_or(1.0).max(1e-12)
+                } else {
+                    o.distance(p).max(1e-12)
+                };
+                out = if copy {
+                    self.copy_transform_selection(|g| g.scaled(o, factor))
+                } else {
+                    self.transform_selection(|g| g.scaled(o, factor))
+                };
                 self.active = None;
             }
-            (CommandId::Mirror, Active::Mirror { first: None, erase_source: false, wait_erase: false }) => {
-                self.active = Some((CommandId::Mirror, Active::Mirror { first: Some(p), erase_source: false, wait_erase: false }));
+            (CommandId::Mirror, Active::Mirror { first: None, erase_source, wait_erase }) => {
+                self.active = Some((
+                    CommandId::Mirror,
+                    Active::Mirror {
+                        first: Some(p),
+                        erase_source,
+                        wait_erase,
+                    },
+                ));
                 out.prompt = self.current_prompt();
             }
             (CommandId::Mirror, Active::Mirror { first: Some(a), erase_source, .. }) => {
@@ -4540,8 +4777,13 @@ impl<G: IdGen> CommandEngine<G> {
 
     fn transform_selection(&mut self, f: impl Fn(&Geometry) -> Geometry) -> CommandOutput {
         let mut ops = Vec::new();
+        let mut skipped = 0usize;
         for id in self.selection.iter() {
             if let Some(ent) = self.session.document.get_entity(id) {
+                if self.layer_locked(ent.layer_id) {
+                    skipped += 1;
+                    continue;
+                }
                 ops.push(Operation::SetGeometry {
                     id,
                     geometry: f(&ent.geometry),
@@ -4549,30 +4791,50 @@ impl<G: IdGen> CommandEngine<G> {
             }
         }
         let n = ops.len();
-        self.apply_batch(ops, format!("{n} objet(s) modifié(s)"))
+        let mut out = self.apply_batch(ops, format!("{n} objet(s) modifié(s)"));
+        if skipped > 0 {
+            out.echoes
+                .push(format!("{skipped} objet(s) sur calque verrouillé ignoré(s)."));
+        }
+        out
     }
 
     fn copy_selection(&mut self, delta: Vec2) -> CommandOutput {
+        self.copy_transform_selection(|g| g.translated(delta))
+    }
+
+    fn copy_transform_selection(
+        &mut self,
+        f: impl Fn(&Geometry) -> Geometry,
+    ) -> CommandOutput {
         let mut ops = Vec::new();
-        let layer_fallback = self.session.document.current_layer;
         for id in self.selection.iter() {
             if let Some(ent) = self.session.document.get_entity(id) {
+                if self.layer_locked(ent.layer_id) {
+                    continue;
+                }
                 let new_id = self.ids.next();
                 ops.push(Operation::CreateEntity {
                     record: EntityRecord {
                         id: new_id,
                         kind: ent.kind,
-                        geometry: ent.geometry.translated(delta),
+                        geometry: f(&ent.geometry),
                         layer_id: ent.layer_id,
                         props: ent.props.clone(),
-        },
+                    },
                 });
-            } else {
-                let _ = layer_fallback;
             }
         }
         let n = ops.len();
         self.apply_batch(ops, format!("{n} objet(s) copié(s)"))
+    }
+
+    fn layer_locked(&self, layer_id: kelicad_doc::LayerId) -> bool {
+        self.session
+            .document
+            .get_layer(layer_id)
+            .map(|l| l.flags.locked)
+            .unwrap_or(false)
     }
 
     fn apply_batch(&mut self, ops: Vec<Operation>, ok_msg: String) -> CommandOutput {
@@ -5208,8 +5470,50 @@ impl<G: IdGen> CommandEngine<G> {
                     &format!("Radius <{r}>"),
                 ));
             }
-            (CommandId::Fillet, "MULTIPLE") | (CommandId::Chamfer, "MULTIPLE") => {
-                out.echoes.push("Mode multiple activé.".into());
+            (CommandId::Fillet, "MULTIPLE") => {
+                if let Some((_, mut st)) = self.active.clone() {
+                    if let Active::Fillet {
+                        multiple: ref mut m,
+                        ..
+                    } = st
+                    {
+                        *m = true;
+                    }
+                    self.active = Some((CommandId::Fillet, st));
+                }
+                out.echoes.push("FILLET multiple ON.".into());
+            }
+            (CommandId::Chamfer, "MULTIPLE") => {
+                if let Some((_, mut st)) = self.active.clone() {
+                    if let Active::Chamfer {
+                        multiple: ref mut m,
+                        ..
+                    } = st
+                    {
+                        *m = true;
+                    }
+                    self.active = Some((CommandId::Chamfer, st));
+                }
+                out.echoes.push("CHAMFER multiple ON.".into());
+            }
+            (CommandId::Fillet, "POLYLINE") | (CommandId::Chamfer, "POLYLINE") => {
+                out.echoes.push(
+                    "Sélectionnez une polyligne puis Entrée (congé/chanfrein coins)."
+                        .into(),
+                );
+            }
+            (CommandId::Chamfer, "DISTANCE") => {
+                if let Some((_, mut st)) = self.active.clone() {
+                    if let Active::Chamfer {
+                        wait_distance: ref mut w,
+                        ..
+                    } = st
+                    {
+                        *w = true;
+                    }
+                    self.active = Some((CommandId::Chamfer, st));
+                    out.prompt = Some(prompt("1re distance", "First distance"));
+                }
             }
             (CommandId::Trim, "QUICK") | (CommandId::Extend, "QUICK") => {
                 let _ = self.sysvars.set("TRIMEXTENDMODE", SysVarValue::Int(1));
@@ -5218,6 +5522,105 @@ impl<G: IdGen> CommandEngine<G> {
             (CommandId::Trim, "STANDARD") | (CommandId::Extend, "STANDARD") => {
                 let _ = self.sysvars.set("TRIMEXTENDMODE", SysVarValue::Int(0));
                 out.echoes.push("Mode Standard.".into());
+            }
+            (CommandId::Trim, "FENCE") | (CommandId::Extend, "FENCE") => {
+                out.echoes
+                    .push("Fence : cliquez les objets à traiter (mode multi).".into());
+            }
+            (CommandId::Rectang, "DIMENSIONS") => {
+                if let Some((_, mut st)) = self.active.clone() {
+                    if let Active::Rectang {
+                        wait_dims: ref mut w,
+                        ..
+                    } = st
+                    {
+                        *w = true;
+                    }
+                    self.active = Some((CommandId::Rectang, st));
+                    out.prompt = Some(prompt("Largeur", "Width"));
+                }
+            }
+            (CommandId::Polygon, "INSCRIBED") => {
+                if let Some((
+                    _,
+                    Active::Polygon {
+                        sides,
+                        ..
+                    },
+                )) = self.active.clone()
+                {
+                    self.active = Some((
+                        CommandId::Polygon,
+                        Active::Polygon {
+                            sides,
+                            center: None,
+                            edge: false,
+                            edge_a: None,
+                        },
+                    ));
+                    out.echoes.push("Polygone inscrit (centre + sommet).".into());
+                    out.prompt = Some(prompt("Centre", "Center"));
+                }
+            }
+            (CommandId::Polygon, "CIRCUMSCRIBED") => {
+                if let Some((
+                    _,
+                    Active::Polygon {
+                        sides,
+                        ..
+                    },
+                )) = self.active.clone()
+                {
+                    // Approximation: same centre+vertex path (edge midpoint = radius later).
+                    self.active = Some((
+                        CommandId::Polygon,
+                        Active::Polygon {
+                            sides,
+                            center: None,
+                            edge: false,
+                            edge_a: None,
+                        },
+                    ));
+                    out.echoes
+                        .push("Polygone circonscrit (centre + point sur côté).".into());
+                    out.prompt = Some(prompt("Centre", "Center"));
+                }
+            }
+            (CommandId::Rotate, "COPY") | (CommandId::Scale, "COPY") => {
+                if let Some((_, mut st)) = self.active.clone() {
+                    match &mut st {
+                        Active::Rotate { copy, .. } | Active::Scale { copy, .. } => *copy = true,
+                        _ => {}
+                    }
+                    self.active = Some((cid, st));
+                    out.echoes.push("Mode copie ON.".into());
+                }
+            }
+            (CommandId::Rotate, "REFERENCE") => {
+                if let Some((_, mut st)) = self.active.clone() {
+                    if let Active::Rotate {
+                        reference: ref mut r,
+                        ..
+                    } = st
+                    {
+                        *r = true;
+                    }
+                    self.active = Some((CommandId::Rotate, st));
+                    out.echoes.push("ROTATE référence ON.".into());
+                }
+            }
+            (CommandId::Scale, "REFERENCE") => {
+                if let Some((_, mut st)) = self.active.clone() {
+                    if let Active::Scale {
+                        reference: ref mut r,
+                        ..
+                    } = st
+                    {
+                        *r = true;
+                    }
+                    self.active = Some((CommandId::Scale, st));
+                    out.echoes.push("SCALE référence ON.".into());
+                }
             }
             (CommandId::Xline, "HOR") => {
                 self.active = Some((
@@ -5240,6 +5643,40 @@ impl<G: IdGen> CommandEngine<G> {
                     },
                 ));
                 out.prompt = Some(prompt("Point de passage", "Through point"));
+            }
+            (CommandId::Xline, "ANG") => {
+                self.active = Some((
+                    CommandId::Xline,
+                    Active::XlineMode {
+                        mode: XlineKind::Ang,
+                        first: None,
+                        angle_deg: None,
+                    },
+                ));
+                out.prompt = Some(prompt(
+                    "Angle (°) ou point de passage",
+                    "Angle (°) or through point",
+                ));
+                out.echoes.push("XLINE angle.".into());
+            }
+            (CommandId::Xline, "OFFSET") => {
+                self.active = Some((
+                    CommandId::Xline,
+                    Active::XlineMode {
+                        mode: XlineKind::Offset,
+                        first: None,
+                        angle_deg: None,
+                    },
+                ));
+                out.prompt = Some(prompt("Point de passage", "Through point"));
+                out.echoes.push("XLINE offset (2 points direction).".into());
+            }
+            (CommandId::Pline, "ARC") => {
+                out.echoes
+                    .push("PLINE Arc : utilisez ARC ou saisissez des points (bulge bientôt).".into());
+            }
+            (CommandId::Pline, "LINE") => {
+                out.echoes.push("Mode ligne PLINE.".into());
             }
             (CommandId::Draworder, "FRONT") => {
                 out = self.draworder_shift(true);

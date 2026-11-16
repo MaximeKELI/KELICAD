@@ -319,13 +319,40 @@ function IconRows({
 
 function PropsStack({
   cad,
+  revision,
   onChanged,
   onEcho,
 }: {
   cad: CadSession;
+  revision: number;
   onChanged: () => void;
   onEcho: (lines: string[]) => void;
 }) {
+  const color = (() => {
+    void revision;
+    try {
+      return cad.get_sysvar("CECOLOR") || "BYLAYER";
+    } catch {
+      return "BYLAYER";
+    }
+  })();
+  const ltype = (() => {
+    void revision;
+    try {
+      return cad.get_sysvar("CELTYPE") || "BYLAYER";
+    } catch {
+      return "BYLAYER";
+    }
+  })();
+  const lweight = (() => {
+    void revision;
+    try {
+      return cad.get_sysvar("CELWEIGHT") || "-1";
+    } catch {
+      return "-1";
+    }
+  })();
+
   const applyProp = (
     kind: "color" | "linetype" | "lineweight",
     value: string,
@@ -363,7 +390,7 @@ function PropsStack({
         Couleur
         <select
           className="cad-select"
-          defaultValue="BYLAYER"
+          value={color}
           onChange={(e) => applyProp("color", e.target.value)}
         >
           <option value="BYLAYER">DuCalque</option>
@@ -381,7 +408,7 @@ function PropsStack({
         Type de ligne
         <select
           className="cad-select"
-          defaultValue="BYLAYER"
+          value={ltype}
           onChange={(e) => applyProp("linetype", e.target.value)}
         >
           <option value="BYLAYER">DuCalque</option>
@@ -395,7 +422,7 @@ function PropsStack({
         Épaisseur
         <select
           className="cad-select"
-          defaultValue="-1"
+          value={lweight}
           onChange={(e) => applyProp("lineweight", e.target.value)}
         >
           <option value="-1">DuCalque</option>
@@ -467,38 +494,58 @@ function LayerCombo({
       <div className="cad-layer-tools">
         <button
           type="button"
-          title="Allumer / éteindre (affichage — API set bientôt)"
-          onClick={() =>
-            onEcho([
-              current?.frozen
-                ? `Calque ${current.name} : gelé (lecture)`
-                : `Calque ${current?.name ?? "?"} : visible`,
-            ])
-          }
+          title="Allumer / éteindre"
+          className={current?.off ? "is-on" : ""}
+          onClick={() => {
+            if (!current) return;
+            try {
+              cad.set_layer_flags(current.id, "toggle", "", "");
+              onChanged();
+              onEcho([
+                `Calque ${current.name} : ${current.off ? "allumé" : "éteint"}`,
+              ]);
+            } catch (err) {
+              onEcho([String(err)]);
+            }
+          }}
         >
           💡
         </button>
         <button
           type="button"
-          title="État verrouillage (lecture)"
-          onClick={() =>
-            onEcho([
-              current?.locked
-                ? `Calque ${current.name} : verrouillé`
-                : `Calque ${current?.name ?? "?"} : déverrouillé`,
-            ])
-          }
+          title="Verrouiller / déverrouiller"
+          className={current?.locked ? "is-on" : ""}
+          onClick={() => {
+            if (!current) return;
+            try {
+              cad.set_layer_flags(current.id, "", "", "toggle");
+              onChanged();
+              onEcho([
+                `Calque ${current.name} : ${current.locked ? "déverrouillé" : "verrouillé"}`,
+              ]);
+            } catch (err) {
+              onEcho([String(err)]);
+            }
+          }}
         >
           🔒
         </button>
         <button
           type="button"
-          title="Geler (lecture)"
-          onClick={() =>
-            onEcho([
-              `Gel : ${current?.frozen ? "oui" : "non"} — set API à venir`,
-            ])
-          }
+          title="Geler / dégeler"
+          className={current?.frozen ? "is-on" : ""}
+          onClick={() => {
+            if (!current) return;
+            try {
+              cad.set_layer_flags(current.id, "", "toggle", "");
+              onChanged();
+              onEcho([
+                `Calque ${current.name} : ${current.frozen ? "dégelé" : "gelé"}`,
+              ]);
+            } catch (err) {
+              onEcho([String(err)]);
+            }
+          }}
         >
           ❄
         </button>
@@ -580,6 +627,7 @@ function renderItem(
       return (
         <PropsStack
           key="props-stack"
+          revision={ctx.revision}
           cad={ctx.cad}
           onChanged={handlers.onChanged}
           onEcho={handlers.onEcho}
