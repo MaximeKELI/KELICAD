@@ -53,7 +53,7 @@ export function DrawingViewport({
     height: number;
     crossing: boolean;
   } | null>(null);
-  const [gridOn, setGridOn] = useState(false);
+  const [gridOn, setGridOn] = useState(true);
   const [gridUnit, setGridUnit] = useState(10);
   void peerTick;
 
@@ -474,15 +474,25 @@ export function DrawingViewport({
     const maxX = cam.x + halfW;
     const minY = cam.y - halfH;
     const maxY = cam.y + halfH;
-    const step = gridUnit;
+    // Adaptive step so the grid stays readable when zoomed.
+    let step = gridUnit;
+    const worldPerPx = (halfH * 2) / Math.max(rect.height, 1);
+    while (step / worldPerPx < 6) step *= 2;
+    while (step / worldPerPx > 48) step *= 0.5;
+    step = Math.max(step, 1e-6);
+    const majorEvery = 5;
     const lines: ReactNode[] = [];
     const x0 = Math.floor(minX / step) * step;
     const y0 = Math.floor(minY / step) * step;
     let i = 0;
-    for (let x = x0; x <= maxX + step; x += step) {
+    const isMajor = (v: number) => {
+      const k = Math.round(v / step);
+      return k % majorEvery === 0;
+    };
+    for (let x = x0; x <= maxX + step * 0.5; x += step) {
       const a = clientFromWorld(x, minY);
       const b = clientFromWorld(x, maxY);
-      const major = Math.abs(x % (step * 5)) < step * 0.01;
+      const maj = isMajor(x);
       lines.push(
         <line
           key={`vx${i++}`}
@@ -490,15 +500,15 @@ export function DrawingViewport({
           y1={a.y}
           x2={b.x}
           y2={b.y}
-          stroke={major ? "rgba(120,140,160,0.35)" : "rgba(90,100,120,0.18)"}
-          strokeWidth={1}
+          stroke={maj ? "rgba(150,165,180,0.42)" : "rgba(100,110,125,0.22)"}
+          strokeWidth={maj ? 1.25 : 1}
         />,
       );
     }
-    for (let y = y0; y <= maxY + step; y += step) {
+    for (let y = y0; y <= maxY + step * 0.5; y += step) {
       const a = clientFromWorld(minX, y);
       const b = clientFromWorld(maxX, y);
-      const major = Math.abs(y % (step * 5)) < step * 0.01;
+      const maj = isMajor(y);
       lines.push(
         <line
           key={`hy${i++}`}
@@ -506,16 +516,37 @@ export function DrawingViewport({
           y1={a.y}
           x2={b.x}
           y2={b.y}
-          stroke={major ? "rgba(120,140,160,0.35)" : "rgba(90,100,120,0.18)"}
-          strokeWidth={1}
+          stroke={maj ? "rgba(150,165,180,0.42)" : "rgba(100,110,125,0.22)"}
+          strokeWidth={maj ? 1.25 : 1}
         />,
       );
     }
     return lines;
   })();
 
+  // World-origin axes when visible; otherwise screen-fixed UCS (AutoCAD-style).
+  const originScreen = clientFromWorld(0, 0);
+  const wrapBox = wrapRef.current?.getBoundingClientRect();
+  const originInView =
+    !!wrapBox &&
+    originScreen.x > 40 &&
+    originScreen.x < wrapBox.width - 40 &&
+    originScreen.y > 40 &&
+    originScreen.y < wrapBox.height - 40;
+  const ucsLeft = originInView ? originScreen.x : 28;
+  const ucsTop = originInView ? originScreen.y : (wrapBox?.height ?? 120) - 36;
+
+  const goTopView = () => {
+    window.dispatchEvent(
+      new CustomEvent("kelicad-view", { detail: { action: "extents" } }),
+    );
+  };
+
   return (
-    <div ref={wrapRef} className="relative h-full w-full overflow-hidden">
+    <div
+      ref={wrapRef}
+      className={`cad-viewport relative h-full w-full overflow-hidden ${gridOn ? "has-grid" : ""}`}
+    >
       <canvas
         ref={canvasRef}
         className="h-full w-full touch-none cursor-crosshair"
@@ -525,6 +556,63 @@ export function DrawingViewport({
           {gridLines}
         </svg>
       )}
+
+      {/* Viewport chrome — AutoCAD [-][Haut][Filaire 2D] */}
+      <div className="cad-vp-chrome pointer-events-none absolute left-2 top-2 z-[15]">
+        <span>[-]</span>
+        <span>[Haut]</span>
+        <span>[Filaire 2D]</span>
+        {gridOn && <span className="cad-vp-chrome-on">[Grille]</span>}
+      </div>
+
+      {/* ViewCube / cercle d'orientation */}
+      <div className="cad-viewcube" title="Orientation — clic = zoom étendu (Haut)">
+        <button type="button" className="cad-vc-face cad-vc-n" onClick={goTopView}>
+          N
+        </button>
+        <button type="button" className="cad-vc-face cad-vc-o" onClick={goTopView}>
+          O
+        </button>
+        <button type="button" className="cad-vc-core" onClick={goTopView}>
+          HAUT
+        </button>
+        <button type="button" className="cad-vc-face cad-vc-e" onClick={goTopView}>
+          E
+        </button>
+        <button type="button" className="cad-vc-face cad-vc-s" onClick={goTopView}>
+          S
+        </button>
+        <button type="button" className="cad-vc-scg" onClick={goTopView}>
+          SCG
+        </button>
+      </div>
+
+      {/* UCS / repère X Y */}
+      <svg
+        className="cad-ucs pointer-events-none absolute z-[12]"
+        style={{
+          left: ucsLeft,
+          top: ucsTop,
+          overflow: "visible",
+        }}
+        width="1"
+        height="1"
+      >
+        <g transform="translate(0,0)">
+          <line x1="0" y1="0" x2="42" y2="0" stroke="#e8e8e8" strokeWidth="2" />
+          <polygon points="42,-5 54,0 42,5" fill="#e8e8e8" />
+          <text x="58" y="4" fill="#e8e8e8" fontSize="12" fontFamily="IBM Plex Mono, monospace">
+            X
+          </text>
+          <line x1="0" y1="0" x2="0" y2="-42" stroke="#e8e8e8" strokeWidth="2" />
+          <polygon points="-5,-42 0,-54 5,-42" fill="#e8e8e8" />
+          <text x="6" y="-46" fill="#e8e8e8" fontSize="12" fontFamily="IBM Plex Mono, monospace">
+            Y
+          </text>
+          <circle cx="0" cy="0" r="3" fill="#e8e8e8" />
+        </g>
+      </svg>
+
       {paperLayout && (
         <div className="pointer-events-none absolute inset-6 z-[2] rounded-sm border border-[#8a7a4a]/60 bg-[#1a1812]/35 shadow-[inset_0_0_0_1px_rgba(200,180,100,0.15)]">
           <span className="absolute left-2 top-1 font-mono text-[10px] text-[#cbb56a]">
@@ -568,9 +656,6 @@ export function DrawingViewport({
           }}
         />
       )}
-      <p className="pointer-events-none absolute bottom-2 left-2 z-30 rounded bg-black/60 px-2 py-0.5 font-mono text-[10px] text-[#aaa]">
-        Clic · Entrée/Espace/clic-droit = fin · Échap · Molette/Alt+glisser = pan · F3/F7/F8/F9/F10
-      </p>
     </div>
   );
 }

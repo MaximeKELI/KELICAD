@@ -186,7 +186,7 @@ fn catalog() -> Vec<SysVarDef> {
             name: "GRIDMODE",
             tip: "Affichage grille (F7)",
             scope: SysVarScope::Session,
-            default: SysVarValue::Int(0),
+            default: SysVarValue::Int(1),
         },
         SysVarDef {
             name: "SNAPMODE",

@@ -98,13 +98,22 @@ pub fn parse_number(raw: &str) -> Result<f64, InputError> {
 
 fn split_xy(s: &str) -> Result<(f64, f64), InputError> {
     // AutoCAD: `x,y` or `x,y,z` (Z ignored in 2D). Also `x;y` / `x y`.
-    let norm = s.replace(';', ',').split_whitespace().collect::<Vec<_>>();
-    let joined = if norm.len() >= 2 && !s.contains(',') && !s.contains(';') {
-        format!("{},{}", norm[0], norm[1])
+    let normalized = s.replace(';', ",");
+    let joined = if !normalized.contains(',') {
+        let toks: Vec<&str> = normalized.split_whitespace().collect();
+        if toks.len() >= 2 {
+            format!("{},{}", toks[0], toks[1])
+        } else {
+            normalized.clone()
+        }
     } else {
-        s.to_string()
+        normalized
     };
-    let parts: Vec<&str> = joined.split(',').map(str::trim).filter(|p| !p.is_empty()).collect();
+    let parts: Vec<&str> = joined
+        .split(',')
+        .map(str::trim)
+        .filter(|p| !p.is_empty())
+        .collect();
     if parts.len() < 2 {
         return Err(InputError::Invalid(s.into()));
     }
@@ -148,5 +157,15 @@ mod tests {
     fn meters() {
         assert!((parse_number("2m").unwrap() - 2.0).abs() < 1e-12);
         assert!((parse_number("50cm").unwrap() - 0.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn space_and_xyz() {
+        let p = parse_point("10 20").unwrap();
+        assert_eq!(p.resolve(None).unwrap(), Vec2::new(10.0, 20.0));
+        let p2 = parse_point("1,2,3").unwrap();
+        assert_eq!(p2.resolve(None).unwrap(), Vec2::new(1.0, 2.0));
+        let p3 = parse_point("4;5").unwrap();
+        assert_eq!(p3.resolve(None).unwrap(), Vec2::new(4.0, 5.0));
     }
 }

@@ -2253,6 +2253,27 @@ impl<G: IdGen> CommandEngine<G> {
                 out.echoes.push(format!("PDMODE = {}", n.round()));
                 self.active = None;
             }
+            (
+                CommandId::Triangle,
+                Active::Triangle {
+                    a: Some(a),
+                    b: Some(b),
+                },
+            ) => {
+                // Height (drawing units) or angle (°) if |n| > 360 → treat as height.
+                let height = if n.abs() <= 89.0 {
+                    let half = a.distance(b) * 0.5;
+                    half * n.to_radians().tan()
+                } else {
+                    n
+                };
+                if let Some(poly) = isosceles_triangle(a, b, height) {
+                    out = self.commit_one(Geometry::Polyline(poly));
+                } else {
+                    out.echoes.push("TRIANGLE invalide.".into());
+                }
+                self.active = None;
+            }
             (CommandId::Rotate, Active::Rotate { origin: Some(o), copy, .. }) => {
                 let rad = n.to_radians();
                 out = if copy {

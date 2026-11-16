@@ -144,8 +144,8 @@ body {
   justify-content: flex-start;
   align-items: stretch;
   gap: 0;
-  padding: 2px 0 0;
-  height: 96px;
+  padding: 1px 0 0;
+  height: 92px;
   /* overflow-y:hidden clipped flyout menus — allow visible dropdowns */
   overflow-x: auto;
   overflow-y: visible;
@@ -1088,37 +1088,119 @@ body {
 
 .cad-canvas-wrap {
   position: relative;
-  background: var(--cad-canvas);
-  background-image: radial-gradient(circle, #1a1a1a 1px, transparent 1px);
-  background-size: 24px 24px;
+  background: #0d0d0d;
 }
 
+.cad-viewport.has-grid {
+  background: #1a1c1e;
+}
+
+.cad-vp-chrome {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+  color: #c8c8c8;
+}
+
+.cad-vp-chrome span {
+  background: rgba(18, 18, 18, 0.72);
+  border: 1px solid #3a3a3a;
+  border-radius: 2px;
+  padding: 1px 5px;
+}
+
+.cad-vp-chrome-on {
+  color: #9fd0ff !important;
+  border-color: #3a5a7a !important;
+}
+
+/* AutoCAD-like ViewCube / orientation compass */
 .cad-viewcube {
   position: absolute;
   top: 10px;
-  right: 10px;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  right: 48px;
+  z-index: 16;
+  width: 86px;
+  height: 86px;
   pointer-events: auto;
 }
 
-.cad-viewcube button {
-  width: 44px;
-  height: 22px;
+.cad-viewcube .cad-vc-core,
+.cad-viewcube .cad-vc-face,
+.cad-viewcube .cad-vc-scg {
+  position: absolute;
+  border: 1px solid #5a5a5a;
+  background: rgba(28, 28, 28, 0.92);
+  color: #ddd;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 9px;
-  font-family: "IBM Plex Mono", monospace;
-  border: 1px solid #444;
-  background: rgba(20, 20, 20, 0.85);
-  color: #bbb;
   cursor: pointer;
-  border-radius: 2px;
+  padding: 0;
+  line-height: 1;
+}
+
+.cad-viewcube .cad-vc-core {
+  left: 22px;
+  top: 22px;
+  width: 42px;
+  height: 42px;
+  border-radius: 4px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.cad-viewcube .cad-vc-n {
+  left: 28px;
+  top: 0;
+  width: 30px;
+  height: 20px;
+  border-radius: 3px 3px 0 0;
+}
+
+.cad-viewcube .cad-vc-s {
+  left: 28px;
+  bottom: 14px;
+  width: 30px;
+  height: 20px;
+  border-radius: 0 0 3px 3px;
+}
+
+.cad-viewcube .cad-vc-o {
+  left: 0;
+  top: 28px;
+  width: 20px;
+  height: 30px;
+  border-radius: 3px 0 0 3px;
+}
+
+.cad-viewcube .cad-vc-e {
+  right: 0;
+  top: 28px;
+  width: 20px;
+  height: 30px;
+  border-radius: 0 3px 3px 0;
+}
+
+.cad-viewcube .cad-vc-scg {
+  left: 18px;
+  bottom: 0;
+  width: 50px;
+  height: 14px;
+  border-radius: 8px;
+  font-size: 8px;
+  color: #bbb;
 }
 
 .cad-viewcube button:hover {
-  border-color: var(--cad-accent);
+  border-color: #8ab4e8;
   color: #fff;
+  background: rgba(40, 55, 75, 0.95);
+}
+
+.cad-ucs {
+  transform: translate(-1px, -1px);
 }
 
 .cad-navrail {
