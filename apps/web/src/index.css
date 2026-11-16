@@ -194,6 +194,47 @@ body {
   border-color: var(--cad-accent-dim);
 }
 
+.cad-toolbtn.is-disabled,
+.cad-toolbtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.cad-toolbtn.is-partial {
+  box-shadow: inset 0 -2px 0 #e6a23c;
+}
+
+.cad-ribbon-toggle {
+  margin-left: 8px;
+  width: 24px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--cad-muted);
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.cad-ribbon-toggle:hover {
+  background: #333;
+  color: var(--cad-text);
+}
+
+.cad-ribbon.is-collapsed .cad-tabs {
+  border-bottom: 1px solid var(--cad-border);
+}
+
+.cad-ribbon-item {
+  display: inline-flex;
+}
+
+.cad-flyout-menu button.is-disabled,
+.cad-flyout-menu button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .cad-toolbtn-lg {
   min-width: 56px;
   height: 54px;

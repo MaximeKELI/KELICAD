@@ -12,6 +12,7 @@ import {
   kelicadBytesToSnapshotJson,
   snapshotToKelicadBytes,
 } from "./cad/kelicadFile";
+import { applyConstraint } from "./cad/constraintActions";
 import { loadCad } from "./cad/loadCad";
 import {
   loadAutosave,
@@ -54,6 +55,7 @@ export function App() {
     "layers",
   );
   const [activeCmd, setActiveCmd] = useState<string | null>(null);
+  const [ribbonCollapsed, setRibbonCollapsed] = useState(false);
 
   useEffect(() => {
     void loadCad()
@@ -360,6 +362,24 @@ export function App() {
               `TOR: ${cad.solid_torus(0, 0, 0, 2, 0.4)}`,
             ]);
             break;
+          case "pyramid":
+            setEchoes((p) => [
+              ...p,
+              `PYR: ${cad.solid_pyramid(0, 0, 1.5, 3, 4)}`,
+            ]);
+            break;
+          case "prism":
+            setEchoes((p) => [
+              ...p,
+              `PRISM: ${cad.solid_prism(0, 0, 1.2, 2.5, 6)}`,
+            ]);
+            break;
+          case "pipe":
+            setEchoes((p) => [
+              ...p,
+              `PIPE: ${cad.solid_pipe(0, 0, 1.2, 0.8, 3)}`,
+            ]);
+            break;
           case "extrude": {
             const s = cad.solid_extrude_selected(2.5);
             const n = cad.view_derive_apply("plan");
@@ -372,6 +392,18 @@ export function App() {
               `REV: ${cad.solid_revolve_selected(360)}`,
             ]);
             break;
+          case "sweep":
+            setEchoes((p) => [
+              ...p,
+              `SWEEP: ${cad.solid_sweep_selected(0.4)}`,
+            ]);
+            break;
+          case "loft":
+            setEchoes((p) => [
+              ...p,
+              `LOFT: ${cad.solid_loft_selected(2.5)}`,
+            ]);
+            break;
           case "union":
             setEchoes((p) => [...p, `BOOL+: ${cad.solid_boolean("union")}`]);
             break;
@@ -379,6 +411,12 @@ export function App() {
             setEchoes((p) => [
               ...p,
               `BOOL−: ${cad.solid_boolean("difference")}`,
+            ]);
+            break;
+          case "intersect":
+            setEchoes((p) => [
+              ...p,
+              `BOOL∩: ${cad.solid_boolean("intersection")}`,
             ]);
             break;
           case "clear":
@@ -405,6 +443,7 @@ export function App() {
             break;
           case "tpl-a4":
           case "tpl-a3":
+          case "tpl-a2":
           case "tpl-a1":
           case "tpl-arch":
           case "tpl-mech": {
@@ -422,9 +461,119 @@ export function App() {
             setEchoes((p) => [...p, "SCHED exporté"]);
             break;
           default:
+            setEchoes((p) => [...p, `Action 3D inconnue: ${action}`]);
             break;
         }
         bump();
+      } catch (e) {
+        setEchoes((p) => [...p, String(e)]);
+      }
+    },
+    [bump, cad],
+  );
+
+  const onUiAction = useCallback(
+    (action: string) => {
+      if (!cad) return;
+      switch (action) {
+        case "new":
+          cad.new_drawing();
+          setProjectName("dessin.kelicad");
+          setEntityCount(0);
+          setSolidCount(0);
+          setRevision((n) => n + 1);
+          setEchoes((p) => [...p, "Nouveau dessin."]);
+          break;
+        case "open":
+          void openKelicad();
+          break;
+        case "save":
+          void saveKelicad();
+          break;
+        case "pdf":
+          exportPdf();
+          break;
+        case "import-dxf":
+          importDxf();
+          break;
+        case "export-dxf":
+          exportDxf();
+          break;
+        case "export-svg":
+          exportSvg();
+          break;
+        case "view-2d":
+          setViewMode("2d");
+          break;
+        case "view-split":
+          setViewMode("split");
+          break;
+        case "view-3d":
+          setViewMode("3d");
+          break;
+        case "focus-keli":
+          setDockTab("keli");
+          setEchoes((p) => [...p, "Panneau KELI ouvert."]);
+          break;
+        case "noop":
+          break;
+        default:
+          setEchoes((p) => [...p, `Action UI inconnue: ${action}`]);
+      }
+    },
+    [cad, exportDxf, exportPdf, exportSvg, importDxf, openKelicad, saveKelicad],
+  );
+
+  const onConstraint = useCallback(
+    (action: string) => {
+      if (!cad) return;
+      try {
+        const lines = applyConstraint(cad, action);
+        setEchoes((p) => [...p, ...lines].slice(-40));
+        bump();
+      } catch (e) {
+        setEchoes((p) => [...p, String(e)]);
+      }
+    },
+    [bump, cad],
+  );
+
+  const onLayerAction = useCallback(
+    (action: string) => {
+      if (!cad) return;
+      try {
+        const layers = JSON.parse(cad.layers_json()) as {
+          id: string;
+          name: string;
+          current?: boolean;
+        }[];
+        const current = layers.find((l) => l.current) ?? layers[0];
+        switch (action) {
+          case "focus-panel":
+            setDockTab("layers");
+            setEchoes((p) => [...p, "Panneau Calques ouvert."]);
+            break;
+          case "create": {
+            const name = `Calque${layers.length}`;
+            const id = cad.create_layer(name, 140, 200, 255);
+            cad.set_current_layer(id);
+            bump();
+            setEchoes((p) => [...p, `Calque créé : ${name}`]);
+            break;
+          }
+          case "set-selection": {
+            if (!current) {
+              setEchoes((p) => [...p, "Aucun calque courant."]);
+              return;
+            }
+            const n = cad.set_selection_layer(current.id);
+            bump();
+            setEchoes((p) => [...p, `${n} objet(s) → ${current.name}`]);
+            break;
+          }
+          default:
+            setEchoes((p) => [...p, `Action calque inconnue: ${action}`]);
+        }
       } catch (e) {
         setEchoes((p) => [...p, String(e)]);
       }
@@ -457,25 +606,13 @@ export function App() {
         viewMode={viewMode}
         entityCount={entityCount}
         solidCount={solidCount}
+        collapsed={ribbonCollapsed}
+        onCollapsedChange={setRibbonCollapsed}
         onCommand={runCmd}
-        onNew={() => {
-          cad.new_drawing();
-          setProjectName("dessin.kelicad");
-          setEntityCount(0);
-          setSolidCount(0);
-          setRevision((n) => n + 1);
-          setEchoes((p) => [...p, "Nouveau dessin."]);
-        }}
-        onOpen={() => void openKelicad()}
-        onSave={() => void saveKelicad()}
-        onUndo={() => applyOutput(cad.undo(), cad)}
-        onRedo={() => applyOutput(cad.redo(), cad)}
-        onPdf={exportPdf}
-        onImportDxf={importDxf}
-        onExportDxf={exportDxf}
-        onExportSvg={exportSvg}
-        onViewMode={setViewMode}
+        onUiAction={onUiAction}
         onSolid={onSolidAction}
+        onConstraint={onConstraint}
+        onLayerAction={onLayerAction}
         onChanged={bump}
         onEcho={(lines) => setEchoes((p) => [...p, ...lines].slice(-40))}
       />

@@ -18,6 +18,7 @@ export function ToolRail({ activeCmd, onCommand }: Props) {
             const tool = getTool(id);
             if (!tool || tool.kind.type !== "cad") return null;
             if (tool.status === "unavailable") return null;
+            const cmd = tool.kind.cmd;
             const active = toolMatchesActive(tool, activeCmd);
             return (
               <button
@@ -25,7 +26,7 @@ export function ToolRail({ activeCmd, onCommand }: Props) {
                 type="button"
                 title={tool.tip}
                 className={`cad-tool ${active ? "is-active" : ""}`}
-                onClick={() => onCommand(tool.kind.cmd)}
+                onClick={() => onCommand(cmd)}
               >
                 <span className="text-[13px] leading-none">{tool.glyph}</span>
               </button>
