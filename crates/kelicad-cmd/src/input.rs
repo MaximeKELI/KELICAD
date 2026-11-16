@@ -97,17 +97,24 @@ pub fn parse_number(raw: &str) -> Result<f64, InputError> {
 }
 
 fn split_xy(s: &str) -> Result<(f64, f64), InputError> {
-    let (a, b) = s
-        .split_once(',')
-        .ok_or_else(|| InputError::Invalid(s.into()))?;
-    let x: f64 = a
-        .trim()
+    // AutoCAD: `x,y` or `x,y,z` (Z ignored in 2D). Also `x;y` / `x y`.
+    let norm = s.replace(';', ',').split_whitespace().collect::<Vec<_>>();
+    let joined = if norm.len() >= 2 && !s.contains(',') && !s.contains(';') {
+        format!("{},{}", norm[0], norm[1])
+    } else {
+        s.to_string()
+    };
+    let parts: Vec<&str> = joined.split(',').map(str::trim).filter(|p| !p.is_empty()).collect();
+    if parts.len() < 2 {
+        return Err(InputError::Invalid(s.into()));
+    }
+    let x: f64 = parts[0]
         .parse()
         .map_err(|_| InputError::Invalid(s.into()))?;
-    let y: f64 = b
-        .trim()
+    let y: f64 = parts[1]
         .parse()
         .map_err(|_| InputError::Invalid(s.into()))?;
+    // parts[2] = Z — accepted and ignored for 2D drafting.
     Ok((x, y))
 }
 

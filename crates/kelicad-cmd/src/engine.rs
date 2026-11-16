@@ -1096,51 +1096,118 @@ impl<G: IdGen> CommandEngine<G> {
         };
         Some(match (id, state) {
             (CommandId::Line, Active::Line { points }) if points.is_empty() => {
-                prompt("Premier point", "First point")
+                prompt(
+                    "Spécifiez le premier point [X,Y]",
+                    "Specify first point [X,Y]",
+                )
             }
             (CommandId::Line, _) => prompt(
-                "Point suivant ou Entrée pour terminer",
-                "Next point or Enter",
+                "Spécifiez le point suivant [X,Y] ou [Annuler]:",
+                "Specify next point [X,Y] or [Undo]:",
             ),
             (CommandId::Pline, Active::Pline { points, .. }) if points.is_empty() => {
-                prompt("Point de départ", "Start point")
+                prompt(
+                    "Spécifiez le point de départ [X,Y]",
+                    "Specify start point [X,Y]",
+                )
             }
-            (CommandId::Pline, _) => prompt("Point suivant ou Entrée", "Next point or Enter"),
+            (CommandId::Pline, _) => prompt(
+                "Spécifiez le point suivant [X,Y] ou [Arc/Fermer/Annuler]:",
+                "Specify next point [X,Y] or [Arc/Close/Undo]:",
+            ),
             (CommandId::Circle, Active::CircleCenter { center: None, diameter: false }) => {
-                prompt("Centre du cercle", "Circle center")
+                prompt(
+                    "Spécifiez le centre du cercle [X,Y]",
+                    "Specify center point for circle [X,Y]",
+                )
             }
-            (CommandId::Circle, _) => prompt("Point sur le cercle (rayon)", "Point on circle"),
+            (CommandId::Circle, Active::CircleCenter { diameter: true, .. }) => prompt(
+                "Spécifiez le diamètre du cercle ou [point]:",
+                "Specify diameter of circle or [point]:",
+            ),
+            (CommandId::Circle, _) => prompt(
+                "Spécifiez le rayon du cercle ou [Diamètre]:",
+                "Specify radius of circle or [Diameter]:",
+            ),
             (CommandId::Arc, Active::Arc { center: None, .. }) => {
-                prompt("Centre de l'arc", "Arc center")
+                prompt(
+                    "Spécifiez le centre de l'arc [X,Y]",
+                    "Specify center point of arc [X,Y]",
+                )
             }
             (CommandId::Arc, Active::Arc { start: None, .. }) => {
-                prompt("Point de départ", "Start point")
+                prompt(
+                    "Spécifiez le point de départ de l'arc [X,Y]",
+                    "Specify start point of arc [X,Y]",
+                )
             }
-            (CommandId::Arc, _) => prompt("Point d'arrivée", "End point"),
+            (CommandId::Arc, _) => prompt(
+                "Spécifiez le point d'arrivée de l'arc [X,Y]",
+                "Specify end point of arc [X,Y]",
+            ),
             (CommandId::Rectang, Active::Rectang { first: None, fillet: 0.0, chamfer: 0.0, wait_fillet: false, wait_chamfer: false, wait_dims: false, dim_w: None }) => {
-                prompt("Premier coin", "First corner")
+                prompt(
+                    "Spécifiez le premier coin [X,Y]",
+                    "Specify first corner point [X,Y]",
+                )
             }
-            (CommandId::Rectang, _) => prompt("Coin opposé", "Opposite corner"),
-            (CommandId::Move, Active::Move { base: None }) => prompt("Point de base", "Base point"),
-            (CommandId::Move, _) => prompt("Second point", "Second point"),
-            (CommandId::Copy, Active::Copy { base: None, .. }) => prompt("Point de base", "Base point"),
-            (CommandId::Copy, _) => prompt("Second point", "Second point"),
-            (CommandId::Rotate, Active::Rotate { origin: None, copy: false, reference: false, ref_angle: None }) => {
-                prompt("Point de base", "Base point")
+            (CommandId::Rectang, _) => prompt(
+                "Spécifiez le coin opposé [X,Y] ou [Dimensions]:",
+                "Specify other corner point [X,Y] or [Dimensions]:",
+            ),
+            (CommandId::Move, Active::Move { base: None }) => prompt(
+                "Spécifiez le point de base [X,Y]",
+                "Specify base point [X,Y]",
+            ),
+            (CommandId::Move, _) => prompt(
+                "Spécifiez le second point [X,Y]",
+                "Specify second point [X,Y]",
+            ),
+            (CommandId::Copy, Active::Copy { base: None, .. }) => prompt(
+                "Spécifiez le point de base [X,Y]",
+                "Specify base point [X,Y]",
+            ),
+            (CommandId::Copy, _) => prompt(
+                "Spécifiez le second point [X,Y] ou [Multiple]:",
+                "Specify second point [X,Y] or [Multiple]:",
+            ),
+            (CommandId::Rotate, Active::Rotate { origin: None, .. }) => {
+                prompt(
+                    "Spécifiez le point de base [X,Y]",
+                    "Specify base point [X,Y]",
+                )
             }
-            (CommandId::Rotate, _) => prompt("Angle (degrés) ou point", "Angle (deg) or point"),
-            (CommandId::Scale, Active::Scale { origin: None, copy: false, reference: false, ref_len: None }) => {
-                prompt("Point de base", "Base point")
+            (CommandId::Rotate, _) => prompt(
+                "Spécifiez l'angle de rotation ou [Copier/Référence]:",
+                "Specify rotation angle or [Copy/Reference]:",
+            ),
+            (CommandId::Scale, Active::Scale { origin: None, .. }) => {
+                prompt(
+                    "Spécifiez le point de base [X,Y]",
+                    "Specify base point [X,Y]",
+                )
             }
-            (CommandId::Scale, _) => prompt("Facteur ou point", "Factor or point"),
-            (CommandId::Mirror, Active::Mirror { first: None, erase_source: false, wait_erase: false }) => {
-                prompt("Premier point de l'axe", "First point of mirror line")
+            (CommandId::Scale, _) => prompt(
+                "Spécifiez le facteur d'échelle ou [Copier/Référence]:",
+                "Specify scale factor or [Copy/Reference]:",
+            ),
+            (CommandId::Mirror, Active::Mirror { first: None, .. }) => {
+                prompt(
+                    "Spécifiez le premier point de l'axe [X,Y]",
+                    "Specify first point of mirror line [X,Y]",
+                )
             }
             (CommandId::Mirror, _) => {
-                prompt("Second point de l'axe", "Second point of mirror line")
+                prompt(
+                    "Spécifiez le second point de l'axe [X,Y]",
+                    "Specify second point of mirror line [X,Y]",
+                )
             }
             (CommandId::Offset, Active::Offset { distance: None, through: false, multiple: false, erase_source: false }) => {
-                prompt("Distance de décalage", "Offset distance")
+                prompt(
+                    "Spécifiez la distance de décalage ou [Par]:",
+                    "Specify offset distance or [Through]:",
+                )
             }
             (CommandId::Offset, _) => prompt(
                 "Sélectionnez une ligne à décaler",
@@ -1207,20 +1274,38 @@ impl<G: IdGen> CommandEngine<G> {
             }
             (CommandId::Insert, _) => prompt("Point d'insertion", "Insertion point"),
             (CommandId::Polygon, Active::Polygon { sides: None, .. }) => {
-                prompt("Nombre de côtés (≥3)", "Number of sides (≥3)")
+                prompt(
+                    "Entrez le nombre de côtés:",
+                    "Enter number of sides:",
+                )
             }
             (CommandId::Polygon, Active::Polygon { center: None, .. }) => {
-                prompt("Centre du polygone", "Polygon center")
+                prompt(
+                    "Spécifiez le centre du polygone [X,Y]",
+                    "Specify center of polygon [X,Y]",
+                )
             }
-            (CommandId::Polygon, _) => prompt("Sommet du polygone", "Polygon vertex"),
+            (CommandId::Polygon, _) => prompt(
+                "Spécifiez le sommet [X,Y] ou [Côté]:",
+                "Specify vertex [X,Y] or [Edge]:",
+            ),
             (CommandId::Ellipse, Active::Ellipse { center: None, .. }) => {
-                prompt("Centre de l'ellipse", "Ellipse center")
+                prompt(
+                    "Spécifiez le centre de l'ellipse [X,Y]",
+                    "Specify center of ellipse [X,Y]",
+                )
             }
             (CommandId::Ellipse, Active::Ellipse { major_tip: None, .. }) => {
-                prompt("Extrémité du grand axe", "Major-axis endpoint")
+                prompt(
+                    "Spécifiez l'extrémité du grand axe [X,Y]",
+                    "Specify endpoint of major axis [X,Y]",
+                )
             }
             (CommandId::Ellipse, _) => {
-                prompt("Point définissant le petit axe", "Point defining minor axis")
+                prompt(
+                    "Spécifiez la distance au petit axe [X,Y]",
+                    "Specify distance to minor axis [X,Y]",
+                )
             }
             (CommandId::DimAligned, Active::DimAligned { def1: None, .. }) => {
                 prompt("Premier point d'extension", "First extension point")
@@ -1394,13 +1479,25 @@ impl<G: IdGen> CommandEngine<G> {
             }
             (CommandId::Grid, _) => prompt("Coin d'une cellule (dx, dy)", "Cell corner (dx, dy)"),
             (CommandId::Triangle, Active::Triangle { a: None, .. }) => {
-                prompt("Premier coin de la base", "First base corner")
+                prompt(
+                    "Spécifiez le 1er point de la base [X,Y]",
+                    "Specify first base point [X,Y]",
+                )
             }
             (CommandId::Triangle, Active::Triangle { b: None, .. }) => {
-                prompt("Second coin de la base", "Second base corner")
+                prompt(
+                    "Spécifiez le 2e point de la base [X,Y]",
+                    "Specify second base point [X,Y]",
+                )
             }
-            (CommandId::Triangle, _) => prompt("Sommet (hauteur)", "Apex (height)"),
-            (CommandId::Point, _) => prompt("Position du point", "Point location"),
+            (CommandId::Triangle, _) => prompt(
+                "Spécifiez le sommet [X,Y] ou l'angle/hauteur:",
+                "Specify apex [X,Y] or angle/height:",
+            ),
+            (CommandId::Point, _) => prompt(
+                "Spécifiez un point [X,Y]",
+                "Specify a point [X,Y]",
+            ),
             (CommandId::Revcloud, Active::Revcloud { points }) if points.is_empty() => {
                 prompt("Premier point du nuage", "First cloud point")
             }

@@ -5,7 +5,8 @@ import type { CadSession, CadStatus } from "../cad/types";
 type Props = {
   cad: CadSession;
   revision: number;
-  cursor?: { x: number; y: number } | null;
+  cursor?: { x: number; y: number; z?: number } | null;
+  viewMode?: "2d" | "split" | "3d";
   layout: "model" | "layout1";
   onLayout: (l: "model" | "layout1") => void;
   onChanged: () => void;
@@ -26,6 +27,7 @@ export function StatusBar({
   cad,
   revision,
   cursor,
+  viewMode = "2d",
   layout,
   onLayout,
   onChanged,
@@ -42,6 +44,9 @@ export function StatusBar({
   }, [cad, revision]);
 
   if (!status) return null;
+
+  const showZ = viewMode === "3d" || viewMode === "split";
+  const z = cursor?.z ?? 0;
 
   const toggle = (key: "ortho" | "osnap" | "grid" | "polar" | "snap") => {
     if (key === "ortho") cad.set_ortho(!status.ortho);
@@ -85,10 +90,33 @@ export function StatusBar({
         </button>
       </div>
 
-      <div className="cad-coords font-mono">
-        {cursor
-          ? `${cursor.x.toFixed(3)}, ${cursor.y.toFixed(3)}`
-          : "—, —"}
+      <div className="cad-coords font-mono" title="Coordonnées curseur">
+        {cursor ? (
+          showZ ? (
+            <>
+              <span className="cad-coord-axis">X</span>
+              <span>{cursor.x.toFixed(4)}</span>
+              <span className="cad-coord-sep">,</span>
+              <span className="cad-coord-axis">Y</span>
+              <span>{cursor.y.toFixed(4)}</span>
+              <span className="cad-coord-sep">,</span>
+              <span className="cad-coord-axis">Z</span>
+              <span>{z.toFixed(4)}</span>
+            </>
+          ) : (
+            <>
+              <span className="cad-coord-axis">X</span>
+              <span>{cursor.x.toFixed(4)}</span>
+              <span className="cad-coord-sep">,</span>
+              <span className="cad-coord-axis">Y</span>
+              <span>{cursor.y.toFixed(4)}</span>
+            </>
+          )
+        ) : showZ ? (
+          "X —, Y —, Z —"
+        ) : (
+          "X —, Y —"
+        )}
       </div>
 
       <div className="cad-tray">
@@ -174,7 +202,7 @@ export function StatusBar({
           Calque&nbsp;<b>{status.layer}</b>
         </span>
         <span className="cad-tray-hint">
-          F3 OSNAP · F7 GRID · F8 ORTHO · F9 SNAP · F10 POLAR
+          {showZ ? "X,Y,Z" : "X,Y"} · saisie 10,20 ou @5&lt;45 · F3/F7/F8/F9/F10
         </span>
       </div>
     </div>

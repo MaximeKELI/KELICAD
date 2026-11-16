@@ -895,7 +895,13 @@ export function App() {
           ))}
         </div>
       )}
-      <CommandLine prompt={prompt} echoes={echoes} onSubmit={onSubmit} />
+      <CommandLine
+        prompt={prompt}
+        echoes={echoes}
+        onSubmit={onSubmit}
+        cursor={cursor}
+        showZ={viewMode === "3d" || viewMode === "split"}
+      />
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
@@ -914,6 +920,7 @@ export function App() {
         cad={cad}
         revision={revision}
         cursor={cursor}
+        viewMode={viewMode}
         layout={layout}
         onLayout={setLayout}
         onChanged={() => setRevision((n) => n + 1)}
