@@ -8,11 +8,13 @@ use kelicad_bim::{
     export_ifc, import_ifc, schedule_csv, slab_from_rect, wall_from_baseline, BimElement,
 };
 use kelicad_doc::{EntityId, EntityRecord};
+use kelicad_dwg::{export_dwg, import_dwg, MockDwgBridge};
 use kelicad_io::{export_dxf, import_dxf};
 use kelicad_math::{Vec2, Vec3};
 use kelicad_ops::{DocSession, Operation};
 use kelicad_plugin::{
-    macro_from_json, macro_to_json, record_macro, replay_macro, Manifest, PluginHost, ScriptGuest,
+    macro_from_json, macro_to_json, record_macro, replay_macro, verify_catalog, verify_entry,
+    Manifest, MarketCatalog, PluginHost, ScriptGuest,
 };
 use kelicad_solid::{derive_view, BuiltinSolidKernel, Profile2, SolidBody, SolidKernel, ViewKind};
 use kelicad_vectorize::vectorize_bytes;
@@ -75,6 +77,56 @@ enum Commands {
     Ifc {
         #[command(subcommand)]
         cmd: IfcCmd,
+    },
+    /// DWG import/export via Mock (or External) bridge.
+    Dwg {
+        #[command(subcommand)]
+        cmd: DwgCmd,
+    },
+    /// Signed plugin marketplace catalog.
+    Market {
+        #[command(subcommand)]
+        cmd: MarketCmd,
+    },
+}
+
+#[derive(Subcommand)]
+enum DwgCmd {
+    /// Import proxy/DWG bytes → print entity count (Mock bridge).
+    Import {
+        /// Input .dwg / .kdwg proxy file.
+        input: PathBuf,
+    },
+    /// Export DXF file wrapped as mock DWG proxy.
+    Export {
+        /// Input .dxf.
+        input: PathBuf,
+        /// Output path.
+        #[arg(short, long)]
+        output: PathBuf,
+    },
+}
+
+#[derive(Subcommand)]
+enum MarketCmd {
+    /// List catalog entries.
+    List {
+        #[arg(long, default_value = "sdk/marketplace/catalog.json")]
+        catalog: PathBuf,
+    },
+    /// Verify catalog signatures.
+    Verify {
+        #[arg(long, default_value = "sdk/marketplace/catalog.json")]
+        catalog: PathBuf,
+    },
+    /// Install a verified plugin entry by copying its path to --dir.
+    Install {
+        /// Plugin id.
+        id: String,
+        #[arg(long, default_value = "sdk/marketplace/catalog.json")]
+        catalog: PathBuf,
+        #[arg(long, default_value = ".")]
+        dir: PathBuf,
     },
 }
 
@@ -418,5 +470,79 @@ fn run(cli: Cli) -> Result<(), String> {
                 Ok(())
             }
         },
+        Commands::Dwg { cmd } => match cmd {
+            DwgCmd::Import { input } => {
+                let bytes = fs::read(input).map_err(|e| e.to_string())?;
+                let bridge = MockDwgBridge;
+                let (session, n) = import_dwg(&bytes, &bridge).map_err(|e| e.to_string())?;
+                println!(
+                    "dwg import ok: imported={n} entities={}",
+                    session.document.entity_count()
+                );
+                Ok(())
+            }
+            DwgCmd::Export { input, output } => {
+                let text = fs::read_to_string(input).map_err(|e| e.to_string())?;
+                let (session, report) = import_dxf(&text).map_err(|e| e.to_string())?;
+                let bridge = MockDwgBridge;
+                let bytes = export_dwg(&session, &bridge).map_err(|e| e.to_string())?;
+                fs::write(output, bytes).map_err(|e| e.to_string())?;
+                println!(
+                    "dwg export ok: entities={}",
+                    report.imported.max(session.document.entity_count())
+                );
+                Ok(())
+            }
+        },
+        Commands::Market { cmd } => match cmd {
+            MarketCmd::List { catalog } => {
+                let text = fs::read_to_string(catalog).map_err(|e| e.to_string())?;
+                let cat: MarketCatalog =
+                    serde_json::from_str(&text).map_err(|e| e.to_string())?;
+                for e in &cat.entries {
+                    println!("{} {} — {} ({})", e.id, e.version, e.description, e.path);
+                }
+                Ok(())
+            }
+            MarketCmd::Verify { catalog } => {
+                let text = fs::read_to_string(catalog).map_err(|e| e.to_string())?;
+                let cat: MarketCatalog =
+                    serde_json::from_str(&text).map_err(|e| e.to_string())?;
+                verify_catalog(&cat).map_err(|e| e.to_string())?;
+                println!("market verify ok: {} entries", cat.entries.len());
+                Ok(())
+            }
+            MarketCmd::Install { id, catalog, dir } => {
+                let text = fs::read_to_string(&catalog).map_err(|e| e.to_string())?;
+                let cat: MarketCatalog =
+                    serde_json::from_str(&text).map_err(|e| e.to_string())?;
+                let entry = cat
+                    .entries
+                    .iter()
+                    .find(|e| e.id == id)
+                    .ok_or_else(|| format!("plugin '{id}' not in catalog"))?;
+                verify_entry(&cat, entry).map_err(|e| e.to_string())?;
+                let dest = dir.join(&entry.id);
+                copy_dir_recursive(PathBuf::from(&entry.path), dest.clone())
+                    .map_err(|e| e.to_string())?;
+                println!("installed {} → {}", entry.id, dest.display());
+                Ok(())
+            }
+        },
     }
+}
+
+fn copy_dir_recursive(src: PathBuf, dst: PathBuf) -> std::io::Result<()> {
+    fs::create_dir_all(&dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        let to = dst.join(entry.file_name());
+        if ty.is_dir() {
+            copy_dir_recursive(entry.path(), to)?;
+        } else {
+            fs::copy(entry.path(), to)?;
+        }
+    }
+    Ok(())
 }

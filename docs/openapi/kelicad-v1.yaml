@@ -2,34 +2,57 @@ openapi: 3.0.3
 info:
   title: KELICAD Collaboration API
   version: 0.1.0
-  description: REST surface for rooms, snapshots, ops, and vectorize (M5/M6).
+  description: Rooms, snapshots, ops, vectorize, auth, audit, GDPR (M5–M8).
 servers:
   - url: http://127.0.0.1:8787
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+  - bearerAuth: []
 paths:
   /v1/health:
     get:
+      security: []
       summary: Liveness
       responses:
         "200":
           description: OK
+  /v1/auth/dev-token:
+    post:
+      security: []
+      summary: Issue HS256 JWT (only when KELICAD_AUTH_MODE=dev)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sub: { type: string }
+                org: { type: string }
+                role: { type: string, enum: [viewer, editor, admin] }
+      responses:
+        "200":
+          description: Token issued
+        "403":
+          description: Dev auth disabled
   /v1/rooms:
     post:
-      summary: Create a collaboration room
+      summary: Create a collaboration room (editor+)
       responses:
         "200":
           description: Room created
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  room_id:
-                    type: string
-                  ws_url:
-                    type: string
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
   /v1/rooms/{id}/snapshot:
     get:
-      summary: Fetch room oplog snapshot
+      summary: Fetch room oplog snapshot (viewer+)
       parameters:
         - name: id
           in: path
@@ -43,7 +66,7 @@ paths:
           description: Unknown room
   /v1/rooms/{id}/ops:
     post:
-      summary: Append an operation envelope
+      summary: Append an operation envelope (editor+)
       parameters:
         - name: id
           in: path
@@ -62,29 +85,19 @@ paths:
       responses:
         "200":
           description: Accepted
-        "404":
-          description: Unknown room
+        "403":
+          description: Forbidden
   /v1/vectorize:
     post:
-      summary: Deterministic SVG/PNG → editable geometries
+      summary: Deterministic SVG/PNG → geometries (editor+)
       parameters:
         - name: filename
           in: query
-          required: false
           schema:
             type: string
-            example: plan.svg
       requestBody:
         required: true
         content:
-          image/svg+xml:
-            schema:
-              type: string
-              format: binary
-          image/png:
-            schema:
-              type: string
-              format: binary
           application/octet-stream:
             schema:
               type: string
@@ -92,18 +105,25 @@ paths:
       responses:
         "200":
           description: Geometries extracted
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                  count:
-                    type: integer
-                  entities:
-                    type: array
-                    items:
-                      type: object
         "400":
-          description: Unsupported or empty input
+          description: Bad input
+  /v1/audit:
+    get:
+      summary: Export hash-chained audit log (admin)
+      responses:
+        "200":
+          description: Audit events
+        "403":
+          description: Forbidden
+  /v1/me/export:
+    get:
+      summary: GDPR export for JWT subject
+      responses:
+        "200":
+          description: Subject data bundle
+  /v1/me:
+    delete:
+      summary: GDPR delete subject profile + audit slice
+      responses:
+        "200":
+          description: Purged

@@ -1,0 +1,28 @@
+# KELICAD on-prem skeleton (ADR 0012). Air-gapped friendly: no external pulls required
+# once images are loaded. Auth defaults to off for local; set KELICAD_AUTH_MODE=dev for JWT.
+
+services:
+  gateway:
+    build:
+      context: ../..
+      dockerfile: infra/onprem/Dockerfile.gateway
+    ports:
+      - "8787:8787"
+    environment:
+      KELICAD_AUTH_MODE: ${KELICAD_AUTH_MODE:-off}
+      KELICAD_JWT_SECRET: ${KELICAD_JWT_SECRET:-kelicad-dev-secret-change-me}
+      KELICAD_JWT_ISSUER: ${KELICAD_JWT_ISSUER:-kelicad-dev}
+      # Optional real ODA worker binary mounted by the operator:
+      # KELICAD_DWG_WORKER: /opt/oda/kelicad-dwg-worker
+    volumes:
+      - audit_data:/var/lib/kelicad/audit
+
+  # Stub converter that echoes mock proxy DWG ↔ DXF for demos without ODA.
+  dwg-worker:
+    build:
+      context: ../..
+      dockerfile: infra/onprem/Dockerfile.dwg-worker
+    profiles: ["oda-stub"]
+
+volumes:
+  audit_data:

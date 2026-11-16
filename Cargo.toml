@@ -15,6 +15,8 @@ members = [
     "crates/kelicad-vectorize",
     "crates/kelicad-solid",
     "crates/kelicad-bim",
+    "crates/kelicad-dwg",
+    "crates/kelicad-audit",
     "crates/kelicad-wasm",
     "services/gateway",
     "apps/cli",
@@ -35,6 +37,8 @@ default-members = [
     "crates/kelicad-vectorize",
     "crates/kelicad-solid",
     "crates/kelicad-bim",
+    "crates/kelicad-dwg",
+    "crates/kelicad-audit",
 ]
 
 [workspace.package]
@@ -59,7 +63,13 @@ kelicad-constraints = { path = "crates/kelicad-constraints" }
 kelicad-vectorize = { path = "crates/kelicad-vectorize" }
 kelicad-solid = { path = "crates/kelicad-solid" }
 kelicad-bim = { path = "crates/kelicad-bim" }
+kelicad-dwg = { path = "crates/kelicad-dwg" }
+kelicad-audit = { path = "crates/kelicad-audit" }
 clap = { version = "4.5.21", features = ["derive"] }
+jsonwebtoken = "9.3.0"
+sha2 = "0.10.8"
+hex = "0.4.3"
+ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
 axum = { version = "0.7.9", features = ["ws"] }
 tokio = { version = "1.41.1", features = ["rt-multi-thread", "macros", "net", "sync", "time"] }
 tower-http = { version = "0.6.2", features = ["cors"] }

@@ -39,5 +39,5 @@ All document mutation via `Operation`. Core is I/O-free and clock-free.
 
 ## Milestone in progress
 
-**M7 — 3D et BIM.** See ADR 0011 (SolidKernel, BIM, IFC subset, derived views).
-Prior: M0–M6 delivered.
+**M8 — DWG, entreprise, marketplace.** See ADR 0012 (DWG bridge, JWT/RBAC,
+audit, marketplace catalog, on-prem). Prior: M0–M7 delivered.

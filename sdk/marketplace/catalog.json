@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "public_key": "7ea0e3bd52e207c9d3b0eba65c0704e66fca2d8e165a175218b174fc4160e413",
+  "entries": [
+    {
+      "id": "hello-offset",
+      "version": "0.1.0",
+      "description": "Example offset plugin",
+      "path": "sdk/examples/hello-offset",
+      "content_hash": "9d086dc955e9164aeb87dac921f214707f6b2015289a7beb88192cd0257c2214",
+      "signature": "79057972f97a8d3f8ef223cfb038710e7ba97486f7cf5f4531b9528db6b4604529bc6122b70b46feb9bf5368d36c12035014639db94c8f2f508c095314ec7a00"
+    }
+  ]
+}

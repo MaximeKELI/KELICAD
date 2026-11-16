@@ -1,0 +1,5 @@
+# Placeholder ODA worker image. Replace ENTRYPOINT with a licensed Teigha/ODA binary.
+FROM debian:bookworm-slim
+COPY infra/onprem/dwg-worker-stub.sh /usr/local/bin/kelicad-dwg-worker
+RUN chmod +x /usr/local/bin/kelicad-dwg-worker
+ENTRYPOINT ["kelicad-dwg-worker"]

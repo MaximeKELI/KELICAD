@@ -1,0 +1,8 @@
+# Minimal runtime image instructions — build the binary on the host for air-gap:
+#   cargo build -p kelicad-gateway --release
+#   then copy target/release/kelicad-gateway into a distroless/scratch image.
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY target/release/kelicad-gateway /usr/local/bin/kelicad-gateway
+EXPOSE 8787
+CMD ["kelicad-gateway"]

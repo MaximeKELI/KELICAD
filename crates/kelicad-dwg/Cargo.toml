@@ -1,0 +1,16 @@
+[package]
+name = "kelicad-dwg"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Pluggable DWG bridge (Mock proxy + External ODA worker)"
+readme = "README.md"
+
+[dependencies]
+kelicad-io = { path = "../kelicad-io", default-features = false }
+kelicad-ops = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]

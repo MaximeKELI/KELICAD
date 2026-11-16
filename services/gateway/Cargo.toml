@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "KELICAD collaboration gateway (rooms + WebSocket sync)"
+description = "KELICAD collaboration gateway (rooms + WebSocket sync + enterprise auth)"
 publish = false
 
 [[bin]]
@@ -14,6 +14,7 @@ path = "src/main.rs"
 [dependencies]
 kelicad-sync = { workspace = true }
 kelicad-vectorize = { workspace = true }
+kelicad-audit = { workspace = true }
 axum = { workspace = true }
 tokio = { workspace = true }
 tower-http = { workspace = true }
@@ -21,3 +22,4 @@ futures-util = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }
+jsonwebtoken = { workspace = true }

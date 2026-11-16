@@ -10,8 +10,9 @@ technical comments are in English.
 
 ## Status
 
-Milestone **M7 — 3D et BIM**: replaceable SolidKernel (Builtin mesh), BIM objects,
-schedules, IFC subset, derived 2D views, and AABB collisions (ADR 0011).
+Milestone **M8 — DWG, entreprise, marketplace**: pluggable DWG bridge, gateway
+JWT/RBAC, hash-chained audit, GDPR export/delete, signed plugin catalog, on-prem
+compose skeleton (ADR 0012).
 
 ## Repository layout
 

@@ -7,6 +7,7 @@ pub mod error;
 pub mod guest;
 pub mod host;
 pub mod macros;
+pub mod market;
 pub mod manifest;
 
 pub use error::PluginError;
@@ -15,6 +16,10 @@ pub use host::PluginHost;
 pub use macros::{
     macro_from_json, macro_to_json, record_macro, replay_macro, replay_ops_json, MacroScript,
     MacroStep,
+};
+pub use market::{
+    public_key_hex, sign_entry, signing_key_from_seed, verify_catalog, verify_entry, MarketCatalog,
+    MarketEntry, DEMO_MARKET_SEED,
 };
 pub use manifest::{Manifest, Permissions};
 
