@@ -6,8 +6,9 @@ use kelicad_doc::{
     XrefId, XrefInsertGeom, XrefKind,
 };
 use kelicad_geom::construct::{
-    chamfer_lines, circle_from_2_points, circle_from_3_points, fillet_lines,
-    regular_polygon_center_vertex, tangents_circle_circle, tangents_point_circle,
+    arrow, capsule, chamfer_lines, circle_from_2_points, circle_from_3_points, fillet_lines,
+    grid_lines, isosceles_triangle, regular_polygon_center_vertex, star_polygon,
+    tangents_circle_circle, tangents_point_circle,
 };
 use kelicad_geom::fillet_poly::{chamfer_polyline, fillet_polyline, midline, parallel_through};
 use kelicad_geom::offset::offset_polyline;
@@ -221,6 +222,30 @@ enum Active {
     },
     Midline {
         first: Option<Vec2>,
+    },
+    Star {
+        tips: Option<usize>,
+        center: Option<Vec2>,
+    },
+    Donut {
+        center: Option<Vec2>,
+        outer: Option<f64>,
+    },
+    Capsule {
+        a: Option<Vec2>,
+        b: Option<Vec2>,
+    },
+    Arrow {
+        from: Option<Vec2>,
+    },
+    Grid {
+        cols: Option<usize>,
+        rows: Option<usize>,
+        origin: Option<Vec2>,
+    },
+    Triangle {
+        a: Option<Vec2>,
+        b: Option<Vec2>,
     },
 }
 
