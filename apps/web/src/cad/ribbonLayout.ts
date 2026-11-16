@@ -61,8 +61,12 @@ export const RIBBON_TABS: RibbonTab[] = [
             items: ["arc", "revcloud", "section"],
           },
           {
-            type: "rows",
-            ids: ["rect", "polygon", "ellipse", "hatch", "spline", "point"],
+            type: "stack",
+            ids: ["rect", "polygon", "ellipse"],
+          },
+          {
+            type: "stack",
+            ids: ["hatch", "spline", "point"],
           },
           {
             type: "expand",
@@ -82,34 +86,30 @@ export const RIBBON_TABS: RibbonTab[] = [
       {
         title: "Modification",
         items: [
+          { type: "tool", id: "move", size: "lg" },
+          { type: "tool", id: "copy", size: "lg" },
+          { type: "tool", id: "stretch", size: "lg" },
           {
-            type: "rows",
-            ids: [
-              "move",
-              "copy",
-              "stretch",
-              "rotate",
-              "mirror",
-              "scale",
-              "offset",
-              "erase",
-              "explode",
-            ],
+            type: "stack",
+            ids: ["rotate", "mirror", "scale"],
           },
           {
             type: "flyout",
             main: "trim",
+            size: "md",
             items: ["trim", "extend", "lengthen", "break", "join"],
           },
           {
             type: "flyout",
             main: "fillet",
+            size: "md",
             items: ["fillet", "chamfer"],
           },
           {
             type: "flyout",
             main: "arrayRect",
-            items: ["arrayRect", "arrayPolar", "align"],
+            size: "md",
+            items: ["arrayRect", "arrayPolar", "align", "offset", "erase", "explode"],
           },
         ],
       },
@@ -131,8 +131,12 @@ export const RIBBON_TABS: RibbonTab[] = [
             ],
           },
           {
-            type: "rows",
-            ids: ["leader", "table", "centermark", "centerline", "revcloud"],
+            type: "stack",
+            ids: ["leader", "table", "centermark"],
+          },
+          {
+            type: "stack",
+            ids: ["centerline", "revcloud"],
           },
         ],
       },
@@ -142,7 +146,7 @@ export const RIBBON_TABS: RibbonTab[] = [
           { type: "tool", id: "layerProps", size: "lg" },
           { type: "layer-combo" },
           {
-            type: "rows",
+            type: "stack",
             ids: ["layerNew", "layerSetSel"],
           },
         ],
@@ -151,7 +155,10 @@ export const RIBBON_TABS: RibbonTab[] = [
         title: "Bloc",
         items: [
           { type: "tool", id: "insert", size: "lg" },
-          { type: "tool", id: "block", size: "lg" },
+          {
+            type: "stack",
+            ids: ["block", "explode"],
+          },
         ],
       },
       {
@@ -163,8 +170,12 @@ export const RIBBON_TABS: RibbonTab[] = [
         items: [
           { type: "tool", id: "measure", size: "lg" },
           {
-            type: "rows",
-            ids: ["area", "list", "idEnt", "section", "selectClear"],
+            type: "stack",
+            ids: ["area", "list", "idEnt"],
+          },
+          {
+            type: "stack",
+            ids: ["section", "selectClear"],
           },
         ],
       },
@@ -173,18 +184,16 @@ export const RIBBON_TABS: RibbonTab[] = [
         items: [
           { type: "tool", id: "zoomExtents", size: "lg" },
           {
-            type: "rows",
-            ids: [
-              "zoomIn",
-              "zoomOut",
-              "view2d",
-              "viewSplit",
-              "view3d",
-              "ortho",
-              "osnap",
-              "undo",
-              "redo",
-            ],
+            type: "stack",
+            ids: ["zoomIn", "zoomOut", "view2d"],
+          },
+          {
+            type: "stack",
+            ids: ["viewSplit", "view3d", "ortho"],
+          },
+          {
+            type: "stack",
+            ids: ["osnap", "undo", "redo"],
           },
         ],
       },

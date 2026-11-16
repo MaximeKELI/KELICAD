@@ -79,9 +79,7 @@ function ToolButton({
       onClick={() => invokeTool(tool, handlers)}
     >
       <span className="cad-toolbtn-glyph">{tool.glyph}</span>
-      {size !== "sm" && (
-        <span className="cad-toolbtn-text">{tool.label}</span>
-      )}
+      <span className="cad-toolbtn-text">{tool.label}</span>
     </button>
   );
 }
@@ -90,10 +88,12 @@ function Flyout({
   mainId,
   itemIds,
   handlers,
+  size = "lg",
 }: {
   mainId: string;
   itemIds: string[];
   handlers: RibbonHandlers;
+  size?: "lg" | "md";
 }) {
   const [open, setOpen] = useState(false);
   const main = getTool(mainId);
@@ -105,7 +105,7 @@ function Flyout({
   return (
     <div className="cad-flyout" onMouseLeave={() => setOpen(false)}>
       <div className="cad-flyout-main">
-        <ToolButton tool={main} size="md" handlers={handlers} />
+        <ToolButton tool={main} size={size} handlers={handlers} />
         <button
           type="button"
           className="cad-flyout-caret"
@@ -166,16 +166,17 @@ function Panel({
       <div className="cad-panel-body">{children}</div>
       <div className="cad-panel-title">
         <span>{title}</span>
-        {expandTools.length > 0 && (
-          <button
-            type="button"
-            className="cad-panel-expand"
-            title="Plus d'outils"
-            onClick={() => setOpen((v) => !v)}
-          >
-            ▾
-          </button>
-        )}
+        <button
+          type="button"
+          className="cad-panel-expand"
+          title={expandTools.length ? "Plus d'outils" : title}
+          disabled={expandTools.length === 0}
+          onClick={() => {
+            if (expandTools.length) setOpen((v) => !v);
+          }}
+        >
+          ▾
+        </button>
       </div>
       {open && expandTools.length > 0 && (
         <div className="cad-panel-flyout">
@@ -409,6 +410,7 @@ function renderItem(
           mainId={item.main}
           itemIds={item.items}
           handlers={handlers}
+          size={item.size ?? "lg"}
         />
       );
     case "stack":
@@ -538,11 +540,14 @@ export function Ribbon(props: Props) {
                 expandIds={expandIds}
                 handlers={handlers}
               >
-                {panel.items.map((item, i) => (
-                  <span key={i} className="cad-ribbon-item">
-                    {renderItem(item, handlers, { cad, revision })}
-                  </span>
-                ))}
+                {panel.items.map((item, i) => {
+                  if (item.type === "expand") return null;
+                  return (
+                    <span key={i} className="cad-ribbon-item">
+                      {renderItem(item, handlers, { cad, revision })}
+                    </span>
+                  );
+                })}
               </Panel>
             );
           })}
