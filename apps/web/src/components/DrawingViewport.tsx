@@ -25,7 +25,6 @@ export function DrawingViewport({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<Camera2D>({ x: 5, y: 5, zoom: 20 });
-  const spacePan = useRef(false);
   const dragging = useRef(false);
   const lastPtr = useRef({ x: 0, y: 0 });
   const selectDrag = useRef<{
@@ -105,7 +104,8 @@ export function DrawingViewport({
         );
         const keliGhost = toFloat32(cad.keli_ghost_vertices());
         if (ghost.length) {
-          batches.push({ r: 1.0, g: 0.85, b: 0.35, verts: ghost });
+          // Rubber-band preview (bright cyan) — always on top of scene.
+          batches.push({ r: 0.25, g: 1.0, b: 0.95, verts: ghost });
         }
         if (keliGhost.length) {
           batches.push({ r: 0.45, g: 1.0, b: 0.7, verts: keliGhost });
@@ -140,9 +140,27 @@ export function DrawingViewport({
       cam.zoom = Math.min(Math.max(cam.zoom * (e.deltaY > 0 ? 1.1 : 1 / 1.1), 1), 50_000);
     };
 
+    const isTypingTarget = (t: EventTarget | null) => {
+      if (!(t instanceof HTMLElement)) return false;
+      const tag = t.tagName;
+      return (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        t.isContentEditable
+      );
+    };
+
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        spacePan.current = true;
+      // Middle-mouse pans; Space/Enter finish the active command (AutoCAD-like).
+      if (
+        (e.key === "Enter" || e.code === "Space") &&
+        !isTypingTarget(e.target)
+      ) {
+        if (e.repeat) return;
+        e.preventDefault();
+        onOutput(cad.enter());
+        return;
       }
       if (e.key === "Escape") {
         onOutput(cad.cancel());
@@ -170,17 +188,21 @@ export function DrawingViewport({
         );
       }
     };
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        spacePan.current = false;
-      }
+    const onKeyUp = (_e: KeyboardEvent) => {
+      /* Space no longer toggles pan — use molette/clic milieu */
     };
 
     const onDown = (e: PointerEvent) => {
-      if (e.button === 1 || spacePan.current || e.button === 2) {
+      // Pan: middle button (or Alt+left). Right-click finishes command (AutoCAD).
+      if (e.button === 1 || (e.button === 0 && e.altKey)) {
         dragging.current = true;
         lastPtr.current = { x: e.clientX, y: e.clientY };
         canvas.setPointerCapture(e.pointerId);
+        return;
+      }
+      if (e.button === 2) {
+        e.preventDefault();
+        onOutput(cad.enter());
         return;
       }
       if (e.button === 0) {
@@ -243,12 +265,14 @@ export function DrawingViewport({
       if (sd?.active && e.button === 0) {
         const dx = Math.abs(sd.clientX1 - sd.clientX0);
         const dy = Math.abs(sd.clientY1 - sd.clientY0);
-        if (dx > 4 || dy > 4) {
+        // Pendant une commande (LINE, PLINE…), toujours pick — pas de fenêtre.
+        const cmdActive = Boolean(cad.prompt_fr()?.trim());
+        if (!cmdActive && (dx > 4 || dy > 4)) {
           const crossing = sd.clientX1 < sd.clientX0;
           onOutput(
             cad.select_rect(sd.x0, sd.y0, sd.x1, sd.y1, crossing, sd.shift),
           );
-        } else if (sd.shift) {
+        } else if (sd.shift && !cmdActive) {
           onOutput(cad.pick_toggle(sd.x0, sd.y0));
         } else {
           onOutput(cad.pick(sd.x0, sd.y0));
@@ -401,7 +425,7 @@ export function DrawingViewport({
         />
       )}
       <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/60 px-2 py-0.5 font-mono text-[10px] text-[#aaa]">
-        Clic · Shift+multi · L→R fenêtre · R→L crossing · Espace pan · Échap
+        Clic · Entrée/Espace/clic-droit = fin · Échap · Molette/Alt+glisser = pan · F3/F8
       </p>
     </div>
   );

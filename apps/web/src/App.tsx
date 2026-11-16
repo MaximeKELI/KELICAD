@@ -156,6 +156,8 @@ export function App() {
     (raw: string) => {
       if (!cad) return;
       applyOutput(raw, cad);
+      // Clear ribbon highlight when the engine has no active command.
+      if (!cad.prompt_fr()?.trim()) setActiveCmd(null);
     },
     [applyOutput, cad],
   );
@@ -166,9 +168,11 @@ export function App() {
       const t = text.trim();
       if (!t) {
         applyOutput(cad.enter(), cad);
+        if (!cad.prompt_fr()?.trim()) setActiveCmd(null);
         return;
       }
       applyOutput(cad.submit_text(t), cad);
+      if (!cad.prompt_fr()?.trim()) setActiveCmd(null);
     },
     [applyOutput, cad],
   );

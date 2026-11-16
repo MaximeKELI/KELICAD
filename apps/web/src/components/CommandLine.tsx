@@ -12,7 +12,7 @@ export function CommandLine({ prompt, echoes, onSubmit }: Props) {
 
   useEffect(() => {
     inputRef.current?.focus();
-  }, [prompt]);
+  }, [prompt, echoes.length]);
 
   return (
     <div className="cad-cmdline">
@@ -32,6 +32,8 @@ export function CommandLine({ prompt, echoes, onSubmit }: Props) {
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
+              e.preventDefault();
+              e.stopPropagation();
               onSubmit(value);
               setValue("");
             }
