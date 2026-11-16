@@ -480,6 +480,7 @@ export function DrawingViewport({
     const wrap = wrapRef.current;
     if (!wrap) return null;
     const rect = wrap.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return null;
     const cam = cameraRef.current;
     const aspect = rect.width / Math.max(rect.height, 1);
     const halfH = cam.zoom * 0.5;
@@ -488,19 +489,25 @@ export function DrawingViewport({
     const maxX = cam.x + halfW;
     const minY = cam.y - halfH;
     const maxY = cam.y + halfH;
+    const spanX = Math.max(maxX - minX, 1e-9);
+    const spanY = Math.max(maxY - minY, 1e-9);
+    const maxLines = 96;
     let step = gridUnit;
     const worldPerPx = (halfH * 2) / Math.max(rect.height, 1);
     while (step / worldPerPx < 8) step *= 2;
-    while (step / worldPerPx > 40) step *= 0.5;
-    step = Math.max(step, 1e-6);
+    while (step / worldPerPx > 48) step *= 0.5;
+    // Garantir couverture totale : jamais couper à droite / en haut.
+    step = Math.max(step, spanX / maxLines, spanY / maxLines, 1e-9);
     const majorEvery = 5;
     const lines: ReactNode[] = [];
     const x0 = Math.floor(minX / step) * step;
     const y0 = Math.floor(minY / step) * step;
     let i = 0;
-    const maxLines = 120;
-    const isMajor = (v: number) => Math.round(v / step) % majorEvery === 0;
-    for (let x = x0; x <= maxX + step * 0.5 && i < maxLines; x += step) {
+    const isMajor = (v: number) => {
+      const n = Math.round(v / step);
+      return n % majorEvery === 0;
+    };
+    for (let x = x0; x <= maxX + step * 0.5 && i < maxLines + 2; x += step) {
       const a = clientFromWorld(x, minY);
       const b = clientFromWorld(x, maxY);
       const maj = isMajor(x);
@@ -516,7 +523,7 @@ export function DrawingViewport({
         />,
       );
     }
-    for (let y = y0; y <= maxY + step * 0.5 && i < maxLines * 2; y += step) {
+    for (let y = y0; y <= maxY + step * 0.5 && i < maxLines * 2 + 4; y += step) {
       const a = clientFromWorld(minX, y);
       const b = clientFromWorld(maxX, y);
       const maj = isMajor(y);
@@ -590,25 +597,22 @@ export function DrawingViewport({
         </button>
       </div>
 
-      {/* UCS fixe — toujours coin bas-gauche du viewport */}
-      <svg
-        className="cad-ucs pointer-events-none absolute z-[12]"
-        width="70"
-        height="70"
-        aria-hidden
-      >
-        <line x1="10" y1="60" x2="52" y2="60" stroke="#e8e8e8" strokeWidth="2" />
-        <polygon points="52,55 64,60 52,65" fill="#e8e8e8" />
-        <text x="50" y="52" fill="#e8e8e8" fontSize="12" fontFamily="IBM Plex Mono, monospace">
-          X
-        </text>
-        <line x1="10" y1="60" x2="10" y2="18" stroke="#e8e8e8" strokeWidth="2" />
-        <polygon points="5,18 10,6 15,18" fill="#e8e8e8" />
-        <text x="16" y="16" fill="#e8e8e8" fontSize="12" fontFamily="IBM Plex Mono, monospace">
-          Y
-        </text>
-        <circle cx="10" cy="60" r="3" fill="#e8e8e8" />
-      </svg>
+      {/* UCS chrome — coin bas-gauche écran, indépendant du zoom/dessin */}
+      <div className="cad-ucs pointer-events-none absolute z-[12]" aria-hidden>
+        <svg width="64" height="64" viewBox="0 0 64 64">
+          <line x1="8" y1="56" x2="48" y2="56" stroke="#f0f0f0" strokeWidth="2.2" />
+          <polygon points="48,51 58,56 48,61" fill="#f0f0f0" />
+          <text x="46" y="48" fill="#f0f0f0" fontSize="11" fontFamily="IBM Plex Mono, monospace">
+            X
+          </text>
+          <line x1="8" y1="56" x2="8" y2="16" stroke="#f0f0f0" strokeWidth="2.2" />
+          <polygon points="3,16 8,6 13,16" fill="#f0f0f0" />
+          <text x="14" y="16" fill="#f0f0f0" fontSize="11" fontFamily="IBM Plex Mono, monospace">
+            Y
+          </text>
+          <circle cx="8" cy="56" r="3.2" fill="#f0f0f0" />
+        </svg>
+      </div>
 
       {paperLayout && (
         <div className="pointer-events-none absolute inset-6 z-[2] rounded-sm border border-[#8a7a4a]/60 bg-[#1a1812]/35 shadow-[inset_0_0_0_1px_rgba(200,180,100,0.15)]">

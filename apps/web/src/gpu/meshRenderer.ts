@@ -370,8 +370,8 @@ export class MeshRenderer {
     const proj = perspective(
       (50 * Math.PI) / 180,
       this.width / Math.max(this.height, 1),
-      0.05,
-      Math.max(cam.distance * 20, 500),
+      Math.max(cam.distance * 0.0002, 0.01),
+      Math.max(cam.distance * 40, 1e6),
     );
     const vp = mul4(proj, view);
     const light = new Float32Array([0.45, 0.35, 0.82, 0]);

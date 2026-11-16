@@ -21,6 +21,67 @@ type Props = {
   onEcho?: (lines: string[]) => void;
 };
 
+/** Convert 2D line segments (x,y pairs) into thin XY-plane quads for the mesh renderer. */
+function linesToQuads(
+  verts: Float32Array | number[],
+  halfW: number,
+): MeshBatch | null {
+  const nSeg = Math.floor(verts.length / 4);
+  if (nSeg < 1) return null;
+  const positions: number[] = [];
+  const indices: number[] = [];
+  let v = 0;
+  for (let i = 0; i < nSeg; i++) {
+    const x0 = verts[i * 4]!;
+    const y0 = verts[i * 4 + 1]!;
+    const x1 = verts[i * 4 + 2]!;
+    const y1 = verts[i * 4 + 3]!;
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-12) continue;
+    const nx = (-dy / len) * halfW;
+    const ny = (dx / len) * halfW;
+    // 4 corners of a flat quad at z=0
+    positions.push(x0 + nx, y0 + ny, 0);
+    positions.push(x0 - nx, y0 - ny, 0);
+    positions.push(x1 - nx, y1 - ny, 0);
+    positions.push(x1 + nx, y1 + ny, 0);
+    indices.push(v, v + 1, v + 2, v, v + 2, v + 3);
+    v += 4;
+  }
+  if (!positions.length) return null;
+  return {
+    positions: new Float32Array(positions),
+    indices: new Uint32Array(indices),
+    r: 0.75,
+    g: 0.85,
+    b: 1.0,
+  };
+}
+
+function bounds2d(verts: Float32Array | number[]): {
+  min: [number, number, number];
+  max: [number, number, number];
+} | null {
+  if (verts.length < 2) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (let i = 0; i < verts.length; i += 2) {
+    minX = Math.min(minX, verts[i]!);
+    maxX = Math.max(maxX, verts[i]!);
+    minY = Math.min(minY, verts[i + 1]!);
+    maxY = Math.max(maxY, verts[i + 1]!);
+  }
+  if (!Number.isFinite(minX)) return null;
+  return {
+    min: [minX, minY, -0.5],
+    max: [maxX, maxY, 0.5],
+  };
+}
+
 const PRESETS: { id: string; label: string; apply: (c: Camera3D) => Camera3D }[] =
   [
     {
@@ -76,6 +137,7 @@ export function Viewport3D({ cad, revision, onEcho }: Props) {
   const [wire, setWire] = useState(false);
   const [solidCount, setSolidCount] = useState(0);
   const [camTick, setCamTick] = useState(0);
+  const fittedOnceRef = useRef(false);
   void camTick;
 
   useEffect(() => {
@@ -154,8 +216,8 @@ export function Viewport3D({ cad, revision, onEcho }: Props) {
       e.preventDefault();
       const cam = camRef.current;
       cam.distance = Math.min(
-        Math.max(cam.distance * (e.deltaY > 0 ? 1.12 : 1 / 1.12), 0.5),
-        5000,
+        Math.max(cam.distance * (e.deltaY > 0 ? 1.12 : 1 / 1.12), 0.2),
+        1e9,
       );
       setCamTick((n) => n + 1);
     };
@@ -184,7 +246,7 @@ export function Viewport3D({ cad, revision, onEcho }: Props) {
       const raw = JSON.parse(cad.solids_meshes_json()) as SolidMeshDto[];
       setSolidCount(raw.length);
       const batches: MeshBatch[] = raw.map((m, i) => {
-        const c = PALETTE[i % PALETTE.length];
+        const c = PALETTE[i % PALETTE.length]!;
         return {
           positions: new Float32Array(m.positions),
           indices: new Uint32Array(m.indices),
@@ -193,42 +255,66 @@ export function Viewport3D({ cad, revision, onEcho }: Props) {
           b: c[2],
         };
       });
+
+      // Toujours afficher le dessin 2D sur le plan XY (sinon 3D paraît « cassée »).
+      let lineVerts: Float32Array | number[] = [];
+      try {
+        lineVerts = cad.scene_line_vertices();
+      } catch {
+        lineVerts = [];
+      }
+      const b2 = bounds2d(lineVerts);
+      const span = b2
+        ? Math.max(b2.max[0] - b2.min[0], b2.max[1] - b2.min[1], 1)
+        : 10;
+      const lineMesh = linesToQuads(lineVerts, Math.max(span * 0.003, 0.02));
+      if (lineMesh) batches.push(lineMesh);
+
       renderer.setMeshes(batches);
       renderer.setWireframe(wire);
 
-      if (raw.length) {
-        let min: [number, number, number] = [Infinity, Infinity, Infinity];
-        let max: [number, number, number] = [
-          -Infinity,
-          -Infinity,
-          -Infinity,
+      let min: [number, number, number] = [Infinity, Infinity, Infinity];
+      let max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+      let hasBounds = false;
+      for (const m of raw) {
+        if (!m.aabb) continue;
+        hasBounds = true;
+        min = [
+          Math.min(min[0], m.aabb.min[0]!),
+          Math.min(min[1], m.aabb.min[1]!),
+          Math.min(min[2], m.aabb.min[2]!),
         ];
-        for (const m of raw) {
-          if (m.aabb) {
-            min = [
-              Math.min(min[0], m.aabb.min[0]),
-              Math.min(min[1], m.aabb.min[1]),
-              Math.min(min[2], m.aabb.min[2]),
-            ];
-            max = [
-              Math.max(max[0], m.aabb.max[0]),
-              Math.max(max[1], m.aabb.max[1]),
-              Math.max(max[2], m.aabb.max[2]),
-            ];
-          }
-        }
-        if (Number.isFinite(min[0])) {
-          const fitted = fitCameraToAabb(min, max);
-          // Keep yaw/pitch if user already framed; only reset distance/target on first solid.
-          if (solidCount === 0) {
-            camRef.current = fitted;
-          } else {
-            camRef.current.target = fitted.target;
-            camRef.current.distance = Math.max(
-              camRef.current.distance,
-              fitted.distance * 0.6,
-            );
-          }
+        max = [
+          Math.max(max[0], m.aabb.max[0]!),
+          Math.max(max[1], m.aabb.max[1]!),
+          Math.max(max[2], m.aabb.max[2]!),
+        ];
+      }
+      if (b2) {
+        hasBounds = true;
+        min = [
+          Math.min(min[0], b2.min[0]),
+          Math.min(min[1], b2.min[1]),
+          Math.min(min[2], b2.min[2]),
+        ];
+        max = [
+          Math.max(max[0], b2.max[0]),
+          Math.max(max[1], b2.max[1]),
+          Math.max(max[2], b2.max[2]),
+        ];
+      }
+      if (hasBounds && Number.isFinite(min[0])) {
+        const fitted = fitCameraToAabb(min, max);
+        if (!fittedOnceRef.current) {
+          camRef.current = fitted;
+          fittedOnceRef.current = true;
+        } else if (raw.length > solidCount) {
+          // Nouveau solide ajouté → recentrer légèrement.
+          camRef.current.target = fitted.target;
+          camRef.current.distance = Math.max(
+            camRef.current.distance,
+            fitted.distance * 0.6,
+          );
         }
       }
     } catch {
@@ -301,8 +387,11 @@ export function Viewport3D({ cad, revision, onEcho }: Props) {
         </button>
       </div>
       <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-ink-900/80 px-2 py-1 font-mono text-[10px] text-ink-300">
-        3D · {solidCount} solid(s) · orbit clic · Shift+pan · molette zoom
-        {!ready ? " · init…" : ""}
+        3D · {solidCount} solide(s) · dessin 2D sur XY · orbit · Shift+pan · molette
+        {!ready ? " · init WebGPU…" : ""}
+        {ready && solidCount === 0
+          ? " · tip: onglet 3D → Boîte pour un volume"
+          : ""}
       </p>
     </div>
   );

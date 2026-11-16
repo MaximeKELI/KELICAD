@@ -1264,11 +1264,18 @@ body {
   background: rgba(50, 65, 85, 0.98) !important;
 }
 
-/* UCS fixe — coin bas-gauche du viewport (ne suit pas le zoom) */
+/* UCS chrome — coin bas-gauche écran (ne suit jamais le dessin) */
 .cad-ucs {
-  left: 10px;
-  bottom: 10px;
+  left: 8px;
+  bottom: 8px;
+  width: 64px;
+  height: 64px;
+  padding: 2px;
+  border-radius: 4px;
+  background: rgba(12, 12, 12, 0.55);
+  border: 1px solid rgba(80, 80, 80, 0.45);
   overflow: visible;
+  box-sizing: content-box;
 }
 
 /* Sélecteur de mode 2D/3D (viewport 3D) */
