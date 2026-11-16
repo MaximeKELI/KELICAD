@@ -10,6 +10,9 @@ pub mod macros;
 pub mod manifest;
 pub mod market;
 
+#[cfg(test)]
+mod rigorous;
+
 pub use error::PluginError;
 pub use guest::{Guest, NativeGuest, ScriptGuest, ScriptStep};
 pub use host::PluginHost;

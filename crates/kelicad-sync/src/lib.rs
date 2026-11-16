@@ -11,6 +11,9 @@ pub mod protocol;
 pub mod replica;
 pub mod version;
 
+#[cfg(test)]
+mod rigorous;
+
 pub use comments::{Comment, CommentAnchor, CommentId, CommentStore};
 pub use envelope::{ActorId, HybridTime, OpEnvelope, OpId};
 pub use lww::{targets_of, LwwTable, TargetKey};

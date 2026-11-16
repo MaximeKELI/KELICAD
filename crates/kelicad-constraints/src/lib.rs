@@ -8,6 +8,9 @@ mod solver;
 mod system;
 mod types;
 
+#[cfg(test)]
+mod rigorous;
+
 pub use error::ConstraintError;
 pub use solver::{solve, SolveResult, SolveStatus};
 pub use system::ConstraintSystem;

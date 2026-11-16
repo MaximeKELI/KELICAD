@@ -12,6 +12,9 @@ pub mod polyline;
 pub mod transform;
 pub mod trim;
 
+#[cfg(test)]
+mod rigorous;
+
 pub use aabb::Aabb;
 pub use arc::Arc;
 pub use circle::Circle;

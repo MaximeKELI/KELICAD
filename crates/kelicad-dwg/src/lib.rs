@@ -8,6 +8,9 @@ mod error;
 mod external;
 mod mock;
 
+#[cfg(test)]
+mod rigorous;
+
 pub use bridge::{export_dwg, import_dwg, DwgBridge};
 pub use error::DwgError;
 pub use external::ExternalDwgBridge;

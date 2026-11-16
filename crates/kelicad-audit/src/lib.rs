@@ -194,3 +194,6 @@ mod tests {
         assert!(log.verify_chain().is_ok());
     }
 }
+
+#[cfg(test)]
+mod rigorous;

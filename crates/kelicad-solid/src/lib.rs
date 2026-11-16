@@ -11,6 +11,9 @@ mod section;
 mod types;
 mod views;
 
+#[cfg(test)]
+mod rigorous;
+
 pub use aabb3::Aabb3;
 pub use error::SolidError;
 pub use kernel::{BuiltinSolidKernel, SolidKernel};

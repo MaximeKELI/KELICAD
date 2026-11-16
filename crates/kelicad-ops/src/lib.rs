@@ -7,6 +7,9 @@ pub mod journal;
 pub mod operation;
 pub mod session;
 
+#[cfg(test)]
+mod rigorous;
+
 pub use journal::OpJournal;
 pub use operation::{OpError, Operation};
 pub use session::DocSession;

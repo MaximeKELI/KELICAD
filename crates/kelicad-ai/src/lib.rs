@@ -15,6 +15,9 @@ pub mod ruleset;
 pub mod safety;
 pub mod tools;
 
+#[cfg(test)]
+mod rigorous;
+
 pub use agent::{AskResult, KeliAgent, ProposalDto};
 pub use error::AiError;
 pub use ghost::ghosts_to_vertices;

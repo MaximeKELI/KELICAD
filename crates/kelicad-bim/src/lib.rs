@@ -10,6 +10,9 @@ mod ifc;
 mod schedule;
 mod wall;
 
+#[cfg(test)]
+mod rigorous;
+
 pub use collide::collisions;
 pub use element::{BimElement, BimId, BimKind};
 pub use error::BimError;

@@ -11,6 +11,9 @@ pub mod predicates;
 pub mod tolerance;
 pub mod vec;
 
+#[cfg(test)]
+mod rigorous;
+
 pub use mat::{Mat3, Mat4};
 pub use predicates::{incircle, orient2d, Orient};
 pub use tolerance::Tolerance;
