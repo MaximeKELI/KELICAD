@@ -143,7 +143,8 @@ export function DrawingViewport({
       const cam = cameraRef.current;
       const before = worldFromClient(e.clientX, e.clientY);
       const factor = e.deltaY > 0 ? 1.12 : 1 / 1.12;
-      cam.zoom = Math.min(Math.max(cam.zoom * factor, 0.25), 2_000_000);
+      // zoom = hauteur monde visible ; ↑ = dézoom. Pas de plafond artificiel bas.
+      cam.zoom = Math.min(Math.max(cam.zoom * factor, 0.05), 1e12);
       const after = worldFromClient(e.clientX, e.clientY);
       cam.x += before.x - after.x;
       cam.y += before.y - after.y;
@@ -399,12 +400,12 @@ export function DrawingViewport({
       const cam = cameraRef.current;
       const wrap = wrapRef.current;
       if (action === "zoom-in") {
-        cam.zoom = Math.max(cam.zoom / 1.25, 0.25);
+        cam.zoom = Math.max(cam.zoom / 1.25, 0.05);
         setCamVersion((n) => n + 1);
         return;
       }
       if (action === "zoom-out") {
-        cam.zoom = Math.min(cam.zoom * 1.25, 2_000_000);
+        cam.zoom = Math.min(cam.zoom * 1.25, 1e12);
         setCamVersion((n) => n + 1);
         return;
       }
@@ -440,7 +441,7 @@ export function DrawingViewport({
         const zoomW = (w * pad) / aspect;
         cam.x = cx;
         cam.y = cy;
-        cam.zoom = Math.min(Math.max(Math.max(zoomH, zoomW), 0.25), 2_000_000);
+        cam.zoom = Math.min(Math.max(Math.max(zoomH, zoomW), 0.05), 1e12);
         setCamVersion((n) => n + 1);
       }
     };
