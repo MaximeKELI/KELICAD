@@ -346,7 +346,9 @@ pub fn plan_utterance(utterance: &str) -> Result<Vec<ToolCall>, AiError> {
     if norm.contains("hachure") || norm.contains("hatch") {
         calls.push(ToolCall {
             name: "hatch_region".into(),
-            args: json!({}),
+            args: json!({
+                "boundary": [[0.0, 0.0], [4.0, 0.0], [4.0, 3.0], [0.0, 3.0]]
+            }),
         });
         return Ok(calls);
     }

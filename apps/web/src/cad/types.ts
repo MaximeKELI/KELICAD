@@ -36,6 +36,13 @@ export type KeliJournalEntry = {
   note: string;
 };
 
+export type KeliImpulse = {
+  label_fr: string;
+  label_en: string;
+  utterance: string;
+  category: string;
+};
+
 export type CadSession = {
   entity_count(): number;
   submit_text(text: string): string;
@@ -63,6 +70,7 @@ export type CadSession = {
   keli_proposal_json(): string;
   keli_journal_json(): string;
   keli_ghost_vertices(): Float32Array | number[];
+  keli_impulses_json(): string;
   sync_set_identity(name: string, r: number, g: number, b: number): void;
   sync_actor_id(): string;
   sync_publish_local(): string;
@@ -88,6 +96,40 @@ export type CadSession = {
   constraints_json(): string;
   vectorize_bytes(data: Uint8Array, filename_hint: string): number;
   solid_extrude_selected(height: number): string;
+  solid_sphere(cx: number, cy: number, cz: number, radius: number): string;
+  solid_cone(cx: number, cy: number, radius: number, height: number): string;
+  solid_cylinder(cx: number, cy: number, radius: number, height: number): string;
+  solid_torus(
+    cx: number,
+    cy: number,
+    cz: number,
+    major: number,
+    minor: number,
+  ): string;
+  solid_pyramid(
+    cx: number,
+    cy: number,
+    radius: number,
+    height: number,
+    sides: number,
+  ): string;
+  solid_prism(
+    cx: number,
+    cy: number,
+    radius: number,
+    height: number,
+    sides: number,
+  ): string;
+  solid_pipe(
+    cx: number,
+    cy: number,
+    outer: number,
+    inner: number,
+    height: number,
+  ): string;
+  solid_revolve_selected(degrees: number): string;
+  solid_sweep_selected(thickness: number): string;
+  solid_loft_selected(height: number): string;
   view_derive_apply(kind: string): number;
   bim_schedule_csv(): string;
   ifc_export(): string;

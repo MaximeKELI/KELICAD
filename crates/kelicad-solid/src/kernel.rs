@@ -497,4 +497,17 @@ mod tests {
         assert!(!body.mesh.is_empty());
         assert!(body.aabb.volume() > 0.0);
     }
+
+    #[test]
+    fn torus_pyramid_prism_pipe() {
+        let k = BuiltinSolidKernel;
+        let t = k.torus(Vec3::ZERO, 2.0, 0.4, 24, 12).unwrap();
+        assert!(t.mesh.triangle_count() > 100);
+        let pyr = k.pyramid(Vec2::ZERO, 1.0, 2.0, 4).unwrap();
+        assert!(!pyr.mesh.is_empty());
+        let pr = k.prism(Vec2::ZERO, 1.0, 3.0, 6).unwrap();
+        assert!((pr.aabb.size().z - 3.0).abs() < 1e-6);
+        let pipe = k.pipe(Vec2::ZERO, 1.0, 0.5, 2.0, 24).unwrap();
+        assert!(!pipe.mesh.is_empty());
+    }
 }

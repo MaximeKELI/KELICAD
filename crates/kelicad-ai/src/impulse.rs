@@ -137,11 +137,11 @@ pub fn suggest_impulses(session: &DocSession, selection_len: usize) -> Vec<Impul
         ));
     }
 
-    if counts.polylines >= 1 && selection_len >= 1 {
+    if counts.polylines >= 1 {
         out.push(chip(
-            "Hachurer",
-            "Hatch",
-            "hachure la région",
+            "Rectangle + cote",
+            "Rect + dim",
+            "dessine un rectangle de 4 m × 3 m et cote-le",
             "annoter",
         ));
     }

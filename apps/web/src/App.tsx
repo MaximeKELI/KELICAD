@@ -13,33 +13,9 @@ import { CommentsPanel } from "./components/CommentsPanel";
 import { CommandLine } from "./components/CommandLine";
 import { DrawingViewport } from "./components/DrawingViewport";
 import { KeliPanel } from "./components/KeliPanel";
+import { ShapePalette } from "./components/ShapePalette";
 
 const QUICK = [
-  "L",
-  "PL",
-  "C",
-  "C2",
-  "C3",
-  "A",
-  "REC",
-  "POL",
-  "EL",
-  "SPL",
-  "RAY",
-  "XL",
-  "PAR",
-  "ML",
-  "DT",
-  "DLI",
-  "DAL",
-  "DRA",
-  "DDI",
-  "DAN",
-  "LEAD",
-  "H",
-  "B",
-  "I",
-  "X",
   "M",
   "CO",
   "RO",
@@ -48,17 +24,13 @@ const QUICK = [
   "O",
   "TR",
   "EX",
-  "STRETCH",
-  "BR",
-  "J",
-  "LEN",
-  "AL",
-  "AR",
-  "APOLAR",
   "F",
   "CHA",
-  "XR",
-  "PDF",
+  "STRETCH",
+  "AR",
+  "APOLAR",
+  "DLI",
+  "H",
   "E",
   "U",
 ];
@@ -68,7 +40,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [echoes, setEchoes] = useState<string[]>([
-    "KELICAD M7 — 3D/BIM: EXTRUDE, SCHED, IFC↑. Dessinez un rectangle fermé puis EXTRUDE.",
+    "KELICAD — figures rapides à gauche, impulsions KELI à droite. Essayez STAR, DONUT, CAPSULE ou un chip IA.",
   ]);
   const [revision, setRevision] = useState(0);
   const [entityCount, setEntityCount] = useState(0);
@@ -262,7 +234,7 @@ export function App() {
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-700/60 bg-ink-900 px-4 py-2">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-accent-soft">KELICAD</p>
-          <h1 className="text-base font-medium">Dessin 2D — M4 · Collab</h1>
+          <h1 className="text-base font-medium">2D · 3D · KELI</h1>
         </div>
         <div className="flex flex-wrap gap-1">
           {QUICK.map((cmd) => (
@@ -451,6 +423,16 @@ export function App() {
         onEcho={(line) => setEchoes((prev) => [...prev, line].slice(-40))}
       />
       <div className="flex min-h-0 flex-1">
+        <ShapePalette
+          cad={cad}
+          onCommand={(raw) => applyOutput(raw, cad)}
+          onEcho={(lines) => setEchoes((prev) => [...prev, ...lines].slice(-40))}
+          onChanged={() => {
+            setRevision((n) => n + 1);
+            setEntityCount(cad.entity_count());
+            collab.flush();
+          }}
+        />
         <main className="min-h-0 min-w-0 flex-1">
           <DrawingViewport
             cad={cad}
@@ -473,6 +455,7 @@ export function App() {
         />
         <KeliPanel
           cad={cad}
+          revision={revision}
           onChanged={() => {
             setRevision((n) => n + 1);
             setEntityCount(cad.entity_count());

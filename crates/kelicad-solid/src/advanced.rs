@@ -404,7 +404,8 @@ mod tests {
     #[test]
     fn pyramid_hex() {
         let m = pyramid_mesh(Vec2::ZERO, 1.0, 2.0, 6);
-        assert!(m.triangle_count() >= 12);
+        // Base fan (n-2) + n sides = 4 + 6 = 10 for hex.
+        assert!(m.triangle_count() >= 10);
     }
 
     #[test]

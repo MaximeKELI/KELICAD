@@ -3582,4 +3582,65 @@ mod tests {
             _ => panic!("polyline"),
         }
     }
+
+    #[test]
+    fn star_and_donut_and_arrow() {
+        let mut eng = engine();
+        eng.handle(CommandEvent::Start(CommandId::Star));
+        eng.handle(CommandEvent::Text("5".into()));
+        eng.handle(CommandEvent::Pick(Vec2::ZERO));
+        eng.handle(CommandEvent::Pick(Vec2::new(2.0, 0.0)));
+        assert_eq!(eng.session.document.entity_count(), 1);
+
+        eng.handle(CommandEvent::Start(CommandId::Donut));
+        eng.handle(CommandEvent::Pick(Vec2::new(20.0, 0.0)));
+        eng.handle(CommandEvent::Pick(Vec2::new(22.0, 0.0)));
+        eng.handle(CommandEvent::Pick(Vec2::new(21.0, 0.0)));
+        assert_eq!(
+            eng.session
+                .document
+                .entities()
+                .filter(|e| matches!(e.geometry, Geometry::Circle(_)))
+                .count(),
+            2
+        );
+
+        eng.handle(CommandEvent::Start(CommandId::Arrow));
+        eng.handle(CommandEvent::Pick(Vec2::new(0.0, 10.0)));
+        eng.handle(CommandEvent::Pick(Vec2::new(5.0, 10.0)));
+        assert!(eng
+            .session
+            .document
+            .entities()
+            .any(|e| matches!(e.geometry, Geometry::Polyline(_))));
+    }
+
+    #[test]
+    fn capsule_triangle_grid() {
+        let mut eng = engine();
+        eng.handle(CommandEvent::Start(CommandId::Capsule));
+        eng.handle(CommandEvent::Pick(Vec2::ZERO));
+        eng.handle(CommandEvent::Pick(Vec2::new(4.0, 0.0)));
+        eng.handle(CommandEvent::Pick(Vec2::new(2.0, 0.5)));
+        assert_eq!(eng.session.document.entity_count(), 1);
+
+        eng.handle(CommandEvent::Start(CommandId::Triangle));
+        eng.handle(CommandEvent::Pick(Vec2::new(10.0, 0.0)));
+        eng.handle(CommandEvent::Pick(Vec2::new(13.0, 0.0)));
+        eng.handle(CommandEvent::Pick(Vec2::new(11.5, 2.0)));
+        assert_eq!(eng.session.document.entity_count(), 2);
+
+        eng.handle(CommandEvent::Start(CommandId::Grid));
+        eng.handle(CommandEvent::Text("2".into()));
+        eng.handle(CommandEvent::Text("2".into()));
+        eng.handle(CommandEvent::Pick(Vec2::new(50.0, 50.0)));
+        eng.handle(CommandEvent::Pick(Vec2::new(51.0, 51.0)));
+        let lines = eng
+            .session
+            .document
+            .entities()
+            .filter(|e| matches!(e.geometry, Geometry::Line(_)))
+            .count();
+        assert_eq!(lines, 6); // 3 vert + 3 horiz
+    }
 }
