@@ -583,6 +583,68 @@ fn run(cli: Cli) -> Result<(), String> {
                 println!("sweep ok: triangles={}", body.mesh.triangle_count());
                 Ok(())
             }
+            SolidCmd::Torus { major, minor } => {
+                let k = BuiltinSolidKernel;
+                let body = k
+                    .torus(Vec3::ZERO, major, minor, 32, 16)
+                    .map_err(|e| e.to_string())?;
+                println!("torus ok: triangles={}", body.mesh.triangle_count());
+                Ok(())
+            }
+            SolidCmd::Cylinder { radius, height } => {
+                let k = BuiltinSolidKernel;
+                let body = k
+                    .cylinder(Vec2::ZERO, radius, height, 32)
+                    .map_err(|e| e.to_string())?;
+                println!("cylinder ok: triangles={}", body.mesh.triangle_count());
+                Ok(())
+            }
+            SolidCmd::Pyramid {
+                radius,
+                height,
+                sides,
+            } => {
+                let k = BuiltinSolidKernel;
+                let body = k
+                    .pyramid(Vec2::ZERO, radius, height, sides)
+                    .map_err(|e| e.to_string())?;
+                println!("pyramid ok: triangles={}", body.mesh.triangle_count());
+                Ok(())
+            }
+            SolidCmd::Prism {
+                radius,
+                height,
+                sides,
+            } => {
+                let k = BuiltinSolidKernel;
+                let body = k
+                    .prism(Vec2::ZERO, radius, height, sides)
+                    .map_err(|e| e.to_string())?;
+                println!("prism ok: triangles={}", body.mesh.triangle_count());
+                Ok(())
+            }
+            SolidCmd::Pipe {
+                outer,
+                inner,
+                height,
+            } => {
+                let k = BuiltinSolidKernel;
+                let body = k
+                    .pipe(Vec2::ZERO, outer, inner, height, 32)
+                    .map_err(|e| e.to_string())?;
+                println!("pipe ok: triangles={}", body.mesh.triangle_count());
+                Ok(())
+            }
+            SolidCmd::Revolve { degrees } => {
+                let k = BuiltinSolidKernel;
+                let profile = Profile2::rectangle(Vec2::new(1.0, 0.0), 0.4, 1.0)
+                    .map_err(|e| e.to_string())?;
+                let body = k
+                    .revolve(&profile, degrees, 36)
+                    .map_err(|e| e.to_string())?;
+                println!("revolve ok: triangles={}", body.mesh.triangle_count());
+                Ok(())
+            }
         },
         Commands::Bim { cmd } => match cmd {
             BimCmd::Schedule => {
