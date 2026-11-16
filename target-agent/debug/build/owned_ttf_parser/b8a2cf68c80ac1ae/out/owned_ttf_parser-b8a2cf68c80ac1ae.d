@@ -1,0 +1,10 @@
+/home/admin20/KELICAD/target-agent/debug/build/owned_ttf_parser/b8a2cf68c80ac1ae/out/owned_ttf_parser-b8a2cf68c80ac1ae.d: /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/owned_ttf_parser-0.19.0/src/lib.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/owned_ttf_parser-0.19.0/src/convert.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/owned_ttf_parser-0.19.0/src/owned.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/owned_ttf_parser-0.19.0/src/preparse.rs
+
+/home/admin20/KELICAD/target-agent/debug/build/owned_ttf_parser/b8a2cf68c80ac1ae/out/libowned_ttf_parser-b8a2cf68c80ac1ae.rlib: /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/owned_ttf_parser-0.19.0/src/lib.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/owned_ttf_parser-0.19.0/src/convert.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/owned_ttf_parser-0.19.0/src/owned.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/owned_ttf_parser-0.19.0/src/preparse.rs
+
+/home/admin20/KELICAD/target-agent/debug/build/owned_ttf_parser/b8a2cf68c80ac1ae/out/libowned_ttf_parser-b8a2cf68c80ac1ae.rmeta: /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/owned_ttf_parser-0.19.0/src/lib.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/owned_ttf_parser-0.19.0/src/convert.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/owned_ttf_parser-0.19.0/src/owned.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/owned_ttf_parser-0.19.0/src/preparse.rs
+
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/owned_ttf_parser-0.19.0/src/lib.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/owned_ttf_parser-0.19.0/src/convert.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/owned_ttf_parser-0.19.0/src/owned.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/owned_ttf_parser-0.19.0/src/preparse.rs:

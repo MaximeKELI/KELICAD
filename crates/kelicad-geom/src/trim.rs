@@ -86,7 +86,7 @@ pub fn trim_polyline_by_cut(
     if poly.closed {
         // Closed: replace endpoints of segment idx → (idx+1)%n carefully.
         let n = verts.len();
-        let i1 = (idx + 1) % n;
+        let _i1 = (idx + 1) % n;
         // Keep start of segment as verts[idx], move verts[i1] or insert.
         // Simpler approach: rebuild from segments with one replaced.
         let mut segs: Vec<Line> = poly.segments().collect();

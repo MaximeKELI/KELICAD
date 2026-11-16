@@ -6,15 +6,19 @@ use kelicad_doc::{
     XrefId, XrefInsertGeom, XrefKind,
 };
 use kelicad_geom::construct::{
-    chamfer_lines, circle_from_3_points, fillet_lines, regular_polygon_center_vertex,
-    tangents_circle_circle, tangents_point_circle,
+    chamfer_lines, circle_from_2_points, circle_from_3_points, fillet_lines,
+    regular_polygon_center_vertex, tangents_circle_circle, tangents_point_circle,
 };
+use kelicad_geom::fillet_poly::{chamfer_polyline, fillet_polyline, midline, parallel_through};
+use kelicad_geom::offset::offset_polyline;
 use kelicad_geom::modify::{
     align_2point, align_transform_point, break_line_near, join_collinear_lines, join_polylines,
     lengthen_line, polar_array_copies, rectangular_array_offsets, stretch_line, stretch_polyline,
 };
 use kelicad_geom::transform::offset_line;
-use kelicad_geom::trim::{extend_line_to, trim_line_by_cut};
+use kelicad_geom::trim::{
+    extend_line_to, extend_polyline_to, trim_arc_by_line, trim_line_by_cut, trim_polyline_by_cut,
+};
 use kelicad_geom::{Arc, Circle, Ellipse, Line, Polyline, Spline};
 use kelicad_math::{Tolerance, Vec2};
 use kelicad_ops::{DocSession, Operation};
@@ -208,6 +212,15 @@ enum Active {
         name: Option<String>,
         path: Option<String>,
         kind: XrefKind,
+    },
+    Circle2p {
+        first: Option<Vec2>,
+    },
+    Parallel {
+        source: Option<EntityId>,
+    },
+    Midline {
+        first: Option<Vec2>,
     },
 }
 
@@ -416,9 +429,16 @@ impl<G: IdGen> CommandEngine<G> {
                 out.prompt = self.current_prompt();
             }
             CommandId::Fillet | CommandId::Chamfer => {
-                if self.selection.len() < 2 {
+                let ok_poly = self.selection.len() == 1
+                    && self
+                        .selection
+                        .iter()
+                        .next()
+                        .and_then(|id| self.session.document.get_entity(id))
+                        .is_some_and(|e| matches!(e.geometry, Geometry::Polyline(_)));
+                if self.selection.len() < 2 && !ok_poly {
                     out.echoes
-                        .push("Sélectionnez 2 lignes avant FILLET/CHAMFER.".into());
+                        .push("Sélectionnez 2 lignes ou 1 polyligne avant FILLET/CHAMFER.".into());
                     return out;
                 }
                 let active = match id {
@@ -603,6 +623,9 @@ impl<G: IdGen> CommandEngine<G> {
                     },
                     CommandId::Spline => Active::Spline { points: vec![] },
                     CommandId::Circle3p => Active::Circle3p { points: vec![] },
+                    CommandId::Circle2p => Active::Circle2p { first: None },
+                    CommandId::Parallel => Active::Parallel { source: None },
+                    CommandId::Midline => Active::Midline { first: None },
                     CommandId::TangentPc => Active::TangentPc { point: None },
                     CommandId::TangentCc => Active::TangentCc { first: None },
                     _ => unreachable!(),
@@ -835,6 +858,18 @@ impl<G: IdGen> CommandEngine<G> {
                 "Point sur le cercle (3 points)",
                 "Point on circle (3 points)",
             ),
+            (CommandId::Circle2p, Active::Circle2p { first: None }) => {
+                prompt("Premier point du diamètre", "First diameter point")
+            }
+            (CommandId::Circle2p, _) => prompt("Second point du diamètre", "Second diameter point"),
+            (CommandId::Parallel, Active::Parallel { source: None }) => {
+                prompt("Sélectionnez la ligne source", "Select source line")
+            }
+            (CommandId::Parallel, _) => prompt("Point de passage", "Through point"),
+            (CommandId::Midline, Active::Midline { first: None }) => {
+                prompt("Premier point", "First point")
+            }
+            (CommandId::Midline, _) => prompt("Second point", "Second point"),
             (CommandId::Fillet, Active::Fillet { radius: None }) => {
                 prompt("Rayon du congé", "Fillet radius")
             }
@@ -1416,15 +1451,32 @@ impl<G: IdGen> CommandEngine<G> {
             (CommandId::Offset, Active::Offset { distance: Some(d) }) => {
                 if let Some(eid) = self.pick_entity(p) {
                     if let Some(ent) = self.session.document.get_entity(eid) {
-                        if let Geometry::Line(line) = &ent.geometry {
-                            // Side: sign from pick relative to line
-                            let side = (p - line.start).cross(line.delta());
-                            let signed = if side >= 0.0 { d } else { -d };
-                            if let Some(off) = offset_line(*line, signed) {
-                                out = self.commit_one(Geometry::Line(off));
+                        match &ent.geometry {
+                            Geometry::Line(line) => {
+                                let side = (p - line.start).cross(line.delta());
+                                let signed = if side >= 0.0 { d } else { -d };
+                                if let Some(off) = offset_line(*line, signed) {
+                                    out = self.commit_one(Geometry::Line(off));
+                                }
                             }
-                        } else {
-                            out.echoes.push("OFFSET M1 : lignes uniquement.".into());
+                            Geometry::Polyline(poly) => {
+                                // Sign from pick vs first segment.
+                                let signed = if let Some(seg) = poly.segment(0) {
+                                    let side = (p - seg.start).cross(seg.delta());
+                                    if side >= 0.0 { d } else { -d }
+                                } else {
+                                    d
+                                };
+                                match offset_polyline(poly, signed, Tolerance::DEFAULT) {
+                                    Some(off) => {
+                                        out = self.commit_one(Geometry::Polyline(off));
+                                    }
+                                    None => out.echoes.push("OFFSET polyligne impossible.".into()),
+                                }
+                            }
+                            _ => out
+                                .echoes
+                                .push("OFFSET : ligne ou polyligne requise.".into()),
                         }
                     }
                 }
@@ -1631,6 +1683,52 @@ impl<G: IdGen> CommandEngine<G> {
                     self.active = Some((CommandId::Circle3p, Active::Circle3p { points }));
                     out.prompt = self.current_prompt();
                 }
+            }
+            (CommandId::Circle2p, Active::Circle2p { first: None }) => {
+                self.active = Some((CommandId::Circle2p, Active::Circle2p { first: Some(p) }));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Circle2p, Active::Circle2p { first: Some(a) }) => {
+                match circle_from_2_points(a, p, Tolerance::DEFAULT) {
+                    Some(c) => out = self.commit_one(Geometry::Circle(c)),
+                    None => out.echoes.push("CIRCLE2P dégénéré.".into()),
+                }
+                self.active = None;
+            }
+            (CommandId::Parallel, Active::Parallel { source: None }) => {
+                if let Some(eid) = self.pick_entity(p) {
+                    if matches!(
+                        self.session.document.get_entity(eid).map(|e| &e.geometry),
+                        Some(Geometry::Line(_))
+                    ) {
+                        self.active =
+                            Some((CommandId::Parallel, Active::Parallel { source: Some(eid) }));
+                        out.prompt = self.current_prompt();
+                    } else {
+                        out.echoes.push("PARALLEL : sélectionnez une ligne.".into());
+                    }
+                }
+            }
+            (CommandId::Parallel, Active::Parallel { source: Some(sid) }) => {
+                if let Some(ent) = self.session.document.get_entity(sid) {
+                    if let Geometry::Line(line) = ent.geometry {
+                        if let Some(pl) = parallel_through(line, p, Tolerance::DEFAULT) {
+                            out = self.commit_one(Geometry::Line(pl));
+                        }
+                    }
+                }
+                self.active = None;
+            }
+            (CommandId::Midline, Active::Midline { first: None }) => {
+                self.active = Some((CommandId::Midline, Active::Midline { first: Some(p) }));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Midline, Active::Midline { first: Some(a) }) => {
+                match midline(a, p, Tolerance::DEFAULT) {
+                    Some(l) => out = self.commit_one(Geometry::Line(l)),
+                    None => out.echoes.push("MIDLINE dégénérée.".into()),
+                }
+                self.active = None;
             }
             (CommandId::TangentPc, Active::TangentPc { point: None }) => {
                 self.active = Some((CommandId::TangentPc, Active::TangentPc { point: Some(p) }));
@@ -2132,9 +2230,30 @@ impl<G: IdGen> CommandEngine<G> {
     }
 
     fn apply_fillet(&mut self, radius: f64) -> CommandOutput {
+        // Prefer single selected polyline → fillet all corners.
+        if self.selection.len() == 1 {
+            let id = self.selection.to_vec()[0];
+            if let Some(ent) = self.session.document.get_entity(id) {
+                if let Geometry::Polyline(poly) = &ent.geometry {
+                    return match fillet_polyline(poly, radius, 8, Tolerance::DEFAULT) {
+                        Some(fp) => self.apply_batch(
+                            vec![Operation::SetGeometry {
+                                id,
+                                geometry: Geometry::Polyline(fp),
+                            }],
+                            "Congé polyligne.".into(),
+                        ),
+                        None => CommandOutput {
+                            echoes: vec!["FILLET polyligne impossible.".into()],
+                            ..Default::default()
+                        },
+                    };
+                }
+            }
+        }
         let Some((id_a, la, id_b, lb)) = self.selected_two_lines() else {
             return CommandOutput {
-                echoes: vec!["FILLET : 2 lignes requises.".into()],
+                echoes: vec!["FILLET : 2 lignes ou 1 polyligne.".into()],
                 ..Default::default()
             };
         };
@@ -2168,9 +2287,29 @@ impl<G: IdGen> CommandEngine<G> {
     }
 
     fn apply_chamfer(&mut self, distance: f64) -> CommandOutput {
+        if self.selection.len() == 1 {
+            let id = self.selection.to_vec()[0];
+            if let Some(ent) = self.session.document.get_entity(id) {
+                if let Geometry::Polyline(poly) = &ent.geometry {
+                    return match chamfer_polyline(poly, distance, Tolerance::DEFAULT) {
+                        Some(cp) => self.apply_batch(
+                            vec![Operation::SetGeometry {
+                                id,
+                                geometry: Geometry::Polyline(cp),
+                            }],
+                            "Chanfrein polyligne.".into(),
+                        ),
+                        None => CommandOutput {
+                            echoes: vec!["CHAMFER polyligne impossible.".into()],
+                            ..Default::default()
+                        },
+                    };
+                }
+            }
+        }
         let Some((id_a, la, id_b, lb)) = self.selected_two_lines() else {
             return CommandOutput {
-                echoes: vec!["CHAMFER : 2 lignes requises.".into()],
+                echoes: vec!["CHAMFER : 2 lignes ou 1 polyligne.".into()],
                 ..Default::default()
             };
         };
@@ -2686,40 +2825,64 @@ impl<G: IdGen> CommandEngine<G> {
         let Some(target) = self.session.document.get_entity(target_id).cloned() else {
             return CommandOutput::default();
         };
-        let Geometry::Line(target_line) = target.geometry else {
-            return CommandOutput {
-                echoes: vec!["TRIM M1 : lignes uniquement.".into()],
-                ..Default::default()
-            };
-        };
         let tol = Tolerance::DEFAULT;
-        // Use other selected lines as cutters, or any intersecting line.
         let cutters: Vec<Line> = self
             .session
             .document
             .entities()
             .filter(|e| e.id != target_id)
-            .filter_map(|e| match &e.geometry {
-                Geometry::Line(l) => Some(*l),
-                Geometry::Polyline(poly) => poly.segments().find(|s| {
-                    matches!(
-                        kelicad_geom::line_line(target_line, *s, tol),
-                        kelicad_geom::LineLineResult::Point(_)
-                    )
-                }),
-                _ => None,
+            .flat_map(|e| match &e.geometry {
+                Geometry::Line(l) => vec![*l],
+                Geometry::Polyline(poly) => poly.segments().collect(),
+                _ => vec![],
             })
             .collect();
 
-        for cut in cutters {
-            if let Some(trimmed) = trim_line_by_cut(target_line, cut, p, tol) {
-                return self.apply_batch(
-                    vec![Operation::SetGeometry {
-                        id: target_id,
-                        geometry: Geometry::Line(trimmed),
-                    }],
-                    "Coupé.".into(),
-                );
+        match target.geometry {
+            Geometry::Line(target_line) => {
+                for cut in &cutters {
+                    if let Some(trimmed) = trim_line_by_cut(target_line, *cut, p, tol) {
+                        return self.apply_batch(
+                            vec![Operation::SetGeometry {
+                                id: target_id,
+                                geometry: Geometry::Line(trimmed),
+                            }],
+                            "Coupé.".into(),
+                        );
+                    }
+                }
+            }
+            Geometry::Polyline(poly) => {
+                for cut in &cutters {
+                    if let Some(trimmed) = trim_polyline_by_cut(&poly, *cut, p, tol) {
+                        return self.apply_batch(
+                            vec![Operation::SetGeometry {
+                                id: target_id,
+                                geometry: Geometry::Polyline(trimmed),
+                            }],
+                            "Polyligne coupée.".into(),
+                        );
+                    }
+                }
+            }
+            Geometry::Arc(arc) => {
+                for cut in &cutters {
+                    if let Some(trimmed) = trim_arc_by_line(arc, *cut, p, tol) {
+                        return self.apply_batch(
+                            vec![Operation::SetGeometry {
+                                id: target_id,
+                                geometry: Geometry::Arc(trimmed),
+                            }],
+                            "Arc coupé.".into(),
+                        );
+                    }
+                }
+            }
+            _ => {
+                return CommandOutput {
+                    echoes: vec!["TRIM : ligne, polyligne ou arc.".into()],
+                    ..Default::default()
+                };
             }
         }
         CommandOutput {
@@ -2738,32 +2901,50 @@ impl<G: IdGen> CommandEngine<G> {
         let Some(target) = self.session.document.get_entity(target_id).cloned() else {
             return CommandOutput::default();
         };
-        let Geometry::Line(target_line) = target.geometry else {
-            return CommandOutput {
-                echoes: vec!["EXTEND M1 : lignes uniquement.".into()],
-                ..Default::default()
-            };
-        };
         let tol = Tolerance::DEFAULT;
         let boundaries: Vec<Line> = self
             .session
             .document
             .entities()
             .filter(|e| e.id != target_id)
-            .filter_map(|e| match &e.geometry {
-                Geometry::Line(l) => Some(*l),
-                _ => None,
+            .flat_map(|e| match &e.geometry {
+                Geometry::Line(l) => vec![*l],
+                Geometry::Polyline(poly) => poly.segments().collect(),
+                _ => vec![],
             })
             .collect();
-        for b in boundaries {
-            if let Some(ext) = extend_line_to(target_line, b, p, tol) {
-                return self.apply_batch(
-                    vec![Operation::SetGeometry {
-                        id: target_id,
-                        geometry: Geometry::Line(ext),
-                    }],
-                    "Prolongé.".into(),
-                );
+        match target.geometry {
+            Geometry::Line(target_line) => {
+                for b in &boundaries {
+                    if let Some(ext) = extend_line_to(target_line, *b, p, tol) {
+                        return self.apply_batch(
+                            vec![Operation::SetGeometry {
+                                id: target_id,
+                                geometry: Geometry::Line(ext),
+                            }],
+                            "Prolongé.".into(),
+                        );
+                    }
+                }
+            }
+            Geometry::Polyline(poly) => {
+                for b in &boundaries {
+                    if let Some(ext) = extend_polyline_to(&poly, *b, p, tol) {
+                        return self.apply_batch(
+                            vec![Operation::SetGeometry {
+                                id: target_id,
+                                geometry: Geometry::Polyline(ext),
+                            }],
+                            "Polyligne prolongée.".into(),
+                        );
+                    }
+                }
+            }
+            _ => {
+                return CommandOutput {
+                    echoes: vec!["EXTEND : ligne ou polyligne ouverte.".into()],
+                    ..Default::default()
+                };
             }
         }
         CommandOutput {
@@ -2956,5 +3137,47 @@ mod tests {
         eng.handle(CommandEvent::Pick(Vec2::ZERO));
         eng.handle(CommandEvent::Pick(Vec2::Y));
         assert_eq!(eng.session.document.entity_count(), 2);
+    }
+
+    #[test]
+    fn circle2p_and_offset_polyline() {
+        let mut eng = engine();
+        eng.handle(CommandEvent::Start(CommandId::Circle2p));
+        eng.handle(CommandEvent::Pick(Vec2::ZERO));
+        eng.handle(CommandEvent::Pick(Vec2::new(10.0, 0.0)));
+        match &eng.session.document.entities().next().unwrap().geometry {
+            Geometry::Circle(c) => assert!((c.radius - 5.0).abs() < 1e-9),
+            _ => panic!("circle"),
+        }
+        // Rectangle far from the circle so OFFSET pick is unambiguous.
+        eng.handle(CommandEvent::Start(CommandId::Rectang));
+        eng.handle(CommandEvent::Pick(Vec2::new(100.0, 100.0)));
+        eng.handle(CommandEvent::Pick(Vec2::new(110.0, 108.0)));
+        eng.handle(CommandEvent::Start(CommandId::Offset));
+        eng.handle(CommandEvent::Text("0.5".into()));
+        eng.handle(CommandEvent::Pick(Vec2::new(100.1, 100.1)));
+        let polys = eng
+            .session
+            .document
+            .entities()
+            .filter(|e| matches!(e.geometry, Geometry::Polyline(_)))
+            .count();
+        assert!(polys >= 2);
+    }
+
+    #[test]
+    fn fillet_polyline_corners() {
+        let mut eng = engine();
+        eng.handle(CommandEvent::Start(CommandId::Rectang));
+        eng.handle(CommandEvent::Pick(Vec2::ZERO));
+        eng.handle(CommandEvent::Pick(Vec2::new(10.0, 10.0)));
+        let id = eng.session.document.entities().next().unwrap().id;
+        eng.selection.set_single(id);
+        eng.handle(CommandEvent::Start(CommandId::Fillet));
+        eng.handle(CommandEvent::Text("1".into()));
+        match &eng.session.document.get_entity(id).unwrap().geometry {
+            Geometry::Polyline(p) => assert!(p.vertices.len() > 4),
+            _ => panic!("polyline"),
+        }
     }
 }

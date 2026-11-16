@@ -63,6 +63,12 @@ pub enum CommandId {
     Spline,
     /// CIRCLE3P
     Circle3p,
+    /// CIRCLE2P (diameter)
+    Circle2p,
+    /// PARALLEL through point
+    Parallel,
+    /// MIDLINE between two points
+    Midline,
     /// FILLET
     Fillet,
     /// CHAMFER
@@ -131,6 +137,9 @@ impl CommandId {
             Self::Ellipse => "ELLIPSE",
             Self::Spline => "SPLINE",
             Self::Circle3p => "CIRCLE3P",
+            Self::Circle2p => "CIRCLE2P",
+            Self::Parallel => "PARALLEL",
+            Self::Midline => "MIDLINE",
             Self::Fillet => "FILLET",
             Self::Chamfer => "CHAMFER",
             Self::TangentPc => "TANGENTPC",
@@ -184,6 +193,9 @@ impl CommandId {
             "ELLIPSE" | "EL" => Self::Ellipse,
             "SPLINE" | "SPL" => Self::Spline,
             "CIRCLE3P" | "C3" | "3P" => Self::Circle3p,
+            "CIRCLE2P" | "C2" | "2P" => Self::Circle2p,
+            "PARALLEL" | "PAR" => Self::Parallel,
+            "MIDLINE" | "ML" => Self::Midline,
             "FILLET" | "F" => Self::Fillet,
             "CHAMFER" | "CHA" => Self::Chamfer,
             "TANGENTPC" | "TANPC" | "LT" => Self::TangentPc,
@@ -210,7 +222,7 @@ impl CommandId {
     }
 }
 
-const ALL_COMMANDS: [CommandId; 46] = [
+const ALL_COMMANDS: [CommandId; 49] = [
     CommandId::Line,
     CommandId::Pline,
     CommandId::Circle,
@@ -241,6 +253,9 @@ const ALL_COMMANDS: [CommandId; 46] = [
     CommandId::Ellipse,
     CommandId::Spline,
     CommandId::Circle3p,
+    CommandId::Circle2p,
+    CommandId::Parallel,
+    CommandId::Midline,
     CommandId::Fillet,
     CommandId::Chamfer,
     CommandId::TangentPc,

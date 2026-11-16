@@ -189,6 +189,28 @@ enum SolidCmd {
         #[arg(long, default_value_t = 2.0)]
         height: f64,
     },
+    /// UV sphere.
+    Sphere {
+        #[arg(long, default_value_t = 1.0)]
+        radius: f64,
+    },
+    /// Cone along +Z.
+    Cone {
+        #[arg(long, default_value_t = 1.0)]
+        radius: f64,
+        #[arg(long, default_value_t = 2.0)]
+        height: f64,
+    },
+    /// Loft square → smaller square.
+    Loft {
+        #[arg(long, default_value_t = 3.0)]
+        height: f64,
+    },
+    /// Sweep a square profile along an L-path.
+    Sweep {
+        #[arg(long, default_value_t = 0.1)]
+        thickness: f64,
+    },
 }
 
 #[derive(Subcommand)]
@@ -465,6 +487,54 @@ fn run(cli: Cli) -> Result<(), String> {
                     .map_err(|e| e.to_string())?;
                 let geoms = k.section(&body, kelicad_solid::Plane::z(height * 0.5));
                 println!("section ok: geoms={}", geoms.len());
+                Ok(())
+            }
+            SolidCmd::Sphere { radius } => {
+                let k = BuiltinSolidKernel;
+                let body = k
+                    .sphere(Vec3::ZERO, radius, 24, 12)
+                    .map_err(|e| e.to_string())?;
+                println!(
+                    "sphere ok: triangles={} aabb_diag={:.3}",
+                    body.mesh.triangle_count(),
+                    body.aabb.size().length()
+                );
+                Ok(())
+            }
+            SolidCmd::Cone { radius, height } => {
+                let k = BuiltinSolidKernel;
+                let body = k
+                    .cone(Vec2::ZERO, radius, height, 24)
+                    .map_err(|e| e.to_string())?;
+                println!(
+                    "cone ok: triangles={} height={:.3}",
+                    body.mesh.triangle_count(),
+                    body.aabb.size().z
+                );
+                Ok(())
+            }
+            SolidCmd::Loft { height } => {
+                let k = BuiltinSolidKernel;
+                let a = Profile2::rectangle(Vec2::ZERO, 4.0, 4.0).map_err(|e| e.to_string())?;
+                let b =
+                    Profile2::rectangle(Vec2::new(1.0, 1.0), 2.0, 2.0).map_err(|e| e.to_string())?;
+                let body = k.loft(&a, &b, height, 6).map_err(|e| e.to_string())?;
+                println!("loft ok: triangles={}", body.mesh.triangle_count());
+                Ok(())
+            }
+            SolidCmd::Sweep { thickness } => {
+                let k = BuiltinSolidKernel;
+                let profile =
+                    Profile2::rectangle(Vec2::new(-0.2, -0.2), 0.4, 0.4).map_err(|e| e.to_string())?;
+                let path = [
+                    Vec2::ZERO,
+                    Vec2::new(5.0, 0.0),
+                    Vec2::new(5.0, 3.0),
+                ];
+                let body = k
+                    .sweep(&profile, &path, thickness)
+                    .map_err(|e| e.to_string())?;
+                println!("sweep ok: triangles={}", body.mesh.triangle_count());
                 Ok(())
             }
         },

@@ -632,9 +632,69 @@ impl WasmCad {
         let body = k
             .extrude(&profile, height)
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.push_solid(body, "EX", "height", &format!("{height}"))
+    }
+
+    /// Create a UV sphere solid.
+    pub fn solid_sphere(&mut self, cx: f64, cy: f64, cz: f64, radius: f64) -> Result<String, JsValue> {
+        let k = BuiltinSolidKernel;
+        let body = k
+            .sphere(kelicad_math::Vec3::new(cx, cy, cz), radius, 24, 12)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.push_solid(body, "SPH", "radius", &format!("{radius}"))
+    }
+
+    /// Create a cone solid along +Z.
+    pub fn solid_cone(
+        &mut self,
+        cx: f64,
+        cy: f64,
+        radius: f64,
+        height: f64,
+    ) -> Result<String, JsValue> {
+        let k = BuiltinSolidKernel;
+        let body = k
+            .cone(Vec2::new(cx, cy), radius, height, 24)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.push_solid(body, "CONE", "height", &format!("{height}"))
+    }
+
+    /// Sweep selected closed profile along selected open polyline path.
+    pub fn solid_sweep_selected(&mut self, thickness: f64) -> Result<String, JsValue> {
+        let profile = find_closed_profile(&self.engine.session.document, &self.engine.selection)
+            .ok_or_else(|| JsValue::from_str("need a closed profile in selection"))?;
+        let path = find_open_path(&self.engine.session.document, &self.engine.selection)
+            .ok_or_else(|| JsValue::from_str("need an open polyline path in selection"))?;
+        let k = BuiltinSolidKernel;
+        let body = k
+            .sweep(&profile, &path, thickness)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.push_solid(body, "SWP", "thickness", &format!("{thickness}"))
+    }
+
+    /// Loft two closed profiles (first two closed polylines in selection) over height.
+    pub fn solid_loft_selected(&mut self, height: f64) -> Result<String, JsValue> {
+        let profiles = find_closed_profiles(&self.engine.session.document, &self.engine.selection, 2);
+        if profiles.len() < 2 {
+            return Err(JsValue::from_str("need 2 closed polylines to loft"));
+        }
+        let k = BuiltinSolidKernel;
+        let body = k
+            .loft(&profiles[0], &profiles[1], height, 6)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.push_solid(body, "LOFT", "height", &format!("{height}"))
+    }
+
+    fn push_solid(
+        &mut self,
+        body: SolidBody,
+        tag_prefix: &str,
+        prop_key: &str,
+        prop_val: &str,
+    ) -> Result<String, JsValue> {
         let elem = BimElement::new(kelicad_bim::BimKind::Wall, body.id)
-            .with_prop("tag", format!("EX-{}", self.solids.len() + 1))
-            .with_prop("height", format!("{height}"));
+            .with_prop("tag", format!("{tag_prefix}-{}", self.solids.len() + 1))
+            .with_prop(prop_key, prop_val);
         let summary = serde_json::json!({
             "solid_id": body.id.to_string(),
             "bim_id": elem.id.to_string(),
@@ -1136,6 +1196,42 @@ fn find_closed_profile(
     doc: &kelicad_doc::Document,
     selection: &kelicad_cmd::Selection,
 ) -> Option<Profile2> {
+    find_closed_profiles(doc, selection, 1).into_iter().next()
+}
+
+fn find_closed_profiles(
+    doc: &kelicad_doc::Document,
+    selection: &kelicad_cmd::Selection,
+    limit: usize,
+) -> Vec<Profile2> {
+    let ids: Vec<EntityId> = if selection.is_empty() {
+        doc.entities().map(|e| e.id).collect()
+    } else {
+        selection.to_vec()
+    };
+    let mut out = Vec::new();
+    for id in ids {
+        if out.len() >= limit {
+            break;
+        }
+        let Some(ent) = doc.get_entity(id) else {
+            continue;
+        };
+        if let Geometry::Polyline(p) = &ent.geometry {
+            if p.closed && p.vertices.len() >= 3 {
+                if let Ok(prof) = Profile2::from_vertices(p.vertices.clone()) {
+                    out.push(prof);
+                }
+            }
+        }
+    }
+    out
+}
+
+fn find_open_path(
+    doc: &kelicad_doc::Document,
+    selection: &kelicad_cmd::Selection,
+) -> Option<Vec<Vec2>> {
     let ids: Vec<EntityId> = if selection.is_empty() {
         doc.entities().map(|e| e.id).collect()
     } else {
@@ -1146,8 +1242,8 @@ fn find_closed_profile(
             continue;
         };
         if let Geometry::Polyline(p) = &ent.geometry {
-            if p.closed && p.vertices.len() >= 3 {
-                return Profile2::from_vertices(p.vertices.clone()).ok();
+            if !p.closed && p.vertices.len() >= 2 {
+                return Some(p.vertices.clone());
             }
         }
     }

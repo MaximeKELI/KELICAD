@@ -1,0 +1,11 @@
+/home/admin20/KELICAD/target-agent/debug/build/zeroize/cb4d7b65585b0152/out/zeroize-cb4d7b65585b0152.d: /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/lib.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/x86.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/barrier.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/stack.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/../README.md
+
+/home/admin20/KELICAD/target-agent/debug/build/zeroize/cb4d7b65585b0152/out/libzeroize-cb4d7b65585b0152.rlib: /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/lib.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/x86.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/barrier.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/stack.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/../README.md
+
+/home/admin20/KELICAD/target-agent/debug/build/zeroize/cb4d7b65585b0152/out/libzeroize-cb4d7b65585b0152.rmeta: /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/lib.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/x86.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/barrier.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/stack.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/../README.md
+
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/lib.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/x86.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/barrier.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/stack.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.1/src/../README.md:
