@@ -681,6 +681,10 @@ body {
 }
 
 .cad-select {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
   background: #1a1a1a;
   color: var(--cad-text);
   border: 1px solid #4a4a4a;
@@ -688,6 +692,9 @@ body {
   font-size: 12px;
   padding: 4px 6px;
   min-width: 100px;
+  min-height: 24px;
+  cursor: pointer;
+  pointer-events: auto;
 }
 
 .cad-select-layer {
