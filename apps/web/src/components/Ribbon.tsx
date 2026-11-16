@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import {
   CATALOG,
@@ -100,32 +100,70 @@ function Flyout({
   size?: "lg" | "md";
 }) {
   const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
+    null,
+  );
+  const rootRef = useRef<HTMLDivElement>(null);
   const main = getTool(mainId);
+
+  const placeMenu = () => {
+    const el = rootRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setMenuPos({ top: r.bottom + 2, left: r.left });
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    placeMenu();
+    const onDoc = (ev: MouseEvent) => {
+      if (!rootRef.current?.contains(ev.target as Node)) setOpen(false);
+    };
+    const onReposition = () => placeMenu();
+    document.addEventListener("mousedown", onDoc);
+    window.addEventListener("resize", onReposition);
+    window.addEventListener("scroll", onReposition, true);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("resize", onReposition);
+      window.removeEventListener("scroll", onReposition, true);
+    };
+  }, [open]);
+
   if (!main) return null;
   const items = itemIds
     .map((id) => getTool(id))
     .filter((t): t is CatalogTool => !!t);
 
   return (
-    <div className="cad-flyout" onMouseLeave={() => setOpen(false)}>
+    <div className="cad-flyout" ref={rootRef}>
       <div className="cad-flyout-main">
         <ToolButton tool={main} size={size} handlers={handlers} />
         <button
           type="button"
           className="cad-flyout-caret"
           aria-label="Plus"
+          aria-expanded={open}
           disabled={main.status === "unavailable"}
-          onClick={() => setOpen((v) => !v)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen((v) => !v);
+          }}
         >
           ▾
         </button>
       </div>
-      {open && (
-        <div className="cad-flyout-menu">
+      {open && menuPos && (
+        <div
+          className="cad-flyout-menu is-fixed"
+          role="menu"
+          style={{ top: menuPos.top, left: menuPos.left }}
+        >
           {items.map((it) => (
             <button
               key={it.id}
               type="button"
+              role="menuitem"
               className={it.status === "unavailable" ? "is-disabled" : ""}
               disabled={it.status === "unavailable"}
               title={it.tip}
@@ -163,12 +201,40 @@ function Panel({
   handlers: RibbonHandlers;
 }) {
   const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
+    null,
+  );
+  const rootRef = useRef<HTMLDivElement>(null);
   const expandTools = (expandIds ?? [])
     .map((id) => getTool(id))
     .filter((t): t is CatalogTool => !!t && t.status !== "unavailable");
 
+  const placeMenu = () => {
+    const el = rootRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setMenuPos({ top: r.bottom + 2, left: r.left });
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    placeMenu();
+    const onDoc = (ev: MouseEvent) => {
+      if (!rootRef.current?.contains(ev.target as Node)) setOpen(false);
+    };
+    const onReposition = () => placeMenu();
+    document.addEventListener("mousedown", onDoc);
+    window.addEventListener("resize", onReposition);
+    window.addEventListener("scroll", onReposition, true);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("resize", onReposition);
+      window.removeEventListener("scroll", onReposition, true);
+    };
+  }, [open]);
+
   return (
-    <div className="cad-panel">
+    <div className="cad-panel" ref={rootRef}>
       <div className="cad-panel-body">{children}</div>
       <div className="cad-panel-title">
         <span>{title}</span>
@@ -176,20 +242,27 @@ function Panel({
           type="button"
           className="cad-panel-expand"
           title={expandTools.length ? "Plus d'outils" : title}
+          aria-expanded={open}
           disabled={expandTools.length === 0}
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             if (expandTools.length) setOpen((v) => !v);
           }}
         >
           ▾
         </button>
       </div>
-      {open && expandTools.length > 0 && (
-        <div className="cad-panel-flyout">
+      {open && expandTools.length > 0 && menuPos && (
+        <div
+          className="cad-panel-flyout is-fixed"
+          role="menu"
+          style={{ top: menuPos.top, left: menuPos.left }}
+        >
           {expandTools.map((t) => (
             <button
               key={t.id}
               type="button"
+              role="menuitem"
               title={t.tip}
               onClick={() => {
                 invokeTool(t, handlers);
@@ -246,7 +319,7 @@ function IconRows({
 
 function PropsStack({ onEcho }: { onEcho: (lines: string[]) => void }) {
   return (
-    <div className="cad-props-stack">
+    <div className="cad-prop-stack">
       <label>
         Couleur
         <select

@@ -32,6 +32,9 @@ body {
 
 /* ——— Ribbon / QAT (AutoCAD-like density & sizing) ——— */
 .cad-ribbon {
+  position: relative;
+  z-index: 40;
+  overflow: visible;
   background: linear-gradient(180deg, #2d2d2d 0%, #232323 55%, #1e1e1e 100%);
   border-bottom: 1px solid #111;
   user-select: none;
@@ -143,9 +146,12 @@ body {
   gap: 0;
   padding: 2px 0 0;
   height: 96px;
+  /* overflow-y:hidden clipped flyout menus — allow visible dropdowns */
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible;
   background: #2b2b2b;
+  position: relative;
+  z-index: 5;
 }
 
 .cad-panel {
@@ -157,6 +163,7 @@ body {
   border-right: 1px solid #555;
   padding: 0;
   margin: 0;
+  overflow: visible;
 }
 
 .cad-panel:last-child {
@@ -214,14 +221,24 @@ body {
 
 .cad-panel-flyout {
   position: absolute;
-  top: calc(100% - 2px);
+  top: calc(100% + 2px);
   left: 0;
-  z-index: 50;
-  min-width: 160px;
-  background: #2a2a2a;
-  border: 1px solid #4a4a4a;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
-  padding: 2px;
+  z-index: 500;
+  min-width: 180px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: #2f2f2f;
+  border: 1px solid #5a5a5a;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  padding: 4px;
+}
+
+.cad-panel-flyout.is-fixed,
+.cad-flyout-menu.is-fixed {
+  position: fixed;
+  top: auto;
+  left: auto;
+  z-index: 10000;
 }
 
 .cad-panel-flyout button {
@@ -502,14 +519,16 @@ body {
 
 .cad-flyout-menu {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 2px);
   left: 0;
-  z-index: 40;
-  min-width: 168px;
-  background: #2a2a2a;
-  border: 1px solid #4a4a4a;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
-  padding: 2px;
+  z-index: 500;
+  min-width: 180px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: #2f2f2f;
+  border: 1px solid #5a5a5a;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  padding: 4px;
 }
 
 .cad-flyout-menu button {
