@@ -123,8 +123,7 @@ impl AuthConfig {
             mode: AuthMode::from_env(),
             secret: std::env::var("KELICAD_JWT_SECRET")
                 .unwrap_or_else(|_| "kelicad-dev-secret-change-me".into()),
-            issuer: std::env::var("KELICAD_JWT_ISSUER")
-                .unwrap_or_else(|_| "kelicad-dev".into()),
+            issuer: std::env::var("KELICAD_JWT_ISSUER").unwrap_or_else(|_| "kelicad-dev".into()),
         }
     }
 
@@ -163,7 +162,7 @@ impl AuthConfig {
     /// Decode and validate a bearer token.
     pub fn decode_token(&self, token: &str) -> Result<AuthUser, StatusCode> {
         let mut validation = Validation::new(Algorithm::HS256);
-        validation.set_issuer(&[self.issuer.clone()]);
+        validation.set_issuer(std::slice::from_ref(&self.issuer));
         let data = decode::<Claims>(
             token,
             &DecodingKey::from_secret(self.secret.as_bytes()),
@@ -179,3 +178,29 @@ impl AuthConfig {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn role_hierarchy() {
+        assert!(Role::Admin.allows(Role::Editor));
+        assert!(Role::Editor.allows(Role::Viewer));
+        assert!(!Role::Viewer.allows(Role::Editor));
+    }
+
+    #[test]
+    fn token_roundtrip() {
+        let cfg = AuthConfig {
+            mode: AuthMode::Dev,
+            secret: "test-secret".into(),
+            issuer: "kelicad-dev".into(),
+        };
+        let tok = cfg.issue_token("alice", "org", Role::Editor, 60).unwrap();
+        let user = cfg.decode_token(&tok).unwrap();
+        assert_eq!(user.sub, "alice");
+        assert_eq!(user.role, Role::Editor);
+        assert!(user.require(Role::Editor).is_ok());
+        assert!(user.require(Role::Admin).is_err());
+    }
+}

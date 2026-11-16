@@ -7,8 +7,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 /// Genesis previous hash (64 zero hex chars).
-pub const GENESIS_PREV: &str =
-    "0000000000000000000000000000000000000000000000000000000000000000";
+pub const GENESIS_PREV: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 
 /// One audit event in the chain.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -152,10 +151,7 @@ fn hash_event(
     prev_hash: &str,
     detail: &Option<serde_json::Value>,
 ) -> String {
-    let detail_s = detail
-        .as_ref()
-        .map(|d| d.to_string())
-        .unwrap_or_default();
+    let detail_s = detail.as_ref().map(|d| d.to_string()).unwrap_or_default();
     let mut hasher = Sha256::new();
     hasher.update(actor.as_bytes());
     hasher.update(b"|");

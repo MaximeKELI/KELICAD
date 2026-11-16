@@ -70,11 +70,7 @@ impl FromRequestParts<Arc<AppState>> for GatewayUser {
         parts: &'life0 mut Parts,
         state: &'life1 Arc<AppState>,
     ) -> core::pin::Pin<
-        Box<
-            dyn core::future::Future<Output = Result<Self, Self::Rejection>>
-                + Send
-                + 'async_trait,
-        >,
+        Box<dyn core::future::Future<Output = Result<Self, Self::Rejection>> + Send + 'async_trait>,
     >
     where
         'life0: 'async_trait,
@@ -177,7 +173,9 @@ async fn dev_token(
         .auth
         .issue_token(&body.sub, &body.org, role, 3600)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(Json(serde_json::json!({ "access_token": token, "token_type": "Bearer" })))
+    Ok(Json(
+        serde_json::json!({ "access_token": token, "token_type": "Bearer" }),
+    ))
 }
 
 async fn create_room(
@@ -312,8 +310,7 @@ async fn vectorize(
             "input.bin".into()
         }
     });
-    let geoms =
-        vectorize_bytes(&body, Some(&hint)).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let geoms = vectorize_bytes(&body, Some(&hint)).map_err(|_| StatusCode::BAD_REQUEST)?;
     let entities: Vec<_> = geoms
         .into_iter()
         .map(|g| serde_json::json!({ "geometry": g }))
@@ -376,13 +373,11 @@ async fn me_delete(
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
-    state.audit.lock().await.append(
-        "system",
-        "gdpr.purge",
-        &user.sub,
-        ts,
-        None,
-    );
+    state
+        .audit
+        .lock()
+        .await
+        .append("system", "gdpr.purge", &user.sub, ts, None);
     Ok(Json(serde_json::json!({ "ok": true, "purged": user.sub })))
 }
 
@@ -410,7 +405,7 @@ async fn handle_socket(socket: WebSocket, room_id: String, state: Arc<AppState>)
         }
     };
     if let Ok(text) = serde_json::to_string(&snapshot) {
-        let _ = sink.send(Message::Text(text.into())).await;
+        let _ = sink.send(Message::Text(text)).await;
     }
     loop {
         tokio::select! {
@@ -428,7 +423,7 @@ async fn handle_socket(socket: WebSocket, room_id: String, state: Arc<AppState>)
                 }
             }
             Ok(broadcasted) = rx.recv() => {
-                if sink.send(Message::Text(broadcasted.into())).await.is_err() {
+                if sink.send(Message::Text(broadcasted)).await.is_err() {
                     break;
                 }
             }

@@ -43,7 +43,10 @@ mod tests {
         assert!(loaded.document.entity_count() >= 1);
         let out = export_dwg(&loaded, &bridge).unwrap();
         let (again, n2) = import_dwg(&out, &bridge).unwrap();
-        assert_eq!(again.document.entity_count(), loaded.document.entity_count());
+        assert_eq!(
+            again.document.entity_count(),
+            loaded.document.entity_count()
+        );
         assert_eq!(n2, n);
     }
 }

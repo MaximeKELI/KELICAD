@@ -497,8 +497,7 @@ fn run(cli: Cli) -> Result<(), String> {
         Commands::Market { cmd } => match cmd {
             MarketCmd::List { catalog } => {
                 let text = fs::read_to_string(catalog).map_err(|e| e.to_string())?;
-                let cat: MarketCatalog =
-                    serde_json::from_str(&text).map_err(|e| e.to_string())?;
+                let cat: MarketCatalog = serde_json::from_str(&text).map_err(|e| e.to_string())?;
                 for e in &cat.entries {
                     println!("{} {} — {} ({})", e.id, e.version, e.description, e.path);
                 }
@@ -506,16 +505,14 @@ fn run(cli: Cli) -> Result<(), String> {
             }
             MarketCmd::Verify { catalog } => {
                 let text = fs::read_to_string(catalog).map_err(|e| e.to_string())?;
-                let cat: MarketCatalog =
-                    serde_json::from_str(&text).map_err(|e| e.to_string())?;
+                let cat: MarketCatalog = serde_json::from_str(&text).map_err(|e| e.to_string())?;
                 verify_catalog(&cat).map_err(|e| e.to_string())?;
                 println!("market verify ok: {} entries", cat.entries.len());
                 Ok(())
             }
             MarketCmd::Install { id, catalog, dir } => {
                 let text = fs::read_to_string(&catalog).map_err(|e| e.to_string())?;
-                let cat: MarketCatalog =
-                    serde_json::from_str(&text).map_err(|e| e.to_string())?;
+                let cat: MarketCatalog = serde_json::from_str(&text).map_err(|e| e.to_string())?;
                 let entry = cat
                     .entries
                     .iter()
