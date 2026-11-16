@@ -22,48 +22,23 @@ import {
 import { parseCadOutput, type CadSession } from "./cad/types";
 import { BlockLibrary } from "./components/BlockLibrary";
 import { CollabBar } from "./components/CollabBar";
-import { CommentsPanel } from "./components/CommentsPanel";
 import { CommandLine } from "./components/CommandLine";
 import { DrawingViewport } from "./components/DrawingViewport";
 import { KeliPanel } from "./components/KeliPanel";
 import { LayerPanel } from "./components/LayerPanel";
 import { PropertiesPanel } from "./components/PropertiesPanel";
+import { Ribbon } from "./components/Ribbon";
 import { SelectionPanel } from "./components/SelectionPanel";
-import { ShapePalette } from "./components/ShapePalette";
 import { StatusBar } from "./components/StatusBar";
+import { ToolRail } from "./components/ToolRail";
 import { Viewport3D } from "./components/Viewport3D";
-
-const QUICK = [
-  "M",
-  "CO",
-  "RO",
-  "SC",
-  "MI",
-  "O",
-  "TR",
-  "EX",
-  "F",
-  "CHA",
-  "STRETCH",
-  "AR",
-  "APOLAR",
-  "DLI",
-  "DCO",
-  "DBA",
-  "SEC",
-  "H",
-  "B",
-  "I",
-  "E",
-  "U",
-];
 
 export function App() {
   const [cad, setCad] = useState<CadSession | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [echoes, setEchoes] = useState<string[]>([
-    "KELICAD P2 — viewport 3D WebGPU · solids · booléens · vues ISO · shell Tauri.",
+    "KELICAD prêt — tapez L / C / REC ou utilisez le ruban.",
   ]);
   const [revision, setRevision] = useState(0);
   const [entityCount, setEntityCount] = useState(0);
@@ -72,8 +47,14 @@ export function App() {
   const [displayName, setDisplayName] = useState("Alice");
   const [peers, setPeers] = useState<PeerPresence[]>([]);
   const [peerTick, setPeerTick] = useState(0);
-  const [viewMode, setViewMode] = useState<"2d" | "split" | "3d">("split");
+  const [viewMode, setViewMode] = useState<"2d" | "split" | "3d">("2d");
   const [solidCount, setSolidCount] = useState(0);
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
+  const [layout, setLayout] = useState<"model" | "layout1">("model");
+  const [dockTab, setDockTab] = useState<"layers" | "blocks" | "props" | "keli">(
+    "layers",
+  );
+  const [activeCmd, setActiveCmd] = useState<string | null>(null);
 
   useEffect(() => {
     void loadCad()

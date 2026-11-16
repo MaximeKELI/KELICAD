@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --cad-bg: #0e0e0e;
+  --cad-chrome: #1b1b1b;
+  --cad-chrome-2: #232323;
+  --cad-border: #2e2e2e;
+  --cad-border-soft: #3a3a3a;
+  --cad-text: #e6e6e6;
+  --cad-muted: #8a8a8a;
+  --cad-accent: #2d8cff;
+  --cad-accent-dim: #1a5fb4;
+  --cad-canvas: #0a0a0a;
+  --cad-warn: #e6a23c;
+}
+
 html,
 body,
 #root {
@@ -10,5 +24,504 @@ body,
 }
 
 body {
-  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  font-family: "Segoe UI", "IBM Plex Sans", system-ui, sans-serif;
+  background: var(--cad-bg);
+  color: var(--cad-text);
+  overflow: hidden;
+}
+
+/* ——— Ribbon / QAT ——— */
+.cad-ribbon {
+  background: linear-gradient(180deg, #252525 0%, #1c1c1c 100%);
+  border-bottom: 1px solid var(--cad-border);
+  user-select: none;
+}
+
+.cad-qat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px;
+  background: #141414;
+  border-bottom: 1px solid var(--cad-border);
+  min-height: 28px;
+}
+
+.cad-brand {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--cad-accent);
+  margin-right: 4px;
+}
+
+.cad-qat-btns {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cad-qat-btns button {
+  width: 26px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--cad-text);
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.cad-qat-btns button:hover {
+  background: #333;
+}
+
+.cad-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--cad-border-soft);
+  margin: 0 4px;
+}
+
+.cad-docname {
+  margin-left: 8px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--cad-muted);
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cad-stats {
+  margin-left: auto;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--cad-muted);
+}
+
+.cad-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 6px;
+  background: #1a1a1a;
+}
+
+.cad-tab {
+  border: none;
+  background: transparent;
+  color: var(--cad-muted);
+  font-size: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.cad-tab:hover {
+  color: var(--cad-text);
+  background: #2a2a2a;
+}
+
+.cad-tab.is-active {
+  color: var(--cad-text);
+  border-bottom-color: var(--cad-accent);
+  background: #222;
+}
+
+.cad-ribbon-body {
+  display: flex;
+  gap: 0;
+  padding: 4px 6px 2px;
+  min-height: 78px;
+  overflow-x: auto;
+  background: #222;
+}
+
+.cad-panel {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--cad-border);
+  padding: 0 8px 2px;
+  min-width: fit-content;
+}
+
+.cad-panel:last-child {
+  border-right: none;
+}
+
+.cad-panel-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-content: flex-start;
+  flex: 1;
+}
+
+.cad-panel-title {
+  text-align: center;
+  font-size: 9px;
+  color: var(--cad-muted);
+  margin-top: 2px;
+  letter-spacing: 0.04em;
+}
+
+.cad-rbtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  height: 44px;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--cad-text);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.cad-rbtn:hover {
+  background: #2f2f2f;
+  border-color: #444;
+}
+
+.cad-rbtn.is-active {
+  background: #1a3a5c;
+  border-color: var(--cad-accent-dim);
+}
+
+.cad-rbtn-wide {
+  min-width: 72px;
+}
+
+.cad-rbtn-label {
+  font-size: 11px;
+  line-height: 1.1;
+}
+
+.cad-rbtn-sub {
+  font-size: 9px;
+  color: var(--cad-muted);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.cad-layer-combo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.cad-swatch {
+  width: 14px;
+  height: 14px;
+  border: 1px solid #666;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.cad-select {
+  background: #111;
+  color: var(--cad-text);
+  border: 1px solid var(--cad-border-soft);
+  border-radius: 2px;
+  font-size: 11px;
+  padding: 2px 4px;
+  min-width: 100px;
+}
+
+.cad-prop-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cad-prop-stack label {
+  display: flex;
+  flex-direction: column;
+  font-size: 9px;
+  color: var(--cad-muted);
+  gap: 1px;
+}
+
+/* ——— Left tool rail ——— */
+.cad-rail {
+  background: #181818;
+}
+
+.cad-tool {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #c8c8c8;
+  cursor: pointer;
+  border-radius: 0;
+}
+
+.cad-tool:hover {
+  background: #2c2c2c;
+  color: #fff;
+}
+
+.cad-tool.is-active {
+  background: #1a3a5c;
+  color: #fff;
+  box-shadow: inset 2px 0 0 var(--cad-accent);
+}
+
+/* ——— Command line ——— */
+.cad-cmdline {
+  background: #161616;
+  border-top: 1px solid var(--cad-border);
+  padding: 4px 10px 6px;
+}
+
+.cad-echo {
+  max-height: 4.5rem;
+  overflow-y: auto;
+  font-size: 11px;
+  color: #7a7a7a;
+  line-height: 1.35;
+  margin-bottom: 2px;
+}
+
+.cad-cmdrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #0c0c0c;
+  border: 1px solid #333;
+  border-radius: 2px;
+  padding: 4px 8px;
+}
+
+.cad-prompt {
+  flex-shrink: 0;
+  color: var(--cad-accent);
+  font-size: 12px;
+}
+
+.cad-cmdinput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #eee;
+  font-size: 13px;
+}
+
+.cad-cmdinput::placeholder {
+  color: #555;
+}
+
+/* ——— Status bar ——— */
+.cad-statusbar {
+  display: flex;
+  align-items: stretch;
+  background: #1a1a1a;
+  border-top: 1px solid var(--cad-border);
+  min-height: 26px;
+  font-size: 11px;
+}
+
+.cad-layout-tabs {
+  display: flex;
+  align-items: stretch;
+  border-right: 1px solid var(--cad-border);
+}
+
+.cad-layout-tabs button {
+  border: none;
+  background: transparent;
+  color: var(--cad-muted);
+  padding: 0 10px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.cad-layout-tabs button.is-active {
+  background: #2a2a2a;
+  color: #fff;
+  box-shadow: inset 0 -2px 0 var(--cad-accent);
+}
+
+.cad-layout-tabs .cad-plus {
+  color: #666;
+}
+
+.cad-coords {
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  color: #b0b0b0;
+  border-right: 1px solid var(--cad-border);
+  min-width: 140px;
+}
+
+.cad-tray {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.cad-tray button {
+  border: none;
+  background: transparent;
+  color: #777;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.cad-tray button:hover:not(:disabled) {
+  background: #2a2a2a;
+  color: #ddd;
+}
+
+.cad-tray button.is-on {
+  background: #1a3a5c;
+  color: #9fd0ff;
+}
+
+.cad-tray button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.cad-tray-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--cad-border-soft);
+  margin: 0 4px;
+}
+
+.cad-tray-meta {
+  color: #777;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+.cad-tray-meta b {
+  color: #ddd;
+  font-weight: 600;
+}
+
+.cad-tray-hint {
+  margin-left: auto;
+  color: #555;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* ——— Dock panels ——— */
+.cad-dock {
+  background: #1a1a1a;
+  border-left: 1px solid var(--cad-border);
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  min-width: 200px;
+}
+
+.cad-dock-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--cad-border);
+  background: #141414;
+}
+
+.cad-dock-tabs button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #777;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 6px 4px;
+  cursor: pointer;
+}
+
+.cad-dock-tabs button.is-active {
+  color: #eee;
+  background: #222;
+  box-shadow: inset 0 -2px 0 var(--cad-accent);
+}
+
+.cad-dock-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.cad-canvas-wrap {
+  position: relative;
+  background: var(--cad-canvas);
+  background-image: radial-gradient(circle, #1a1a1a 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.cad-viewcube {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: auto;
+}
+
+.cad-viewcube button {
+  width: 44px;
+  height: 22px;
+  font-size: 9px;
+  font-family: "IBM Plex Mono", monospace;
+  border: 1px solid #444;
+  background: rgba(20, 20, 20, 0.85);
+  color: #bbb;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.cad-viewcube button:hover {
+  border-color: var(--cad-accent);
+  color: #fff;
+}
+
+.cad-navrail {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cad-navrail button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #333;
+  background: rgba(20, 20, 20, 0.8);
+  color: #aaa;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.cad-navrail button:hover {
+  border-color: #666;
+  color: #fff;
 }

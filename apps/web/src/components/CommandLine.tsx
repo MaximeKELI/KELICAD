@@ -15,19 +15,19 @@ export function CommandLine({ prompt, echoes, onSubmit }: Props) {
   }, [prompt]);
 
   return (
-    <div className="border-t border-ink-700/60 bg-ink-900 px-3 py-2 font-mono text-sm">
-      <div className="mb-1 max-h-16 overflow-y-auto text-ink-500">
-        {echoes.slice(-4).map((line, i) => (
-          <div key={`${i}-${line}`}>{line}</div>
+    <div className="cad-cmdline">
+      <div className="cad-echo font-mono">
+        {echoes.slice(-5).map((line, i) => (
+          <div key={`${i}-${line.slice(0, 24)}`}>{line}</div>
         ))}
       </div>
-      <div className="flex items-center gap-2">
-        <span className="shrink-0 text-accent-soft">
-          {prompt || "Commande :"}
+      <div className="cad-cmdrow">
+        <span className="cad-prompt font-mono">
+          {prompt || "Type a command"}
         </span>
         <input
           ref={inputRef}
-          className="w-full bg-transparent text-ink-100 outline-none"
+          className="cad-cmdinput font-mono"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
@@ -39,6 +39,7 @@ export function CommandLine({ prompt, echoes, onSubmit }: Props) {
           spellCheck={false}
           autoComplete="off"
           aria-label="Ligne de commande KELICAD"
+          placeholder="L, C, M, REC…"
         />
       </div>
     </div>

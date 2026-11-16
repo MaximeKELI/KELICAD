@@ -5,10 +5,20 @@ import type { CadSession, CadStatus } from "../cad/types";
 type Props = {
   cad: CadSession;
   revision: number;
+  cursor?: { x: number; y: number } | null;
+  layout: "model" | "layout1";
+  onLayout: (l: "model" | "layout1") => void;
   onChanged: () => void;
 };
 
-export function StatusBar({ cad, revision, onChanged }: Props) {
+export function StatusBar({
+  cad,
+  revision,
+  cursor,
+  layout,
+  onLayout,
+  onChanged,
+}: Props) {
   const [status, setStatus] = useState<CadStatus | null>(null);
 
   useEffect(() => {
@@ -22,47 +32,82 @@ export function StatusBar({ cad, revision, onChanged }: Props) {
   if (!status) return null;
 
   const toggle = (key: "ortho" | "osnap") => {
-    if (key === "ortho") {
-      cad.set_ortho(!status.ortho);
-    } else {
-      cad.set_osnap(!status.osnap);
-    }
+    if (key === "ortho") cad.set_ortho(!status.ortho);
+    else cad.set_osnap(!status.osnap);
     onChanged();
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-t border-ink-700/60 bg-ink-950 px-3 py-1 font-mono text-[11px] text-ink-400">
-      <span>
-        Calque{" "}
-        <span className="text-ink-100">{status.layer}</span>
-      </span>
-      <button
-        type="button"
-        title="F8 — Ortho"
-        className={`rounded px-2 py-0.5 ${status.ortho ? "bg-accent-soft/25 text-accent-soft" : "hover:bg-ink-800"}`}
-        onClick={() => toggle("ortho")}
-      >
-        ORTHO
-      </button>
-      <button
-        type="button"
-        title="F3 — Accrochage"
-        className={`rounded px-2 py-0.5 ${status.osnap ? "bg-accent-soft/25 text-accent-soft" : "hover:bg-ink-800"}`}
-        onClick={() => toggle("osnap")}
-      >
-        OSNAP
-      </button>
-      <span className="text-ink-600">|</span>
-      <span>
-        Sél. <span className="text-ink-100">{status.selection}</span>
-      </span>
-      <span>
-        Ent. <span className="text-ink-100">{status.entities}</span>
-      </span>
-      <span>
-        3D <span className="text-ink-100">{status.solids}</span>
-      </span>
-      <span className="ml-auto text-ink-600">F3 OSNAP · F8 ORTHO · Espace pan</span>
+    <div className="cad-statusbar">
+      <div className="cad-layout-tabs">
+        <button
+          type="button"
+          className={layout === "model" ? "is-active" : ""}
+          onClick={() => onLayout("model")}
+        >
+          Model
+        </button>
+        <button
+          type="button"
+          className={layout === "layout1" ? "is-active" : ""}
+          onClick={() => onLayout("layout1")}
+        >
+          Layout1
+        </button>
+        <button type="button" className="cad-plus" title="Nouveau layout">
+          +
+        </button>
+      </div>
+
+      <div className="cad-coords font-mono">
+        {cursor
+          ? `${cursor.x.toFixed(3)}, ${cursor.y.toFixed(3)}`
+          : "—, —"}
+      </div>
+
+      <div className="cad-tray">
+        <button
+          type="button"
+          title="Grille (affichage)"
+          className="is-on"
+          disabled
+        >
+          GRID
+        </button>
+        <button
+          type="button"
+          title="F8 — Ortho"
+          className={status.ortho ? "is-on" : ""}
+          onClick={() => toggle("ortho")}
+        >
+          ORTHO
+        </button>
+        <button
+          type="button"
+          title="F3 — Accrochage objets"
+          className={status.osnap ? "is-on" : ""}
+          onClick={() => toggle("osnap")}
+        >
+          OSNAP
+        </button>
+        <button type="button" title="Polar (bientôt)" disabled>
+          POLAR
+        </button>
+        <span className="cad-tray-sep" />
+        <span className="cad-tray-meta">
+          Sél.&nbsp;<b>{status.selection}</b>
+        </span>
+        <span className="cad-tray-meta">
+          Ent.&nbsp;<b>{status.entities}</b>
+        </span>
+        <span className="cad-tray-meta">
+          3D&nbsp;<b>{status.solids}</b>
+        </span>
+        <span className="cad-tray-meta">
+          Calque&nbsp;<b>{status.layer}</b>
+        </span>
+        <span className="cad-tray-hint">F3 OSNAP · F8 ORTHO · Espace=pan</span>
+      </div>
     </div>
   );
 }
