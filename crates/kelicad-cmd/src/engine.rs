@@ -2995,7 +2995,7 @@ impl<G: IdGen> CommandEngine<G> {
                             kind,
                             geometry: Geometry::Circle(Circle::new(c, r)),
                             layer_id,
-                            props: Default::default(),
+                            props: self.drafting_props(),
         },
                     });
                 }
@@ -3085,7 +3085,7 @@ impl<G: IdGen> CommandEngine<G> {
                             kind: EntityKind::Line,
                             geometry: Geometry::Line(line),
                             layer_id,
-                            props: Default::default(),
+                            props: self.drafting_props(),
         },
                     });
                 }
@@ -3150,7 +3150,7 @@ impl<G: IdGen> CommandEngine<G> {
                                         kind: EntityKind::Line,
                                         geometry: Geometry::Line(line),
                                         layer_id,
-                                        props: Default::default(),
+                                        props: self.drafting_props(),
         },
                                 });
                             }
@@ -3179,7 +3179,7 @@ impl<G: IdGen> CommandEngine<G> {
                                 kind: EntityKind::Line,
                                 geometry: Geometry::Line(line),
                                 layer_id,
-                                props: Default::default(),
+                                props: self.drafting_props(),
         },
                         });
                     }
@@ -3227,7 +3227,7 @@ impl<G: IdGen> CommandEngine<G> {
                             kind: EntityKind::Line,
                             geometry: Geometry::Line(line),
                             layer_id,
-                            props: Default::default(),
+                            props: self.drafting_props(),
         },
                     });
                 }
@@ -3265,7 +3265,7 @@ impl<G: IdGen> CommandEngine<G> {
                                             kind: EntityKind::Line,
                                             geometry: Geometry::Line(line),
                                             layer_id,
-                                            props: Default::default(),
+                                            props: self.drafting_props(),
         },
                                     });
                                 }
@@ -3312,7 +3312,7 @@ impl<G: IdGen> CommandEngine<G> {
                                             kind: EntityKind::Line,
                                             geometry: Geometry::Line(line),
                                             layer_id,
-                                            props: Default::default(),
+                                            props: self.drafting_props(),
         },
                                     });
                                 }
@@ -4116,7 +4116,7 @@ impl<G: IdGen> CommandEngine<G> {
                     kind: EntityKind::Arc,
                     geometry: Geometry::Arc(arc),
                     layer_id,
-                    props: Default::default(),
+                    props: self.drafting_props(),
         },
             },
         ];
@@ -4174,7 +4174,7 @@ impl<G: IdGen> CommandEngine<G> {
                     kind: EntityKind::Line,
                     geometry: Geometry::Line(ch),
                     layer_id,
-                    props: Default::default(),
+                    props: self.drafting_props(),
         },
             },
         ];
@@ -4203,7 +4203,7 @@ impl<G: IdGen> CommandEngine<G> {
                             kind: ent.kind,
                             geometry: ent.geometry.translated(*off),
                             layer_id: ent.layer_id,
-                            props: Default::default(),
+                            props: ent.props.clone(),
         },
                     });
                 }
@@ -4236,7 +4236,7 @@ impl<G: IdGen> CommandEngine<G> {
                             kind: ent.kind,
                             geometry: g,
                             layer_id: ent.layer_id,
-                            props: Default::default(),
+                            props: ent.props.clone(),
         },
                     });
                 }
@@ -4316,7 +4316,7 @@ impl<G: IdGen> CommandEngine<G> {
                     kind: EntityKind::Line,
                     geometry: Geometry::Line(b),
                     layer_id: ent.layer_id,
-                    props: Default::default(),
+                    props: ent.props.clone(),
         },
             },
         ];
@@ -4393,7 +4393,7 @@ impl<G: IdGen> CommandEngine<G> {
                                 kind: EntityKind::Line,
                                 geometry: Geometry::Line(seg),
                                 layer_id: ent.layer_id,
-                                props: Default::default(),
+                                props: ent.props.clone(),
         },
                         });
                     }
@@ -4411,7 +4411,7 @@ impl<G: IdGen> CommandEngine<G> {
                                 kind: geom.kind(),
                                 geometry: geom,
                                 layer_id: ent.layer_id,
-                                props: Default::default(),
+                                props: ent.props.clone(),
         },
                         });
                     }
@@ -4513,7 +4513,7 @@ impl<G: IdGen> CommandEngine<G> {
                     kind: geom.kind(),
                     geometry: geom,
                     layer_id,
-                    props: Default::default(),
+                    props: self.drafting_props(),
         },
             },
         ];
@@ -4564,7 +4564,7 @@ impl<G: IdGen> CommandEngine<G> {
                         kind: ent.kind,
                         geometry: ent.geometry.translated(delta),
                         layer_id: ent.layer_id,
-                        props: Default::default(),
+                        props: ent.props.clone(),
         },
                 });
             } else {
@@ -4650,7 +4650,7 @@ impl<G: IdGen> CommandEngine<G> {
                 kind: EntityKind::Line,
                 geometry: Geometry::Line(Line::new(a, b)),
                 layer_id,
-                props: Default::default(),
+                props: self.drafting_props(),
         },
         });
         // End ticks (section arrows)
@@ -4663,7 +4663,7 @@ impl<G: IdGen> CommandEngine<G> {
                     kind: EntityKind::Line,
                     geometry: Geometry::Line(Line::new(p, tip)),
                     layer_id,
-                    props: Default::default(),
+                    props: self.drafting_props(),
         },
             });
             let id2 = self.ids.next();
@@ -4673,7 +4673,7 @@ impl<G: IdGen> CommandEngine<G> {
                     kind: EntityKind::Line,
                     geometry: Geometry::Line(Line::new(tip, tip + dir * tick * 0.6 - nrm * tick * 0.35 * sign)),
                     layer_id,
-                    props: Default::default(),
+                    props: self.drafting_props(),
         },
             });
         }
@@ -4694,7 +4694,7 @@ impl<G: IdGen> CommandEngine<G> {
                         annotative: false,
                     }),
                     layer_id,
-                    props: Default::default(),
+                    props: self.drafting_props(),
                 },
             });
         }
@@ -5431,6 +5431,50 @@ fn prompt(fr: &str, en: &str) -> EnginePrompt {
     EnginePrompt {
         message_fr: fr.into(),
         message_en: en.into(),
+    }
+}
+
+fn parse_cecolor(raw: &str) -> Option<[u8; 3]> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "" | "bylayer" | "byblock" => None,
+        "red" | "1" => Some([255, 0, 0]),
+        "yellow" | "2" => Some([255, 255, 0]),
+        "green" | "3" => Some([0, 255, 0]),
+        "cyan" | "4" => Some([0, 255, 255]),
+        "blue" | "5" => Some([0, 0, 255]),
+        "magenta" | "6" => Some([255, 0, 255]),
+        "white" | "7" => Some([255, 255, 255]),
+        other => {
+            // "r,g,b"
+            let parts: Vec<_> = other.split(',').collect();
+            if parts.len() == 3 {
+                if let (Ok(r), Ok(g), Ok(b)) = (
+                    parts[0].trim().parse::<u8>(),
+                    parts[1].trim().parse::<u8>(),
+                    parts[2].trim().parse::<u8>(),
+                ) {
+                    return Some([r, g, b]);
+                }
+            }
+            None
+        }
+    }
+}
+
+fn parse_celtype(raw: &str) -> Option<String> {
+    let t = raw.trim();
+    if t.is_empty() || t.eq_ignore_ascii_case("BYLAYER") || t.eq_ignore_ascii_case("BYBLOCK") {
+        None
+    } else {
+        Some(t.to_ascii_uppercase())
+    }
+}
+
+fn parse_celweight(v: i64) -> Option<u16> {
+    if v < 0 {
+        None
+    } else {
+        Some(v as u16)
     }
 }
 

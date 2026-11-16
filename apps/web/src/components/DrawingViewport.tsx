@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import type { PeerPresence } from "../cad/collab";
 import type { CadSession } from "../cad/types";
@@ -12,6 +12,7 @@ type Props = {
   peers?: PeerPresence[];
   peerTick?: number;
   onHoverWorld?: (x: number, y: number) => void;
+  paperLayout?: boolean;
 };
 
 export function DrawingViewport({
@@ -21,6 +22,7 @@ export function DrawingViewport({
   peers = [],
   peerTick = 0,
   onHoverWorld,
+  paperLayout = false,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -51,8 +53,9 @@ export function DrawingViewport({
     height: number;
     crossing: boolean;
   } | null>(null);
+  const [gridOn, setGridOn] = useState(false);
+  const [gridUnit, setGridUnit] = useState(10);
   void peerTick;
-  void camVersion;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -138,6 +141,7 @@ export function DrawingViewport({
       e.preventDefault();
       const cam = cameraRef.current;
       cam.zoom = Math.min(Math.max(cam.zoom * (e.deltaY > 0 ? 1.1 : 1 / 1.1), 1), 50_000);
+      setCamVersion((n) => n + 1);
     };
 
     const isTypingTarget = (t: EventTarget | null) => {
@@ -182,6 +186,60 @@ export function DrawingViewport({
         onOutput(
           JSON.stringify({
             echoes: [`OSNAP ${cad.osnap() ? "ON" : "OFF"}`],
+            document_changed: true,
+            ghost_count: 0,
+          }),
+        );
+      }
+      if (e.key === "F7") {
+        e.preventDefault();
+        const on = (() => {
+          try {
+            return JSON.parse(cad.status_json()).grid as boolean;
+          } catch {
+            return false;
+          }
+        })();
+        cad.set_sysvar("GRIDMODE", on ? "0" : "1");
+        onOutput(
+          JSON.stringify({
+            echoes: [`GRID ${on ? "OFF" : "ON"}`],
+            document_changed: true,
+            ghost_count: 0,
+          }),
+        );
+      }
+      if (e.key === "F9") {
+        e.preventDefault();
+        const on = (() => {
+          try {
+            return JSON.parse(cad.status_json()).snap as boolean;
+          } catch {
+            return false;
+          }
+        })();
+        cad.set_sysvar("SNAPMODE", on ? "0" : "1");
+        onOutput(
+          JSON.stringify({
+            echoes: [`SNAP ${on ? "OFF" : "ON"}`],
+            document_changed: true,
+            ghost_count: 0,
+          }),
+        );
+      }
+      if (e.key === "F10") {
+        e.preventDefault();
+        const on = (() => {
+          try {
+            return JSON.parse(cad.status_json()).polar as boolean;
+          } catch {
+            return false;
+          }
+        })();
+        cad.set_sysvar("POLARMODE", on ? "0" : "1");
+        onOutput(
+          JSON.stringify({
+            echoes: [`POLAR ${on ? "OFF" : "ON"}`],
             document_changed: true,
             ghost_count: 0,
           }),
@@ -377,6 +435,19 @@ export function DrawingViewport({
     return () => window.removeEventListener("kelicad-view", onView);
   }, [cad]);
 
+  useEffect(() => {
+    try {
+      const st = JSON.parse(cad.status_json()) as {
+        grid?: boolean;
+        grid_unit?: number;
+      };
+      setGridOn(!!st.grid);
+      setGridUnit(Math.max(st.grid_unit ?? 10, 0.1));
+    } catch {
+      setGridOn(false);
+    }
+  }, [cad, revision, camVersion]);
+
   const clientFromWorld = (wx: number, wy: number) => {
     const wrap = wrapRef.current;
     if (!wrap) return { x: 0, y: 0 };
@@ -390,12 +461,77 @@ export function DrawingViewport({
     return { x: nx * rect.width, y: ny * rect.height };
   };
 
+  const gridLines = (() => {
+    if (!gridOn) return null;
+    const wrap = wrapRef.current;
+    if (!wrap) return null;
+    const rect = wrap.getBoundingClientRect();
+    const cam = cameraRef.current;
+    const aspect = rect.width / Math.max(rect.height, 1);
+    const halfH = cam.zoom * 0.5;
+    const halfW = halfH * aspect;
+    const minX = cam.x - halfW;
+    const maxX = cam.x + halfW;
+    const minY = cam.y - halfH;
+    const maxY = cam.y + halfH;
+    const step = gridUnit;
+    const lines: ReactNode[] = [];
+    const x0 = Math.floor(minX / step) * step;
+    const y0 = Math.floor(minY / step) * step;
+    let i = 0;
+    for (let x = x0; x <= maxX + step; x += step) {
+      const a = clientFromWorld(x, minY);
+      const b = clientFromWorld(x, maxY);
+      const major = Math.abs(x % (step * 5)) < step * 0.01;
+      lines.push(
+        <line
+          key={`vx${i++}`}
+          x1={a.x}
+          y1={a.y}
+          x2={b.x}
+          y2={b.y}
+          stroke={major ? "rgba(120,140,160,0.35)" : "rgba(90,100,120,0.18)"}
+          strokeWidth={1}
+        />,
+      );
+    }
+    for (let y = y0; y <= maxY + step; y += step) {
+      const a = clientFromWorld(minX, y);
+      const b = clientFromWorld(maxX, y);
+      const major = Math.abs(y % (step * 5)) < step * 0.01;
+      lines.push(
+        <line
+          key={`hy${i++}`}
+          x1={a.x}
+          y1={a.y}
+          x2={b.x}
+          y2={b.y}
+          stroke={major ? "rgba(120,140,160,0.35)" : "rgba(90,100,120,0.18)"}
+          strokeWidth={1}
+        />,
+      );
+    }
+    return lines;
+  })();
+
   return (
     <div ref={wrapRef} className="relative h-full w-full overflow-hidden">
       <canvas
         ref={canvasRef}
         className="h-full w-full touch-none cursor-crosshair"
       />
+      {gridOn && (
+        <svg className="pointer-events-none absolute inset-0 z-[1] h-full w-full">
+          {gridLines}
+        </svg>
+      )}
+      {paperLayout && (
+        <div className="pointer-events-none absolute inset-6 z-[2] rounded-sm border border-[#8a7a4a]/60 bg-[#1a1812]/35 shadow-[inset_0_0_0_1px_rgba(200,180,100,0.15)]">
+          <span className="absolute left-2 top-1 font-mono text-[10px] text-[#cbb56a]">
+            Layout1 · espace papier
+          </span>
+        </div>
+      )}
       {peers.map((p) => {
         if (!p.cursor) return null;
         const pos = clientFromWorld(p.cursor.x, p.cursor.y);
@@ -432,8 +568,8 @@ export function DrawingViewport({
           }}
         />
       )}
-      <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/60 px-2 py-0.5 font-mono text-[10px] text-[#aaa]">
-        Clic · Entrée/Espace/clic-droit = fin · Échap · Molette/Alt+glisser = pan · F3/F8
+      <p className="pointer-events-none absolute bottom-2 left-2 z-30 rounded bg-black/60 px-2 py-0.5 font-mono text-[10px] text-[#aaa]">
+        Clic · Entrée/Espace/clic-droit = fin · Échap · Molette/Alt+glisser = pan · F3/F7/F8/F9/F10
       </p>
     </div>
   );

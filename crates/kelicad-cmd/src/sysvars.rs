@@ -195,6 +195,18 @@ fn catalog() -> Vec<SysVarDef> {
             default: SysVarValue::Int(0),
         },
         SysVarDef {
+            name: "SNAPUNIT",
+            tip: "Pas d'accrochage grille",
+            scope: SysVarScope::Drawing,
+            default: SysVarValue::Real(10.0),
+        },
+        SysVarDef {
+            name: "GRIDUNIT",
+            tip: "Pas d'affichage grille",
+            scope: SysVarScope::Drawing,
+            default: SysVarValue::Real(10.0),
+        },
+        SysVarDef {
             name: "DYNMODE",
             tip: "Saisie dynamique",
             scope: SysVarScope::Session,

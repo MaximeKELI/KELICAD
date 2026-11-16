@@ -60,6 +60,10 @@ export type CadStatus = {
   osnap: boolean;
   grid?: boolean;
   polar?: boolean;
+  snap?: boolean;
+  osmode?: number;
+  grid_unit?: number;
+  snap_unit?: number;
   selection: number;
   entities: number;
   solids: number;
@@ -117,6 +121,7 @@ export type CadSession = {
   set_current_layer(id: string): void;
   create_layer(name: string, r: number, g: number, b: number): string;
   set_selection_layer(id: string): number;
+  set_selection_props(color: string, linetype: string, lineweight: string): number;
   set_ortho(enabled: boolean): void;
   ortho(): boolean;
   set_osnap(enabled: boolean): void;

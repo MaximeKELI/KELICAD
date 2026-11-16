@@ -718,6 +718,7 @@ export function App() {
                 revision={revision}
                 peers={peers}
                 peerTick={peerTick}
+                paperLayout={layout === "layout1"}
                 onHoverWorld={(x, y) => {
                   setCursor({ x, y });
                   if (collabStatus === "online") collab.sendPresence(x, y);
@@ -725,8 +726,30 @@ export function App() {
               />
               {viewMode === "2d" && (
                 <div className="cad-navrail">
-                  <button type="button" title="Zoom étendu">⊕</button>
-                  <button type="button" title="Pan (Espace)">✋</button>
+                  <button
+                    type="button"
+                    title="Zoom étendu"
+                    onClick={() => {
+                      dispatchViewAction("extents");
+                      setEchoes((p) => [...p, "Zoom étendu"]);
+                    }}
+                  >
+                    ⊕
+                  </button>
+                  <button
+                    type="button"
+                    title="Zoom +"
+                    onClick={() => dispatchViewAction("zoom-in")}
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    title="Zoom −"
+                    onClick={() => dispatchViewAction("zoom-out")}
+                  >
+                    −
+                  </button>
                 </div>
               )}
             </div>

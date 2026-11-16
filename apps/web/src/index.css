@@ -958,6 +958,36 @@ body {
   white-space: nowrap;
 }
 
+.cad-osnap-wrap {
+  position: relative;
+}
+
+.cad-osnap-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+  min-width: 220px;
+  padding: 6px;
+  background: #1c1c1c;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.cad-osnap-menu button {
+  font-size: 9px;
+  padding: 3px 4px;
+}
+
+.cad-osnap-close {
+  grid-column: 1 / -1;
+  color: #aaa !important;
+}
+
 /* ——— Dock panels ——— */
 .cad-dock {
   background: #1a1a1a;

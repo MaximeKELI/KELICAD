@@ -3,6 +3,7 @@
 use kelicad_cmd::{
     parse_sysvar_token, CommandEngine, CommandEvent, CommandId, SequentialIdGen, SysVarValue,
 };
+use kelicad_doc::Geometry;
 use kelicad_math::Vec2;
 use kelicad_ops::DocSession;
 
@@ -277,4 +278,59 @@ fn remaining_commands_start_without_panic() {
         // Must not panic; cancel to idle.
         e.handle(CommandEvent::Cancel);
     }
+}
+
+
+#[test]
+fn drafting_props_and_polar_snap() {
+    let mut e = eng();
+    e.sysvars
+        .set("CECOLOR", SysVarValue::Str("red".into()))
+        .unwrap();
+    e.sysvars
+        .set("CELTYPE", SysVarValue::Str("DASHED".into()))
+        .unwrap();
+    e.handle(CommandEvent::Start(CommandId::Line));
+    e.handle(CommandEvent::Pick(Vec2::ZERO));
+    e.handle(CommandEvent::Pick(Vec2::new(10.0, 0.0)));
+    let ent = e.session.document.entities().next().expect("line");
+    assert_eq!(ent.props.color, Some([255, 0, 0]));
+    assert_eq!(ent.props.linetype.as_deref(), Some("DASHED"));
+
+    e.sysvars.set("POLARMODE", SysVarValue::Int(1)).unwrap();
+    e.sysvars.set("ORTHOMODE", SysVarValue::Int(0)).unwrap();
+    e.sync_from_sysvars();
+    e.handle(CommandEvent::Start(CommandId::Line));
+    e.handle(CommandEvent::Pick(Vec2::ZERO));
+    e.handle(CommandEvent::Pick(Vec2::new(10.0, 1.0)));
+    let line = e
+        .session
+        .document
+        .entities()
+        .filter_map(|ent| match &ent.geometry {
+            Geometry::Line(l) => Some(*l),
+            _ => None,
+        })
+        .last()
+        .expect("polar line");
+    assert!(line.end.y.abs() < 0.5, "polar should pull toward 0°: {:?}", line.end);
+
+    e.sysvars.set("SNAPMODE", SysVarValue::Int(1)).unwrap();
+    e.sysvars.set("SNAPUNIT", SysVarValue::Real(5.0)).unwrap();
+    e.sysvars.set("POLARMODE", SysVarValue::Int(0)).unwrap();
+    e.handle(CommandEvent::Cancel);
+    e.handle(CommandEvent::Start(CommandId::Point));
+    e.handle(CommandEvent::Pick(Vec2::new(12.0, 13.0)));
+    let pt = e
+        .session
+        .document
+        .entities()
+        .filter_map(|ent| match &ent.geometry {
+            Geometry::Point(p) => Some(*p),
+            _ => None,
+        })
+        .last()
+        .expect("point");
+    assert!((pt.x - 10.0).abs() < 1e-9);
+    assert!((pt.y - 15.0).abs() < 1e-9);
 }

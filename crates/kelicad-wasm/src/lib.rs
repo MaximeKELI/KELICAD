@@ -9,8 +9,8 @@ use kelicad_bim::{export_ifc, schedule_csv, BimElement};
 use kelicad_cmd::{CommandEngine, CommandEvent, CommandId, UuidV7Gen};
 use kelicad_constraints::{solve, Constraint, ConstraintSystem};
 use kelicad_doc::{
-    expand_insert, geometry_aabb, template_entities, BlockDef, BlockId, Document, DrawingUnits,
-    EntityId, EntityRecord, Geometry, Layer, LayerId, TemplateKind,
+    expand_insert, geometry_aabb, resolve_linetype, template_entities, BlockDef, BlockId, Document,
+    DrawingUnits, EntityId, EntityRecord, Geometry, Layer, LayerId, TemplateKind,
 };
 use kelicad_geom::{Arc, Circle, Line, Polyline};
 use kelicad_math::Vec2;
@@ -478,6 +478,53 @@ impl WasmCad {
         Ok(n)
     }
 
+    /// Apply color / linetype / lineweight overrides to the selection.
+    /// Empty strings keep the existing field; `BYLAYER` clears an override.
+    pub fn set_selection_props(
+        &mut self,
+        color: &str,
+        linetype: &str,
+        lineweight: &str,
+    ) -> Result<u32, JsValue> {
+        let ids: Vec<_> = self.engine.selection.iter().collect();
+        let mut n = 0u32;
+        for id in ids {
+            let Some(ent) = self.engine.session.document.get_entity(id) else {
+                continue;
+            };
+            let mut props = ent.props.clone();
+            if !color.is_empty() {
+                props.color = if color.eq_ignore_ascii_case("BYLAYER") {
+                    None
+                } else {
+                    parse_named_color(color)
+                };
+            }
+            if !linetype.is_empty() {
+                props.linetype = if linetype.eq_ignore_ascii_case("BYLAYER") {
+                    None
+                } else {
+                    Some(linetype.to_ascii_uppercase())
+                };
+            }
+            if !lineweight.is_empty() {
+                props.lineweight = if lineweight == "-1"
+                    || lineweight.eq_ignore_ascii_case("BYLAYER")
+                {
+                    None
+                } else {
+                    lineweight.parse::<u16>().ok()
+                };
+            }
+            self.engine
+                .session
+                .apply(Operation::SetEntityProps { id, props })
+                .map_err(|e| JsValue::from_str(&e.to_string()))?;
+            n += 1;
+        }
+        Ok(n)
+    }
+
     /// Toggle ORTHO (F8-style).
     pub fn set_ortho(&mut self, enabled: bool) {
         self.engine.ortho = enabled;
@@ -573,6 +620,10 @@ impl WasmCad {
             "osnap": self.engine.osnap_enabled,
             "grid": self.engine.sysvars.get_int("GRIDMODE") != 0,
             "polar": self.engine.sysvars.get_int("POLARMODE") != 0,
+            "snap": self.engine.sysvars.get_int("SNAPMODE") != 0,
+            "osmode": self.engine.sysvars.get_int("OSMODE"),
+            "grid_unit": self.engine.sysvars.get_real("GRIDUNIT"),
+            "snap_unit": self.engine.sysvars.get_real("SNAPUNIT"),
             "selection": self.engine.selection.len(),
             "entities": doc.entity_count(),
             "solids": self.solids.len(),
@@ -585,44 +636,49 @@ impl WasmCad {
     /// plus polyline edges and circle tessellations (32 segments).
     pub fn scene_line_vertices(&self) -> Vec<f32> {
         let doc = &self.engine.session.document;
+        let ltscale = self.engine.sysvars.get_real("LTSCALE").max(0.01);
         let mut out = Vec::new();
         for ent in doc.entities() {
             if let Some(layer) = doc.get_layer(ent.layer_id) {
-                if layer.flags.frozen {
+                if layer.flags.frozen || layer.flags.off {
                     continue;
                 }
             }
-            append_geometry_lines(doc, &ent.geometry, &mut out);
+            let pattern = entity_linetype_pattern(doc, ent);
+            append_geometry_lines(doc, &ent.geometry, &mut out, &pattern, ltscale);
         }
         out
     }
 
-    /// Colored scene batches JSON for multi-pass GPU draw (layer colors).
+    /// Colored scene batches JSON for multi-pass GPU draw (layer / entity colors).
     /// Selected entities get a highlight batch (yellow) — AutoCAD/QCAD style.
     pub fn scene_batches_json(&self) -> String {
         use std::collections::{BTreeMap, HashSet};
         let doc = &self.engine.session.document;
+        let ltscale = self.engine.sysvars.get_real("LTSCALE").max(0.01);
         let selected: HashSet<_> = self.engine.selection.iter().collect();
         let mut map: BTreeMap<[u8; 3], Vec<f32>> = BTreeMap::new();
         let mut sel_verts = Vec::new();
         let mut grip_verts = Vec::new();
         for ent in doc.entities() {
             if let Some(layer) = doc.get_layer(ent.layer_id) {
-                if layer.flags.frozen {
+                if layer.flags.frozen || layer.flags.off {
                     continue;
                 }
             }
+            let pattern = entity_linetype_pattern(doc, ent);
             if selected.contains(&ent.id) {
-                append_geometry_lines(doc, &ent.geometry, &mut sel_verts);
+                append_geometry_lines(doc, &ent.geometry, &mut sel_verts, &pattern, ltscale);
                 append_entity_grips(doc, &ent.geometry, &mut grip_verts);
                 continue;
             }
-            let color = doc
+            let layer_color = doc
                 .get_layer(ent.layer_id)
                 .map(|l| l.color)
                 .unwrap_or([140, 200, 255]);
+            let color = ent.props.color.unwrap_or(layer_color);
             let bucket = map.entry(color).or_default();
-            append_geometry_lines(doc, &ent.geometry, bucket);
+            append_geometry_lines(doc, &ent.geometry, bucket, &pattern, ltscale);
         }
         let mut batches: Vec<SceneBatchDto> = map
             .into_iter()
@@ -739,8 +795,9 @@ impl WasmCad {
         self.remember(&out);
         let mut verts = Vec::new();
         let doc = &self.engine.session.document;
+        let ltscale = self.engine.sysvars.get_real("LTSCALE").max(0.01);
         for g in &out.ghost {
-            append_geometry_lines(doc, g, &mut verts);
+            append_geometry_lines(doc, g, &mut verts, &[], ltscale);
         }
         verts
     }
@@ -772,6 +829,9 @@ impl WasmCad {
                     "kind": format!("{:?}", ent.kind).to_ascii_lowercase(),
                     "layer": layer,
                     "layer_id": ent.layer_id.to_string(),
+                    "color": ent.props.color,
+                    "linetype": ent.props.linetype,
+                    "lineweight": ent.props.lineweight,
                     "bbox": {
                         "min": [aabb.min.x, aabb.min.y],
                         "max": [aabb.max.x, aabb.max.y],
@@ -1733,8 +1793,46 @@ fn geometry_value(g: &Geometry) -> serde_json::Value {
     }
 }
 
+fn entity_linetype_pattern(doc: &Document, ent: &EntityRecord) -> Vec<f64> {
+    let name = ent
+        .props
+        .linetype
+        .as_deref()
+        .or_else(|| doc.get_layer(ent.layer_id).map(|l| l.linetype.as_str()))
+        .unwrap_or("CONTINUOUS");
+    resolve_linetype(name).pattern
+}
+
 fn push_seg(out: &mut Vec<f32>, a: Vec2, b: Vec2) {
     out.extend_from_slice(&[a.x as f32, a.y as f32, b.x as f32, b.y as f32]);
+}
+
+fn push_linetype_seg(out: &mut Vec<f32>, a: Vec2, b: Vec2, pattern: &[f64], scale: f64) {
+    if pattern.is_empty() {
+        push_seg(out, a, b);
+        return;
+    }
+    let v = b - a;
+    let len = v.length();
+    if len < 1e-12 {
+        return;
+    }
+    let dir = v * (1.0 / len);
+    let mut dist = 0.0;
+    let mut i = 0usize;
+    while dist < len - 1e-12 {
+        let raw = pattern[i % pattern.len()];
+        i += 1;
+        let mut seg_len = raw.abs() * scale.max(1e-6);
+        if raw.abs() < 1e-12 {
+            seg_len = 0.08 * scale.max(1e-6);
+        }
+        let end = (dist + seg_len).min(len);
+        if raw >= 0.0 {
+            push_seg(out, a + dir * dist, a + dir * end);
+        }
+        dist = end;
+    }
 }
 
 fn append_grip_square(out: &mut Vec<f32>, p: Vec2, s: f64) {
@@ -1796,19 +1894,20 @@ fn append_entity_grips(doc: &Document, g: &Geometry, out: &mut Vec<f32>) {
     }
 }
 
-fn append_geometry_lines(doc: &Document, g: &Geometry, out: &mut Vec<f32>) {
+fn append_geometry_lines(
+    doc: &Document,
+    g: &Geometry,
+    out: &mut Vec<f32>,
+    pattern: &[f64],
+    ltscale: f64,
+) {
     match g {
         Geometry::Line(l) => {
-            push_seg(out, l.start, l.end);
+            push_linetype_seg(out, l.start, l.end, pattern, ltscale);
         }
         Geometry::Polyline(p) => {
             for seg in p.segments() {
-                out.extend_from_slice(&[
-                    seg.start.x as f32,
-                    seg.start.y as f32,
-                    seg.end.x as f32,
-                    seg.end.y as f32,
-                ]);
+                push_linetype_seg(out, seg.start, seg.end, pattern, ltscale);
             }
         }
         Geometry::Circle(c) => {
@@ -1958,7 +2057,7 @@ fn append_geometry_lines(doc: &Document, g: &Geometry, out: &mut Vec<f32>) {
         Geometry::Insert(i) => {
             if let Some(def) = doc.get_block(i.block_id) {
                 for eg in expand_insert(def, i) {
-                    append_geometry_lines(doc, &eg, out);
+                    append_geometry_lines(doc, &eg, out, pattern, ltscale);
                 }
             } else {
                 let s = 0.25;
@@ -2061,4 +2160,29 @@ fn find_open_path(
         }
     }
     None
+}
+
+fn parse_named_color(raw: &str) -> Option<[u8; 3]> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "red" | "1" => Some([255, 0, 0]),
+        "yellow" | "2" => Some([255, 255, 0]),
+        "green" | "3" => Some([0, 255, 0]),
+        "cyan" | "4" => Some([0, 255, 255]),
+        "blue" | "5" => Some([0, 0, 255]),
+        "magenta" | "6" => Some([255, 0, 255]),
+        "white" | "7" => Some([255, 255, 255]),
+        other => {
+            let parts: Vec<_> = other.split(',').collect();
+            if parts.len() == 3 {
+                if let (Ok(r), Ok(g), Ok(b)) = (
+                    parts[0].trim().parse::<u8>(),
+                    parts[1].trim().parse::<u8>(),
+                    parts[2].trim().parse::<u8>(),
+                ) {
+                    return Some([r, g, b]);
+                }
+            }
+            None
+        }
+    }
 }

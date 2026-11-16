@@ -13,6 +13,9 @@ type SelItem = {
   kind: string;
   layer?: string;
   layer_id?: string;
+  color?: [number, number, number] | null;
+  linetype?: string | null;
+  lineweight?: number | null;
   bbox?: { min: [number, number]; max: [number, number] };
   geometry?: { type?: string; [k: string]: unknown };
 };
@@ -128,6 +131,57 @@ export function PropertiesPanel({ cad, revision, onChanged, onEcho }: Props) {
               <dt className="text-ink-500">Calque</dt>
               <dd>{first.layer ?? "—"}</dd>
             </div>
+            <label className="flex items-center justify-between gap-2">
+              <span className="text-ink-500">Couleur</span>
+              <select
+                className="rounded border border-ink-700 bg-ink-950 px-1 py-0.5 text-ink-100"
+                value={
+                  first.color
+                    ? `${first.color[0]},${first.color[1]},${first.color[2]}`
+                    : "BYLAYER"
+                }
+                onChange={(e) => {
+                  try {
+                    const n = cad.set_selection_props(e.target.value, "", "");
+                    onChanged();
+                    onEcho([`Couleur → ${n} objet(s)`]);
+                  } catch (err) {
+                    onEcho([String(err)]);
+                  }
+                }}
+              >
+                <option value="BYLAYER">DuCalque</option>
+                <option value="red">Rouge</option>
+                <option value="yellow">Jaune</option>
+                <option value="green">Vert</option>
+                <option value="cyan">Cyan</option>
+                <option value="blue">Bleu</option>
+                <option value="magenta">Magenta</option>
+                <option value="white">Blanc</option>
+              </select>
+            </label>
+            <label className="flex items-center justify-between gap-2">
+              <span className="text-ink-500">Type ligne</span>
+              <select
+                className="rounded border border-ink-700 bg-ink-950 px-1 py-0.5 text-ink-100"
+                value={first.linetype ?? "BYLAYER"}
+                onChange={(e) => {
+                  try {
+                    const n = cad.set_selection_props("", e.target.value, "");
+                    onChanged();
+                    onEcho([`Linetype → ${n} objet(s)`]);
+                  } catch (err) {
+                    onEcho([String(err)]);
+                  }
+                }}
+              >
+                <option value="BYLAYER">DuCalque</option>
+                <option value="CONTINUOUS">Continuous</option>
+                <option value="DASHED">Dashed</option>
+                <option value="CENTER">Center</option>
+                <option value="HIDDEN">Hidden</option>
+              </select>
+            </label>
             {bbox && (
               <>
                 <div className="flex justify-between gap-2">

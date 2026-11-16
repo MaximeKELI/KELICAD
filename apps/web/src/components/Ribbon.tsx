@@ -326,6 +326,37 @@ function PropsStack({
   onChanged: () => void;
   onEcho: (lines: string[]) => void;
 }) {
+  const applyProp = (
+    kind: "color" | "linetype" | "lineweight",
+    value: string,
+  ) => {
+    try {
+      if (kind === "color") cad.set_sysvar("CECOLOR", value);
+      else if (kind === "linetype") cad.set_sysvar("CELTYPE", value);
+      else cad.set_sysvar("CELWEIGHT", value);
+
+      let sel = 0;
+      try {
+        sel = JSON.parse(cad.selection_json() as string).length as number;
+      } catch {
+        sel = 0;
+      }
+      if (sel > 0) {
+        const n = cad.set_selection_props(
+          kind === "color" ? value : "",
+          kind === "linetype" ? value : "",
+          kind === "lineweight" ? value : "",
+        );
+        onEcho([`${kind} → ${n} objet(s) · courant = ${value}`]);
+      } else {
+        onEcho([`Courant ${kind} = ${value}`]);
+      }
+      onChanged();
+    } catch (err) {
+      onEcho([String(err)]);
+    }
+  };
+
   return (
     <div className="cad-prop-stack">
       <label>
@@ -333,15 +364,7 @@ function PropsStack({
         <select
           className="cad-select"
           defaultValue="BYLAYER"
-          onChange={(e) => {
-            try {
-              cad.set_sysvar("CECOLOR", e.target.value);
-              onChanged();
-              onEcho([`CECOLOR = ${e.target.value}`]);
-            } catch (err) {
-              onEcho([String(err)]);
-            }
-          }}
+          onChange={(e) => applyProp("color", e.target.value)}
         >
           <option value="BYLAYER">DuCalque</option>
           <option value="BYBLOCK">DuBloc</option>
@@ -359,15 +382,7 @@ function PropsStack({
         <select
           className="cad-select"
           defaultValue="BYLAYER"
-          onChange={(e) => {
-            try {
-              cad.set_sysvar("CELTYPE", e.target.value);
-              onChanged();
-              onEcho([`CELTYPE = ${e.target.value}`]);
-            } catch (err) {
-              onEcho([String(err)]);
-            }
-          }}
+          onChange={(e) => applyProp("linetype", e.target.value)}
         >
           <option value="BYLAYER">DuCalque</option>
           <option value="CONTINUOUS">Continuous</option>
@@ -381,15 +396,7 @@ function PropsStack({
         <select
           className="cad-select"
           defaultValue="-1"
-          onChange={(e) => {
-            try {
-              cad.set_sysvar("CELWEIGHT", e.target.value);
-              onChanged();
-              onEcho([`CELWEIGHT = ${e.target.value}`]);
-            } catch (err) {
-              onEcho([String(err)]);
-            }
-          }}
+          onChange={(e) => applyProp("lineweight", e.target.value)}
         >
           <option value="-1">DuCalque</option>
           <option value="0">0.00 mm</option>
