@@ -47,6 +47,18 @@ struct LayerDto {
     id: String,
     name: String,
     color: [u8; 3],
+    frozen: bool,
+    locked: bool,
+    no_plot: bool,
+    current: bool,
+}
+
+#[derive(Serialize)]
+struct SceneBatchDto {
+    r: f32,
+    g: f32,
+    b: f32,
+    verts: Vec<f32>,
 }
 
 #[derive(Serialize)]
@@ -258,15 +270,26 @@ impl WasmCad {
             .map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
+    /// Export PDF bytes (WASM-safe lite exporter).
+    pub fn export_pdf(&self) -> Result<Vec<u8>, JsValue> {
+        kelicad_io::export_pdf_lite(&self.engine.session)
+            .map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
     /// Export document snapshot JSON (for .kelicad writers / download).
     pub fn export_snapshot_json(&self) -> Result<String, JsValue> {
         let doc = &self.engine.session.document;
+        let current = doc.current_layer;
         let layers = doc
             .layers()
             .map(|l| LayerDto {
                 id: l.id.to_string(),
                 name: l.name.clone(),
                 color: l.color,
+                frozen: l.flags.frozen,
+                locked: l.flags.locked,
+                no_plot: l.flags.no_plot,
+                current: l.id == current,
             })
             .collect();
         let entities = doc
@@ -287,14 +310,145 @@ impl WasmCad {
         serde_json::to_string(&snap).map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
+    /// Layers JSON (for UI panel).
+    pub fn layers_json(&self) -> String {
+        let doc = &self.engine.session.document;
+        let current = doc.current_layer;
+        let layers: Vec<LayerDto> = doc
+            .layers()
+            .map(|l| LayerDto {
+                id: l.id.to_string(),
+                name: l.name.clone(),
+                color: l.color,
+                frozen: l.flags.frozen,
+                locked: l.flags.locked,
+                no_plot: l.flags.no_plot,
+                current: l.id == current,
+            })
+            .collect();
+        serde_json::to_string(&layers).unwrap_or_else(|_| "[]".into())
+    }
+
+    /// Set current layer by UUID string.
+    pub fn set_current_layer(&mut self, layer_id: &str) -> Result<(), JsValue> {
+        let u = Uuid::parse_str(layer_id).map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let id = LayerId::from_uuid(u);
+        self.engine
+            .session
+            .apply(Operation::SetCurrentLayer { id })
+            .map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Create a named layer (optional RGB).
+    pub fn create_layer(&mut self, name: &str, r: u8, g: u8, b: u8) -> Result<String, JsValue> {
+        let id = LayerId::from_uuid(Uuid::now_v7());
+        let layer = Layer::new(id, name, [r, g, b]);
+        self.engine
+            .session
+            .apply(Operation::CreateLayer { layer })
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        Ok(id.to_string())
+    }
+
+    /// Move selected entities onto a layer.
+    pub fn set_selection_layer(&mut self, layer_id: &str) -> Result<u32, JsValue> {
+        let u = Uuid::parse_str(layer_id).map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let layer = LayerId::from_uuid(u);
+        let ids: Vec<_> = self.engine.selection.iter().collect();
+        let mut n = 0u32;
+        for id in ids {
+            self.engine
+                .session
+                .apply(Operation::SetEntityLayer { id, layer_id: layer })
+                .map_err(|e| JsValue::from_str(&e.to_string()))?;
+            n += 1;
+        }
+        Ok(n)
+    }
+
+    /// Toggle ORTHO (F8-style).
+    pub fn set_ortho(&mut self, enabled: bool) {
+        self.engine.ortho = enabled;
+    }
+
+    /// ORTHO state.
+    pub fn ortho(&self) -> bool {
+        self.engine.ortho
+    }
+
+    /// Toggle object snap master (F3-style).
+    pub fn set_osnap(&mut self, enabled: bool) {
+        self.engine.osnap_enabled = enabled;
+    }
+
+    /// OSNAP state.
+    pub fn osnap(&self) -> bool {
+        self.engine.osnap_enabled
+    }
+
+    /// Status bar JSON: layer, ortho, osnap, selection count, entity count.
+    pub fn status_json(&self) -> String {
+        let doc = &self.engine.session.document;
+        let layer_name = doc
+            .get_layer(doc.current_layer)
+            .map(|l| l.name.clone())
+            .unwrap_or_else(|| "0".into());
+        serde_json::json!({
+            "layer": layer_name,
+            "layer_id": doc.current_layer.to_string(),
+            "ortho": self.engine.ortho,
+            "osnap": self.engine.osnap_enabled,
+            "selection": self.engine.selection.len(),
+            "entities": doc.entity_count(),
+            "solids": self.solids.len(),
+        })
+        .to_string()
+    }
+
     /// Interleaved line vertices for GPU: all line segments in the document
     /// plus polyline edges and circle tessellations (32 segments).
     pub fn scene_line_vertices(&self) -> Vec<f32> {
         let mut out = Vec::new();
         for ent in self.engine.session.document.entities() {
+            if let Some(layer) = self.engine.session.document.get_layer(ent.layer_id) {
+                if layer.flags.frozen {
+                    continue;
+                }
+            }
             append_geometry_lines(&ent.geometry, &mut out);
         }
         out
+    }
+
+    /// Colored scene batches JSON for multi-pass GPU draw (layer colors).
+    pub fn scene_batches_json(&self) -> String {
+        use std::collections::BTreeMap;
+        let doc = &self.engine.session.document;
+        let mut map: BTreeMap<[u8; 3], Vec<f32>> = BTreeMap::new();
+        for ent in doc.entities() {
+            let color = doc
+                .get_layer(ent.layer_id)
+                .map(|l| {
+                    if l.flags.frozen {
+                        return None;
+                    }
+                    Some(l.color)
+                })
+                .flatten()
+                .unwrap_or([140, 200, 255]);
+            let bucket = map.entry(color).or_default();
+            append_geometry_lines(&ent.geometry, bucket);
+        }
+        let batches: Vec<SceneBatchDto> = map
+            .into_iter()
+            .map(|(c, verts)| SceneBatchDto {
+                r: c[0] as f32 / 255.0,
+                g: c[1] as f32 / 255.0,
+                b: c[2] as f32 / 255.0,
+                verts,
+            })
+            .collect();
+        serde_json::to_string(&batches).unwrap_or_else(|_| "[]".into())
     }
 
     /// Ghost preview line vertices at world hover position.
@@ -1196,39 +1350,92 @@ fn append_geometry_lines(g: &Geometry, out: &mut Vec<f32>) {
             ]);
         }
         Geometry::Text(t) => {
-            let s = 0.2;
+            // Stick-font baseline + height box (readable without true glyph raster).
+            let h = t.height.max(0.15);
+            let w = (t.content.chars().count().max(1) as f64) * h * 0.55;
             let p = t.position;
-            out.extend_from_slice(&[(p.x - s) as f32, p.y as f32, (p.x + s) as f32, p.y as f32]);
+            let (c, s) = t.rotation.sin_cos();
+            let tip = Vec2::new(p.x + w * c, p.y + w * s);
+            let up = Vec2::new(p.x - h * s, p.y + h * c);
+            push_seg(out, p, tip);
+            push_seg(out, p, up);
+            // Tick marks per character.
+            for i in 1..=t.content.chars().count().min(24) {
+                let t0 = (i as f64) / (t.content.chars().count().max(1) as f64);
+                let along = p.lerp(tip, t0);
+                let mark = Vec2::new(along.x - h * 0.35 * s, along.y + h * 0.35 * c);
+                push_seg(out, along, mark);
+            }
         }
         Geometry::MText(t) => {
-            let s = 0.2;
+            let h = t.height.max(0.15);
+            let lines = t.content.lines().count().max(1);
+            let w = t
+                .width
+                .max((t.content.chars().count().max(1) as f64) * h * 0.45);
             let p = t.position;
-            out.extend_from_slice(&[(p.x - s) as f32, p.y as f32, (p.x + s) as f32, p.y as f32]);
+            push_seg(out, p, Vec2::new(p.x + w, p.y));
+            push_seg(out, p, Vec2::new(p.x, p.y + h * lines as f64));
+            push_seg(
+                out,
+                Vec2::new(p.x + w, p.y),
+                Vec2::new(p.x + w, p.y + h * lines as f64),
+            );
         }
         Geometry::Dimension(d) => {
-            out.extend_from_slice(&[
-                d.def1.x as f32,
-                d.def1.y as f32,
-                d.def2.x as f32,
-                d.def2.y as f32,
-                d.def1.x as f32,
-                d.def1.y as f32,
-                d.dim_line.x as f32,
-                d.dim_line.y as f32,
-                d.def2.x as f32,
-                d.def2.y as f32,
-                d.dim_line.x as f32,
-                d.dim_line.y as f32,
-            ]);
+            // Extension lines + dimension line + arrowheads (AutoCAD-ish).
+            push_seg(out, d.def1, d.dim_line);
+            push_seg(out, d.def2, d.dim_line);
+            // Parallel dim line through dim_line spanning projected ends.
+            let dir = (d.def2 - d.def1).try_normalize(kelicad_math::Tolerance::DEFAULT)
+                .unwrap_or(Vec2::X);
+            let nrm = dir.perp();
+            let offset = (d.dim_line - d.def1).dot(nrm);
+            let a = d.def1 + nrm * offset;
+            let b = d.def2 + nrm * offset;
+            push_seg(out, a, b);
+            let ah = a.distance(b).max(1e-6) * 0.08;
+            let ah = ah.clamp(0.05, 0.4);
+            let tip_a = a;
+            let tip_b = b;
+            push_seg(out, tip_a, tip_a + dir * ah + nrm * ah * 0.4);
+            push_seg(out, tip_a, tip_a + dir * ah - nrm * ah * 0.4);
+            push_seg(out, tip_b, tip_b - dir * ah + nrm * ah * 0.4);
+            push_seg(out, tip_b, tip_b - dir * ah - nrm * ah * 0.4);
+            // Text tick at midpoint.
+            let mid = a.lerp(b, 0.5);
+            push_seg(out, mid, mid + nrm * ah * 1.2);
         }
         Geometry::Hatch(h) => {
             for seg in h.boundary.windows(2) {
-                out.extend_from_slice(&[
-                    seg[0].x as f32,
-                    seg[0].y as f32,
-                    seg[1].x as f32,
-                    seg[1].y as f32,
-                ]);
+                push_seg(out, seg[0], seg[1]);
+            }
+            if let (Some(first), Some(last)) = (h.boundary.first(), h.boundary.last()) {
+                if first.distance(*last) > 1e-9 {
+                    push_seg(out, *last, *first);
+                }
+            }
+            // Diagonal fill pattern (ANSI31-ish cheat).
+            if h.boundary.len() >= 3 {
+                let min_x = h.boundary.iter().map(|p| p.x).fold(f64::INFINITY, f64::min);
+                let max_x = h.boundary.iter().map(|p| p.x).fold(f64::NEG_INFINITY, f64::max);
+                let min_y = h.boundary.iter().map(|p| p.y).fold(f64::INFINITY, f64::min);
+                let max_y = h.boundary.iter().map(|p| p.y).fold(f64::NEG_INFINITY, f64::max);
+                let step = ((max_x - min_x) + (max_y - min_y)).max(1.0) / 12.0;
+                let mut x = min_x - (max_y - min_y);
+                while x < max_x + (max_y - min_y) {
+                    push_seg(
+                        out,
+                        Vec2::new(x, min_y),
+                        Vec2::new(x + (max_y - min_y), max_y),
+                    );
+                    x += step;
+                }
+            }
+            for island in &h.islands {
+                for seg in island.windows(2) {
+                    push_seg(out, seg[0], seg[1]);
+                }
             }
         }
         Geometry::Ellipse(e) => {
