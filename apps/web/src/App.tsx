@@ -7,13 +7,21 @@ import {
   snapshotToKelicadBytes,
 } from "./cad/kelicadFile";
 import { loadCad } from "./cad/loadCad";
+import {
+  listRecent,
+  loadAutosave,
+  pushRecent,
+  saveAutosave,
+} from "./cad/projectStore";
 import { parseCadOutput, type CadSession } from "./cad/types";
 import { CollabBar } from "./components/CollabBar";
 import { CommentsPanel } from "./components/CommentsPanel";
 import { CommandLine } from "./components/CommandLine";
 import { DrawingViewport } from "./components/DrawingViewport";
 import { KeliPanel } from "./components/KeliPanel";
+import { LayerPanel } from "./components/LayerPanel";
 import { ShapePalette } from "./components/ShapePalette";
+import { StatusBar } from "./components/StatusBar";
 
 const QUICK = [
   "M",
@@ -40,10 +48,11 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [echoes, setEchoes] = useState<string[]>([
-    "KELICAD — figures rapides à gauche, impulsions KELI à droite. Essayez STAR, DONUT, CAPSULE ou un chip IA.",
+    "KELICAD local — calques · F3/F8 · autosave · PDF. Palette à gauche, KELI à droite.",
   ]);
   const [revision, setRevision] = useState(0);
   const [entityCount, setEntityCount] = useState(0);
+  const [projectName, setProjectName] = useState("dessin.kelicad");
   const [collabStatus, setCollabStatus] = useState<CollabStatus>("disconnected");
   const [displayName, setDisplayName] = useState("Alice");
   const [peers, setPeers] = useState<PeerPresence[]>([]);
@@ -51,9 +60,34 @@ export function App() {
 
   useEffect(() => {
     void loadCad()
-      .then((session) => setCad(session))
+      .then((session) => {
+        const auto = loadAutosave();
+        if (auto) {
+          try {
+            session.import_snapshot_json(auto);
+            setEchoes((prev) => [...prev, "Autosave restauré."]);
+          } catch {
+            /* ignore corrupt */
+          }
+        }
+        setCad(session);
+        setEntityCount(session.entity_count());
+      })
       .catch((e: unknown) => setError(String(e)));
   }, []);
+
+  // Autosave every ~8s when document changes.
+  useEffect(() => {
+    if (!cad) return;
+    const t = window.setTimeout(() => {
+      try {
+        saveAutosave(cad.export_snapshot_json());
+      } catch {
+        /* ignore */
+      }
+    }, 800);
+    return () => window.clearTimeout(t);
+  }, [cad, revision]);
 
   const collab = useMemo(() => (cad ? new CollabClient(cad) : null), [cad]);
 
@@ -123,12 +157,30 @@ export function App() {
     try {
       const snap = cad.export_snapshot_json();
       const bytes = await snapshotToKelicadBytes(snap);
-      downloadBytes("dessin.kelicad", bytes);
-      setEchoes((prev) => [...prev, "Enregistré dessin.kelicad"]);
+      downloadBytes(projectName || "dessin.kelicad", bytes);
+      pushRecent(projectName || "dessin.kelicad", snap);
+      saveAutosave(snap);
+      setEchoes((prev) => [...prev, `Enregistré ${projectName}`]);
     } catch (e) {
       setEchoes((prev) => [...prev, `Erreur sauvegarde: ${String(e)}`]);
     }
-  }, [cad]);
+  }, [cad, projectName]);
+
+  const exportPdf = useCallback(() => {
+    if (!cad) return;
+    try {
+      const raw = cad.export_pdf();
+      const bytes =
+        raw instanceof Uint8Array ? raw : Uint8Array.from(raw as number[]);
+      downloadBytes(
+        (projectName || "dessin").replace(/\.kelicad$/i, "") + ".pdf",
+        bytes,
+      );
+      setEchoes((prev) => [...prev, "Export PDF"]);
+    } catch (e) {
+      setEchoes((prev) => [...prev, `Erreur PDF: ${String(e)}`]);
+    }
+  }, [cad, projectName]);
 
   const openKelicad = useCallback(async () => {
     if (!cad) return;
@@ -142,8 +194,10 @@ export function App() {
         try {
           const json = await kelicadBytesToSnapshotJson(new Uint8Array(buf));
           cad.import_snapshot_json(json);
+          setProjectName(file.name);
           setRevision((n) => n + 1);
           setEntityCount(cad.entity_count());
+          pushRecent(file.name, json);
           setEchoes((prev) => [...prev, `Ouvert ${file.name}`]);
         } catch (e) {
           setEchoes((prev) => [...prev, `Erreur ouverture: ${String(e)}`]);
@@ -235,6 +289,7 @@ export function App() {
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-accent-soft">KELICAD</p>
           <h1 className="text-base font-medium">2D · 3D · KELI</h1>
+          <p className="font-mono text-[10px] text-ink-500">{projectName}</p>
         </div>
         <div className="flex flex-wrap gap-1">
           {QUICK.map((cmd) => (
@@ -281,6 +336,36 @@ export function App() {
             onClick={exportSvg}
           >
             SVG
+          </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={exportPdf}
+          >
+            PDF
+          </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={() => {
+              const recent = listRecent();
+              if (!recent.length) {
+                setEchoes((prev) => [...prev, "Aucun fichier récent."]);
+                return;
+              }
+              const pick = recent[0];
+              try {
+                cad.import_snapshot_json(pick.snapshotJson);
+                setProjectName(pick.name);
+                setRevision((n) => n + 1);
+                setEntityCount(cad.entity_count());
+                setEchoes((prev) => [...prev, `Récent : ${pick.name}`]);
+              } catch (e) {
+                setEchoes((prev) => [...prev, `Récent: ${String(e)}`]);
+              }
+            }}
+          >
+            RÉCENT
           </button>
           <button
             type="button"
@@ -423,16 +508,31 @@ export function App() {
         onEcho={(line) => setEchoes((prev) => [...prev, line].slice(-40))}
       />
       <div className="flex min-h-0 flex-1">
-        <ShapePalette
-          cad={cad}
-          onCommand={(raw) => applyOutput(raw, cad)}
-          onEcho={(lines) => setEchoes((prev) => [...prev, ...lines].slice(-40))}
-          onChanged={() => {
-            setRevision((n) => n + 1);
-            setEntityCount(cad.entity_count());
-            collab.flush();
-          }}
-        />
+        <aside className="flex h-full w-52 shrink-0 flex-col border-r border-ink-700/60 bg-ink-900/90">
+          <LayerPanel
+            cad={cad}
+            revision={revision}
+            onChanged={() => {
+              setRevision((n) => n + 1);
+              setEntityCount(cad.entity_count());
+            }}
+            onEcho={(lines) => setEchoes((prev) => [...prev, ...lines].slice(-40))}
+          />
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <ShapePalette
+              cad={cad}
+              onCommand={(raw) => applyOutput(raw, cad)}
+              onEcho={(lines) =>
+                setEchoes((prev) => [...prev, ...lines].slice(-40))
+              }
+              onChanged={() => {
+                setRevision((n) => n + 1);
+                setEntityCount(cad.entity_count());
+                collab.flush();
+              }}
+            />
+          </div>
+        </aside>
         <main className="min-h-0 min-w-0 flex-1">
           <DrawingViewport
             cad={cad}
@@ -465,6 +565,11 @@ export function App() {
         />
       </div>
       <CommandLine prompt={prompt} echoes={echoes} onSubmit={onSubmit} />
+      <StatusBar
+        cad={cad}
+        revision={revision}
+        onChanged={() => setRevision((n) => n + 1)}
+      />
     </div>
   );
 }

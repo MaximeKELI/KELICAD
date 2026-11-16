@@ -1,8 +1,5 @@
 /**
- * WebGPU line-list renderer for the M0 stress demo.
- *
- * Production shared shaders will live in `kelicad-render` (wgpu). This module
- * uses the browser WebGPU API (wgpu's web target) for an executable M0 canvas.
+ * WebGPU line-list renderer with multi-batch layer colors.
  */
 
 export type Camera2D = {
@@ -12,6 +9,13 @@ export type Camera2D = {
   y: number;
   /** World units visible along the smaller viewport axis. */
   zoom: number;
+};
+
+export type LineBatch = {
+  r: number;
+  g: number;
+  b: number;
+  verts: Float32Array;
 };
 
 const SHADER = /* wgsl */ `
@@ -44,14 +48,21 @@ function ortho(left: number, right: number, bottom: number, top: number): Float3
   return out;
 }
 
+type GpuBatch = {
+  buffer: GPUBuffer;
+  count: number;
+  r: number;
+  g: number;
+  b: number;
+};
+
 export class LineRenderer {
   private readonly device: GPUDevice;
   private readonly context: GPUCanvasContext;
   private readonly pipeline: GPURenderPipeline;
   private readonly uniformBuffer: GPUBuffer;
   private readonly bindGroup: GPUBindGroup;
-  private vertexBuffer: GPUBuffer | null = null;
-  private vertexCount = 0;
+  private batches: GpuBatch[] = [];
 
   private constructor(
     device: GPUDevice,
@@ -129,16 +140,33 @@ export class LineRenderer {
     return new LineRenderer(device, context, pipeline, uniformBuffer, bindGroup);
   }
 
+  /** Legacy single-color path. */
   setLines(vertices: Float32Array): void {
-    this.vertexCount = vertices.length / 2;
-    this.vertexBuffer?.destroy();
-    this.vertexBuffer = this.device.createBuffer({
-      size: vertices.byteLength,
-      usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-      mappedAtCreation: true,
-    });
-    new Float32Array(this.vertexBuffer.getMappedRange()).set(vertices);
-    this.vertexBuffer.unmap();
+    this.setBatches([{ r: 0.55, g: 0.78, b: 1.0, verts: vertices }]);
+  }
+
+  setBatches(batches: LineBatch[]): void {
+    for (const b of this.batches) {
+      b.buffer.destroy();
+    }
+    this.batches = [];
+    for (const batch of batches) {
+      if (!batch.verts.length) continue;
+      const buffer = this.device.createBuffer({
+        size: batch.verts.byteLength,
+        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+        mappedAtCreation: true,
+      });
+      new Float32Array(buffer.getMappedRange()).set(batch.verts);
+      buffer.unmap();
+      this.batches.push({
+        buffer,
+        count: batch.verts.length / 2,
+        r: batch.r,
+        g: batch.g,
+        b: batch.b,
+      });
+    }
   }
 
   resize(width: number, height: number): void {
@@ -153,9 +181,6 @@ export class LineRenderer {
   }
 
   draw(camera: Camera2D): void {
-    if (!this.vertexBuffer || this.vertexCount === 0) {
-      return;
-    }
     const canvas = this.context.canvas as HTMLCanvasElement;
     const aspect = canvas.width / Math.max(canvas.height, 1);
     const halfH = camera.zoom * 0.5;
@@ -166,11 +191,6 @@ export class LineRenderer {
       camera.y - halfH,
       camera.y + halfH,
     );
-    const color = new Float32Array([0.55, 0.78, 1.0, 1.0]);
-    const payload = new Float32Array(24);
-    payload.set(viewProj, 0);
-    payload.set(color, 16);
-    this.device.queue.writeBuffer(this.uniformBuffer, 0, payload);
 
     const encoder = this.device.createCommandEncoder();
     const pass = encoder.beginRenderPass({
@@ -185,14 +205,26 @@ export class LineRenderer {
     });
     pass.setPipeline(this.pipeline);
     pass.setBindGroup(0, this.bindGroup);
-    pass.setVertexBuffer(0, this.vertexBuffer);
-    pass.draw(this.vertexCount);
+
+    for (const batch of this.batches) {
+      const color = new Float32Array([batch.r, batch.g, batch.b, 1.0]);
+      const payload = new Float32Array(24);
+      payload.set(viewProj, 0);
+      payload.set(color, 16);
+      this.device.queue.writeBuffer(this.uniformBuffer, 0, payload);
+      pass.setVertexBuffer(0, batch.buffer);
+      pass.draw(batch.count);
+    }
+
     pass.end();
     this.device.queue.submit([encoder.finish()]);
   }
 
   destroy(): void {
-    this.vertexBuffer?.destroy();
+    for (const b of this.batches) {
+      b.buffer.destroy();
+    }
+    this.batches = [];
     this.uniformBuffer.destroy();
   }
 }

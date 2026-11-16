@@ -43,6 +43,33 @@ export type KeliImpulse = {
   category: string;
 };
 
+export type CadLayer = {
+  id: string;
+  name: string;
+  color: [number, number, number];
+  frozen: boolean;
+  locked: boolean;
+  no_plot: boolean;
+  current: boolean;
+};
+
+export type CadStatus = {
+  layer: string;
+  layer_id: string;
+  ortho: boolean;
+  osnap: boolean;
+  selection: number;
+  entities: number;
+  solids: number;
+};
+
+export type SceneBatch = {
+  r: number;
+  g: number;
+  b: number;
+  verts: number[] | Float32Array;
+};
+
 export type CadSession = {
   entity_count(): number;
   submit_text(text: string): string;
@@ -59,9 +86,20 @@ export type CadSession = {
   export_dxf(): string;
   import_dxf(text: string): string;
   export_svg(width: number, height: number): string;
+  export_pdf(): Uint8Array | number[];
   scene_line_vertices(): Float32Array | number[];
+  scene_batches_json(): string;
   ghost_line_vertices(x: number, y: number): Float32Array | number[];
   selection_json(): string;
+  layers_json(): string;
+  set_current_layer(id: string): void;
+  create_layer(name: string, r: number, g: number, b: number): string;
+  set_selection_layer(id: string): number;
+  set_ortho(enabled: boolean): void;
+  ortho(): boolean;
+  set_osnap(enabled: boolean): void;
+  osnap(): boolean;
+  status_json(): string;
   prompt_fr(): string;
   keli_ask(utterance: string): string;
   keli_accept(): string;

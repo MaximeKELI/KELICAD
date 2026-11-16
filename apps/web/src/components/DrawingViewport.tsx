@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { PeerPresence } from "../cad/collab";
 import type { CadSession } from "../cad/types";
+import type { SceneBatch } from "../cad/types";
 import { type Camera2D, LineRenderer } from "../gpu/lineRenderer";
 
 type Props = {
@@ -62,18 +63,38 @@ export function DrawingViewport({
         }
         const rect = wrap.getBoundingClientRect();
         rendererRef.current.resize(rect.width, rect.height);
-        const scene = toFloat32(cad.scene_line_vertices());
+        let batches: { r: number; g: number; b: number; verts: Float32Array }[] =
+          [];
+        try {
+          const raw = JSON.parse(cad.scene_batches_json()) as SceneBatch[];
+          batches = raw
+            .filter((b) => b.verts && (b.verts as number[]).length > 0)
+            .map((b) => ({
+              r: b.r,
+              g: b.g,
+              b: b.b,
+              verts: toFloat32(b.verts),
+            }));
+        } catch {
+          const scene = toFloat32(cad.scene_line_vertices());
+          if (scene.length) {
+            batches = [{ r: 0.55, g: 0.78, b: 1.0, verts: scene }];
+          }
+        }
         const ghost = toFloat32(
           cad.ghost_line_vertices(hoverRef.current.x, hoverRef.current.y),
         );
         const keliGhost = toFloat32(cad.keli_ghost_vertices());
-        const merged = new Float32Array(
-          scene.length + ghost.length + keliGhost.length,
-        );
-        merged.set(scene, 0);
-        merged.set(ghost, scene.length);
-        merged.set(keliGhost, scene.length + ghost.length);
-        rendererRef.current.setLines(merged.length ? merged : new Float32Array([0, 0, 0, 0]));
+        if (ghost.length) {
+          batches.push({ r: 1.0, g: 0.85, b: 0.35, verts: ghost });
+        }
+        if (keliGhost.length) {
+          batches.push({ r: 0.45, g: 1.0, b: 0.7, verts: keliGhost });
+        }
+        if (!batches.length) {
+          batches = [{ r: 0.55, g: 0.78, b: 1.0, verts: new Float32Array([0, 0, 0, 0]) }];
+        }
+        rendererRef.current.setBatches(batches);
         rendererRef.current.draw(cameraRef.current);
         raf = requestAnimationFrame(tick);
       };
@@ -106,6 +127,28 @@ export function DrawingViewport({
       }
       if (e.key === "Escape") {
         onOutput(cad.cancel());
+      }
+      if (e.key === "F8") {
+        e.preventDefault();
+        cad.set_ortho(!cad.ortho());
+        onOutput(
+          JSON.stringify({
+            echoes: [`ORTHO ${cad.ortho() ? "ON" : "OFF"}`],
+            document_changed: true,
+            ghost_count: 0,
+          }),
+        );
+      }
+      if (e.key === "F3") {
+        e.preventDefault();
+        cad.set_osnap(!cad.osnap());
+        onOutput(
+          JSON.stringify({
+            echoes: [`OSNAP ${cad.osnap() ? "ON" : "OFF"}`],
+            document_changed: true,
+            ghost_count: 0,
+          }),
+        );
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {

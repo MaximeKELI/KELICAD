@@ -28,6 +28,9 @@ const SHAPES: { title: string; items: ShapeBtn[] }[] = [
       { cmd: "EL", label: "Ellipse", hint: "centre + axes" },
       { cmd: "SPL", label: "Spline", hint: "points + Entrée" },
       { cmd: "GRID", label: "Grille", hint: "cols → rows → origine → pas" },
+      { cmd: "PO", label: "Point", hint: "clics multiples" },
+      { cmd: "RC", label: "Nuage", hint: "revcloud + Entrée" },
+      { cmd: "CM", label: "Centre", hint: "center mark cercle" },
     ],
   },
   {
@@ -111,7 +114,7 @@ export function ShapePalette({ cad, onCommand, onEcho, onChanged }: Props) {
   };
 
   return (
-    <aside className="flex h-full w-52 shrink-0 flex-col border-r border-ink-700/60 bg-ink-900/90">
+    <div className="flex h-full min-h-0 flex-col">
       <div className="border-b border-ink-700/60 px-3 py-2">
         <p className="text-xs uppercase tracking-[0.2em] text-accent-soft">Figures</p>
         <p className="text-sm text-ink-100">Dessin rapide</p>
@@ -141,6 +144,6 @@ export function ShapePalette({ cad, onCommand, onEcho, onChanged }: Props) {
           </div>
         ))}
       </div>
-    </aside>
+    </div>
   );
 }
