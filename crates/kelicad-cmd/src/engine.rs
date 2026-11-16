@@ -4036,7 +4036,7 @@ impl<G: IdGen> CommandEngine<G> {
             kind: geometry.kind(),
             geometry,
             layer_id,
-            props: Default::default(),
+            props: self.drafting_props(),
         };
         let mut out = CommandOutput::default();
         match self.session.apply(Operation::CreateEntity { record }) {
