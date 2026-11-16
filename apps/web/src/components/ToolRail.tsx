@@ -8,10 +8,10 @@ type Props = {
 
 export function ToolRail({ activeCmd, onCommand }: Props) {
   return (
-    <aside className="cad-rail flex w-12 shrink-0 flex-col overflow-y-auto border-r border-[#2a2a2a] bg-[#1b1b1b]">
+    <aside className="cad-rail flex w-14 shrink-0 flex-col overflow-y-auto border-r border-[#2a2a2a] bg-[#1b1b1b]">
       {TOOL_RAIL_GROUPS.map((g) => (
-        <div key={g.title} className="border-b border-[#2a2a2a] py-1">
-          <p className="px-0.5 pb-0.5 text-center text-[8px] uppercase tracking-wide text-[#6a6a6a]">
+        <div key={g.title} className="border-b border-[#2a2a2a] py-1.5">
+          <p className="px-0.5 pb-1 text-center text-[9px] uppercase tracking-wide text-[#7a7a7a]">
             {g.title.slice(0, 3)}
           </p>
           {g.ids.map((id) => {

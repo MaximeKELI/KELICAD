@@ -548,6 +548,20 @@ export function Ribbon(props: Props) {
           })}
         </div>
       )}
+
+      <div className="cad-filetabs">
+        <button type="button" className="cad-filetab is-active" title={projectName}>
+          {projectName}
+        </button>
+        <button
+          type="button"
+          className="cad-filetab-add"
+          title="Nouveau dessin"
+          onClick={() => handlers.onUiAction("new")}
+        >
+          +
+        </button>
+      </div>
     </div>
   );
 }
