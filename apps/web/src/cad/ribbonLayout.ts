@@ -42,8 +42,8 @@ export const RIBBON_TABS: RibbonTab[] = [
   {
     id: "home",
     label: "Début",
-    // Mirrors AutoCAD Home: Dessin | Modification | Annotation | Calques |
-    // Bloc | Propriétés | Utilitaires | Vue — functional tools only.
+    // AutoCAD Home (FR): Dessin | Modification | Annotation | Calques |
+    // Bloc | Propriétés — dense rows + flyouts, working tools only.
     panels: [
       {
         title: "Dessin",
@@ -53,34 +53,40 @@ export const RIBBON_TABS: RibbonTab[] = [
           {
             type: "flyout",
             main: "circle",
+            size: "lg",
             items: ["circle", "circle2p", "circle3p", "donut"],
           },
           {
             type: "flyout",
             main: "arc",
+            size: "lg",
             items: ["arc", "revcloud", "section"],
           },
           {
-            type: "stack",
-            ids: ["rect", "polygon", "ellipse"],
-          },
-          {
-            type: "stack",
-            ids: ["hatch", "spline", "point"],
+            type: "rows",
+            ids: [
+              "rect",
+              "polygon",
+              "ellipse",
+              "hatch",
+              "spline",
+              "point",
+              "triangle",
+              "ray",
+              "xline",
+            ],
           },
           {
             type: "expand",
             ids: [
-              "ray",
-              "xline",
               "wipeout",
               "star",
-              "triangle",
               "capsule",
               "arrow",
               "gridDraw",
               "boundary",
               "ddptype",
+              "region",
             ],
           },
         ],
@@ -88,40 +94,42 @@ export const RIBBON_TABS: RibbonTab[] = [
       {
         title: "Modification",
         items: [
-          { type: "tool", id: "move", size: "lg" },
+          {
+            type: "rows",
+            ids: [
+              "move",
+              "copy",
+              "stretch",
+              "rotate",
+              "mirror",
+              "scale",
+              "trim",
+              "extend",
+              "fillet",
+              "offset",
+              "arrayRect",
+              "erase",
+            ],
+          },
           {
             type: "flyout",
-            main: "copy",
-            items: ["copy", "matchprop", "oops"],
-          },
-          {
-            type: "stack",
-            ids: ["stretch", "rotate", "mirror"],
-          },
-          {
-            type: "stack",
-            ids: ["scale", "offset", "trim"],
-          },
-          {
-            type: "flyout",
-            main: "fillet",
-            items: ["fillet", "chamfer", "pedit"],
+            main: "chamfer",
+            items: ["chamfer", "fillet", "pedit"],
           },
           {
             type: "expand",
             ids: [
-              "extend",
               "lengthen",
               "break",
               "join",
-              "arrayRect",
               "arrayPolar",
               "arrayPath",
               "align",
-              "erase",
               "explode",
               "draworder",
               "overkill",
+              "matchprop",
+              "oops",
               "divide",
               "cadMeasure",
               "group",
@@ -141,11 +149,13 @@ export const RIBBON_TABS: RibbonTab[] = [
           {
             type: "flyout",
             main: "text",
+            size: "lg",
             items: ["text", "mtext"],
           },
           {
             type: "flyout",
             main: "dimLinear",
+            size: "lg",
             items: [
               "dimLinear",
               "dimAligned",
@@ -157,12 +167,8 @@ export const RIBBON_TABS: RibbonTab[] = [
             ],
           },
           {
-            type: "stack",
-            ids: ["leader", "table", "centermark"],
-          },
-          {
-            type: "stack",
-            ids: ["centerline", "revcloud"],
+            type: "rows",
+            ids: ["leader", "table", "centermark", "centerline", "revcloud", "section"],
           },
         ],
       },
@@ -172,12 +178,12 @@ export const RIBBON_TABS: RibbonTab[] = [
           { type: "tool", id: "layerProps", size: "lg" },
           { type: "layer-combo" },
           {
-            type: "stack",
-            ids: ["layerNew", "layerSetSel", "laycur"],
+            type: "rows",
+            ids: ["layerNew", "layerSetSel", "laycur", "layiso", "layoff", "layfrz"],
           },
           {
             type: "expand",
-            ids: ["layiso", "layoff", "layfrz", "laylck"],
+            ids: ["laylck", "matchprop"],
           },
         ],
       },
@@ -185,9 +191,10 @@ export const RIBBON_TABS: RibbonTab[] = [
         title: "Bloc",
         items: [
           { type: "tool", id: "insert", size: "lg" },
+          { type: "tool", id: "block", size: "lg" },
           {
-            type: "stack",
-            ids: ["block", "wblock", "explode"],
+            type: "rows",
+            ids: ["wblock", "explode", "group"],
           },
         ],
       },
@@ -198,32 +205,19 @@ export const RIBBON_TABS: RibbonTab[] = [
       {
         title: "Utilitaires",
         items: [
-          { type: "tool", id: "measure", size: "lg" },
           {
-            type: "stack",
-            ids: ["area", "list", "idEnt"],
-          },
-          {
-            type: "stack",
-            ids: ["section", "selectClear"],
-          },
-        ],
-      },
-      {
-        title: "Vue",
-        items: [
-          { type: "tool", id: "zoomExtents", size: "lg" },
-          {
-            type: "stack",
-            ids: ["zoomIn", "zoomOut", "view2d"],
-          },
-          {
-            type: "stack",
-            ids: ["viewSplit", "view3d", "ortho"],
-          },
-          {
-            type: "stack",
-            ids: ["osnap", "undo", "redo"],
+            type: "rows",
+            ids: [
+              "measure",
+              "area",
+              "list",
+              "idEnt",
+              "selectClear",
+              "undo",
+              "redo",
+              "zoomExtents",
+              "osnap",
+            ],
           },
         ],
       },
