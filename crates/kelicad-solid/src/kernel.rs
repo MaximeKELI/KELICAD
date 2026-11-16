@@ -240,6 +240,76 @@ impl SolidKernel for BuiltinSolidKernel {
         Ok(SolidBody::from_mesh(SolidId::new(), mesh))
     }
 
+    fn torus(
+        &self,
+        center: Vec3,
+        major: f64,
+        minor: f64,
+        major_segs: usize,
+        minor_segs: usize,
+    ) -> Result<SolidBody, SolidError> {
+        if major <= 0.0 || minor <= 0.0 || minor >= major {
+            return Err(SolidError::InvalidArg(
+                "torus needs major > minor > 0".into(),
+            ));
+        }
+        let mesh = torus_mesh(center, major, minor, major_segs, minor_segs);
+        if mesh.is_empty() {
+            return Err(SolidError::InvalidArg("torus produced empty mesh".into()));
+        }
+        Ok(SolidBody::from_mesh(SolidId::new(), mesh))
+    }
+
+    fn pyramid(
+        &self,
+        center_xy: Vec2,
+        radius: f64,
+        height: f64,
+        sides: usize,
+    ) -> Result<SolidBody, SolidError> {
+        let mesh = pyramid_mesh(center_xy, radius, height, sides);
+        if mesh.is_empty() {
+            return Err(SolidError::InvalidArg("pyramid produced empty mesh".into()));
+        }
+        Ok(SolidBody::from_mesh(SolidId::new(), mesh))
+    }
+
+    fn prism(
+        &self,
+        center_xy: Vec2,
+        radius: f64,
+        height: f64,
+        sides: usize,
+    ) -> Result<SolidBody, SolidError> {
+        let mesh = prism_mesh(center_xy, radius, height, sides);
+        if mesh.is_empty() {
+            return Err(SolidError::InvalidArg("prism produced empty mesh".into()));
+        }
+        Ok(SolidBody::from_mesh(SolidId::new(), mesh))
+    }
+
+    fn pipe(
+        &self,
+        center_xy: Vec2,
+        outer_radius: f64,
+        inner_radius: f64,
+        height: f64,
+        segments: usize,
+    ) -> Result<SolidBody, SolidError> {
+        if outer_radius <= 0.0
+            || inner_radius <= 0.0
+            || inner_radius >= outer_radius
+            || height <= 0.0
+        {
+            return Err(SolidError::InvalidArg(
+                "pipe needs outer > inner > 0 and height > 0".into(),
+            ));
+        }
+        let outer = self.cylinder(center_xy, outer_radius, height, segments)?;
+        let inner = self.cylinder(center_xy, inner_radius, height, segments)?;
+        self.boolean_difference(&outer, &inner)
+    }
+
     fn boolean_union(&self, a: &SolidBody, b: &SolidBody) -> Result<SolidBody, SolidError> {
         let mut mesh = a.mesh.clone();
         mesh.append(&b.mesh);
