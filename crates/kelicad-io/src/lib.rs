@@ -6,6 +6,7 @@
 pub mod dxf;
 pub mod error;
 pub mod geometry_json;
+pub mod pdf_lite;
 pub mod shp;
 pub mod svg;
 
@@ -16,6 +17,7 @@ pub mod pdf;
 
 pub use dxf::{export_dxf, import_dxf, ImportReport};
 pub use error::IoError;
+pub use pdf_lite::export_pdf_lite;
 pub use shp::{import_shp, import_shp_bytes, ShpImportReport};
 pub use svg::export_svg;
 

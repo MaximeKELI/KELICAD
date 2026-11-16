@@ -263,6 +263,10 @@ pub struct CommandEngine<G: IdGen> {
     pub last_point: Option<Vec2>,
     /// Snap aperture in world units.
     pub snap_aperture: f64,
+    /// ORTHO mode (constrain to H/V from last point) — LibreCAD/AutoCAD F8 style.
+    pub ortho: bool,
+    /// Object snap master enable (F3 style).
+    pub osnap_enabled: bool,
     active: Option<(CommandId, Active)>,
     /// Last finished command (repeat with Enter).
     last_command: Option<CommandId>,
@@ -278,6 +282,8 @@ impl<G: IdGen> CommandEngine<G> {
             ids,
             last_point: None,
             snap_aperture: 0.5,
+            ortho: false,
+            osnap_enabled: true,
             active: None,
             last_command: None,
         }
