@@ -199,6 +199,91 @@ fn cap_fan(ring: &[Vec3], base: u32, flip: bool, indices: &mut Vec<u32>) {
     }
 }
 
+/// Torus centered at `center`, major radius `R`, minor radius `r`.
+pub fn torus_mesh(
+    center: Vec3,
+    major: f64,
+    minor: f64,
+    major_segs: usize,
+    minor_segs: usize,
+) -> Mesh {
+    let major_segs = major_segs.max(8);
+    let minor_segs = minor_segs.max(6);
+    if major <= 0.0 || minor <= 0.0 {
+        return Mesh::empty();
+    }
+    let mut positions = Vec::with_capacity((major_segs + 1) * (minor_segs + 1));
+    for i in 0..=major_segs {
+        let u = (i as f64) / (major_segs as f64) * std::f64::consts::TAU;
+        let (su, cu) = u.sin_cos();
+        for j in 0..=minor_segs {
+            let v = (j as f64) / (minor_segs as f64) * std::f64::consts::TAU;
+            let (sv, cv) = v.sin_cos();
+            let x = (major + minor * cv) * cu;
+            let y = (major + minor * cv) * su;
+            let z = minor * sv;
+            positions.push(Vec3::new(center.x + x, center.y + y, center.z + z));
+        }
+    }
+    let mut indices = Vec::new();
+    let stride = minor_segs + 1;
+    for i in 0..major_segs {
+        for j in 0..minor_segs {
+            let a = (i * stride + j) as u32;
+            let b = a + 1;
+            let c = a + stride as u32;
+            let d = c + 1;
+            indices.extend_from_slice(&[a, c, d, a, d, b]);
+        }
+    }
+    Mesh { positions, indices }
+}
+
+/// Regular n-gon pyramid: base in XY at z=0, apex above center.
+pub fn pyramid_mesh(center_xy: Vec2, radius: f64, height: f64, sides: usize) -> Mesh {
+    let n = sides.max(3);
+    if radius <= 0.0 || height.abs() < 1e-12 {
+        return Mesh::empty();
+    }
+    let mut positions = Vec::with_capacity(n + 1);
+    for i in 0..n {
+        let a = (i as f64) * std::f64::consts::TAU / (n as f64);
+        positions.push(Vec3::new(
+            center_xy.x + radius * a.cos(),
+            center_xy.y + radius * a.sin(),
+            0.0,
+        ));
+    }
+    let apex = positions.len() as u32;
+    positions.push(Vec3::new(center_xy.x, center_xy.y, height));
+    let mut indices = Vec::new();
+    for tri in triangulate_polygon(&positions[..n]) {
+        indices.extend_from_slice(&[tri[0], tri[2], tri[1]]);
+    }
+    for i in 0..n {
+        let j = ((i + 1) % n) as u32;
+        indices.extend_from_slice(&[i as u32, j, apex]);
+    }
+    Mesh { positions, indices }
+}
+
+/// Regular prism: n-gon extruded along +Z.
+pub fn prism_mesh(center_xy: Vec2, radius: f64, height: f64, sides: usize) -> Mesh {
+    let n = sides.max(3);
+    if radius <= 0.0 || height <= 0.0 {
+        return Mesh::empty();
+    }
+    let mut profile = Vec::with_capacity(n);
+    for i in 0..n {
+        let a = (i as f64) * std::f64::consts::TAU / (n as f64);
+        profile.push(Vec2::new(
+            center_xy.x + radius * a.cos(),
+            center_xy.y + radius * a.sin(),
+        ));
+    }
+    extrude_xy_profile(&profile, height)
+}
+
 /// Loft between two XY profiles over `height` with `sections` intermediate steps.
 pub fn loft_xy_profiles(a: &[Vec2], b: &[Vec2], height: f64, sections: usize) -> Mesh {
     if a.len() < 3 || b.len() < 3 || height.abs() < 1e-12 {
@@ -307,6 +392,24 @@ mod tests {
         ];
         let path = [Vec2::ZERO, Vec2::new(5.0, 0.0), Vec2::new(5.0, 3.0)];
         let m = sweep_xy_along_path(&profile, &path, 0.1);
+        assert!(m.triangle_count() > 0);
+    }
+
+    #[test]
+    fn torus_nonempty() {
+        let m = torus_mesh(Vec3::ZERO, 2.0, 0.4, 24, 12);
+        assert!(m.triangle_count() > 100);
+    }
+
+    #[test]
+    fn pyramid_hex() {
+        let m = pyramid_mesh(Vec2::ZERO, 1.0, 2.0, 6);
+        assert!(m.triangle_count() >= 12);
+    }
+
+    #[test]
+    fn prism_square() {
+        let m = prism_mesh(Vec2::ZERO, 1.0, 3.0, 4);
         assert!(m.triangle_count() > 0);
     }
 }
