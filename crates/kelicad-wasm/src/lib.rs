@@ -2,7 +2,9 @@
 
 #![forbid(unsafe_code)]
 
-use kelicad_ai::{AgentMode, DeterministicProvider, KeliAgent, UuidV7Gen as AiUuidV7Gen};
+use kelicad_ai::{
+    suggest_impulses, AgentMode, DeterministicProvider, KeliAgent, UuidV7Gen as AiUuidV7Gen,
+};
 use kelicad_bim::{export_ifc, schedule_csv, BimElement};
 use kelicad_cmd::{CommandEngine, CommandEvent, CommandId, UuidV7Gen};
 use kelicad_constraints::{solve, Constraint, ConstraintSystem};
@@ -382,6 +384,13 @@ impl WasmCad {
         self.keli.ghost_vertices()
     }
 
+    /// Contextual drawing impulses / proposals as JSON array.
+    pub fn keli_impulses_json(&self) -> String {
+        let sel = self.engine.selection.len();
+        let imps = suggest_impulses(&self.engine.session, sel);
+        serde_json::to_string(&imps).unwrap_or_else(|_| "[]".into())
+    }
+
     fn sync_keli_selection(&mut self) {
         self.keli.selection = self.engine.selection.iter().collect();
     }
@@ -683,6 +692,102 @@ impl WasmCad {
             .loft(&profiles[0], &profiles[1], height, 6)
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
         self.push_solid(body, "LOFT", "height", &format!("{height}"))
+    }
+
+    /// Cylinder along +Z.
+    pub fn solid_cylinder(
+        &mut self,
+        cx: f64,
+        cy: f64,
+        radius: f64,
+        height: f64,
+    ) -> Result<String, JsValue> {
+        let k = BuiltinSolidKernel;
+        let body = k
+            .cylinder(Vec2::new(cx, cy), radius, height, 32)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.push_solid(body, "CYL", "height", &format!("{height}"))
+    }
+
+    /// Torus.
+    pub fn solid_torus(
+        &mut self,
+        cx: f64,
+        cy: f64,
+        cz: f64,
+        major: f64,
+        minor: f64,
+    ) -> Result<String, JsValue> {
+        let k = BuiltinSolidKernel;
+        let body = k
+            .torus(
+                kelicad_math::Vec3::new(cx, cy, cz),
+                major,
+                minor,
+                32,
+                16,
+            )
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.push_solid(body, "TOR", "major", &format!("{major}"))
+    }
+
+    /// Regular pyramid.
+    pub fn solid_pyramid(
+        &mut self,
+        cx: f64,
+        cy: f64,
+        radius: f64,
+        height: f64,
+        sides: u32,
+    ) -> Result<String, JsValue> {
+        let k = BuiltinSolidKernel;
+        let body = k
+            .pyramid(Vec2::new(cx, cy), radius, height, sides.max(3) as usize)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.push_solid(body, "PYR", "height", &format!("{height}"))
+    }
+
+    /// Regular prism.
+    pub fn solid_prism(
+        &mut self,
+        cx: f64,
+        cy: f64,
+        radius: f64,
+        height: f64,
+        sides: u32,
+    ) -> Result<String, JsValue> {
+        let k = BuiltinSolidKernel;
+        let body = k
+            .prism(Vec2::new(cx, cy), radius, height, sides.max(3) as usize)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.push_solid(body, "PRISM", "height", &format!("{height}"))
+    }
+
+    /// Hollow pipe (outer − inner cylinder).
+    pub fn solid_pipe(
+        &mut self,
+        cx: f64,
+        cy: f64,
+        outer: f64,
+        inner: f64,
+        height: f64,
+    ) -> Result<String, JsValue> {
+        let k = BuiltinSolidKernel;
+        let body = k
+            .pipe(Vec2::new(cx, cy), outer, inner, height, 32)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.push_solid(body, "PIPE", "height", &format!("{height}"))
+    }
+
+    /// Revolve selected closed profile around +Y by degrees.
+    pub fn solid_revolve_selected(&mut self, degrees: f64) -> Result<String, JsValue> {
+        let profile = find_closed_profile(&self.engine.session.document, &self.engine.selection)
+            .ok_or_else(|| JsValue::from_str("need a closed profile to revolve"))?;
+        let k = BuiltinSolidKernel;
+        let body = k
+            .revolve(&profile, degrees, 36)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        self.push_solid(body, "REV", "degrees", &format!("{degrees}"))
     }
 
     fn push_solid(

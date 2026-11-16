@@ -233,6 +233,124 @@ pub fn plan_utterance(utterance: &str) -> Result<Vec<ToolCall>, AiError> {
         return Ok(calls);
     }
 
+    if norm.contains("étoile")
+        || norm.contains("etoile")
+        || norm.contains("star")
+    {
+        let nums = all_numbers(&norm);
+        let tips = nums.first().copied().unwrap_or(5.0).round().max(3.0) as u64;
+        let radius = nums.get(1).copied().unwrap_or(2.0).abs().max(0.1);
+        calls.push(ToolCall {
+            name: "draw_star".into(),
+            args: json!({ "tips": tips, "radius": radius, "center": [0.0, 0.0] }),
+        });
+        return Ok(calls);
+    }
+
+    if norm.contains("polygone")
+        || norm.contains("polygon")
+        || norm.contains("hexagone")
+        || norm.contains("hexagon")
+    {
+        let nums = all_numbers(&norm);
+        let sides = if norm.contains("hex") {
+            6
+        } else {
+            nums.first().copied().unwrap_or(6.0).round().max(3.0) as u64
+        };
+        let radius = nums
+            .iter()
+            .copied()
+            .find(|&n| (n - sides as f64).abs() > 0.1)
+            .unwrap_or(1.5)
+            .abs()
+            .max(0.1);
+        calls.push(ToolCall {
+            name: "draw_polygon".into(),
+            args: json!({ "sides": sides, "radius": radius, "center": [0.0, 0.0] }),
+        });
+        return Ok(calls);
+    }
+
+    if norm.contains("donut") || norm.contains("anneau") || norm.contains("ring") {
+        let nums = all_numbers(&norm);
+        let outer = nums.first().copied().unwrap_or(2.0).abs().max(0.2);
+        let inner = nums
+            .get(1)
+            .copied()
+            .unwrap_or(outer * 0.5)
+            .abs()
+            .min(outer * 0.95)
+            .max(0.05);
+        calls.push(ToolCall {
+            name: "draw_donut".into(),
+            args: json!({ "outer": outer, "inner": inner, "center": [0.0, 0.0] }),
+        });
+        return Ok(calls);
+    }
+
+    if norm.contains("capsule") || norm.contains("stadium") || norm.contains("slot") {
+        let nums = all_numbers(&norm);
+        let length = nums.first().copied().unwrap_or(4.0).abs().max(0.2);
+        let radius = nums.get(1).copied().unwrap_or(0.5).abs().max(0.05);
+        calls.push(ToolCall {
+            name: "draw_capsule".into(),
+            args: json!({ "length": length, "radius": radius, "origin": [0.0, 0.0] }),
+        });
+        return Ok(calls);
+    }
+
+    if norm.contains("flèche") || norm.contains("fleche") || norm.contains("arrow") {
+        let nums = all_numbers(&norm);
+        let (from, to) = if nums.len() >= 4 {
+            ((nums[0], nums[1]), (nums[2], nums[3]))
+        } else {
+            ((0.0, 0.0), (5.0, 0.0))
+        };
+        calls.push(ToolCall {
+            name: "draw_arrow".into(),
+            args: json!({ "from": [from.0, from.1], "to": [to.0, to.1] }),
+        });
+        return Ok(calls);
+    }
+
+    if norm.contains("triangle") {
+        let nums = all_numbers(&norm);
+        let base = nums.first().copied().unwrap_or(3.0).abs().max(0.1);
+        let height = nums.get(1).copied().unwrap_or(2.0).abs().max(0.1);
+        calls.push(ToolCall {
+            name: "draw_triangle".into(),
+            args: json!({ "base": base, "height": height, "origin": [0.0, 0.0] }),
+        });
+        return Ok(calls);
+    }
+
+    if norm.contains("grille") || norm.contains("grid") {
+        let nums = all_numbers(&norm);
+        let cols = nums.first().copied().unwrap_or(4.0).round().max(1.0) as u64;
+        let rows = nums.get(1).copied().unwrap_or(3.0).round().max(1.0) as u64;
+        let step = nums.get(2).copied().unwrap_or(1.0).abs().max(0.05);
+        calls.push(ToolCall {
+            name: "draw_grid".into(),
+            args: json!({
+                "cols": cols,
+                "rows": rows,
+                "dx": step,
+                "dy": step,
+                "origin": [0.0, 0.0]
+            }),
+        });
+        return Ok(calls);
+    }
+
+    if norm.contains("hachure") || norm.contains("hatch") {
+        calls.push(ToolCall {
+            name: "hatch_region".into(),
+            args: json!({}),
+        });
+        return Ok(calls);
+    }
+
     Err(AiError::Unplanned(raw.to_string()))
 }
 

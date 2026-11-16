@@ -211,6 +211,52 @@ enum SolidCmd {
         #[arg(long, default_value_t = 0.1)]
         thickness: f64,
     },
+    /// Torus (major / minor).
+    Torus {
+        #[arg(long, default_value_t = 2.0)]
+        major: f64,
+        #[arg(long, default_value_t = 0.4)]
+        minor: f64,
+    },
+    /// Cylinder along +Z.
+    Cylinder {
+        #[arg(long, default_value_t = 1.0)]
+        radius: f64,
+        #[arg(long, default_value_t = 3.0)]
+        height: f64,
+    },
+    /// Regular pyramid.
+    Pyramid {
+        #[arg(long, default_value_t = 1.0)]
+        radius: f64,
+        #[arg(long, default_value_t = 2.0)]
+        height: f64,
+        #[arg(long, default_value_t = 4)]
+        sides: usize,
+    },
+    /// Regular prism.
+    Prism {
+        #[arg(long, default_value_t = 1.0)]
+        radius: f64,
+        #[arg(long, default_value_t = 2.0)]
+        height: f64,
+        #[arg(long, default_value_t = 6)]
+        sides: usize,
+    },
+    /// Hollow pipe.
+    Pipe {
+        #[arg(long, default_value_t = 1.0)]
+        outer: f64,
+        #[arg(long, default_value_t = 0.6)]
+        inner: f64,
+        #[arg(long, default_value_t = 3.0)]
+        height: f64,
+    },
+    /// Revolve a rectangle profile around +Y.
+    Revolve {
+        #[arg(long, default_value_t = 360.0)]
+        degrees: f64,
+    },
 }
 
 #[derive(Subcommand)]

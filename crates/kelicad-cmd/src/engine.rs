@@ -925,6 +925,48 @@ impl<G: IdGen> CommandEngine<G> {
                 prompt("Premier cercle", "First circle")
             }
             (CommandId::TangentCc, _) => prompt("Second cercle", "Second circle"),
+            (CommandId::Star, Active::Star { tips: None, .. }) => {
+                prompt("Nombre de branches (≥3)", "Number of tips (≥3)")
+            }
+            (CommandId::Star, Active::Star { center: None, .. }) => {
+                prompt("Centre de l'étoile", "Star center")
+            }
+            (CommandId::Star, _) => prompt("Sommet extérieur", "Outer vertex"),
+            (CommandId::Donut, Active::Donut { center: None, .. }) => {
+                prompt("Centre du donut", "Donut center")
+            }
+            (CommandId::Donut, Active::Donut { outer: None, .. }) => {
+                prompt("Rayon extérieur", "Outer radius point")
+            }
+            (CommandId::Donut, _) => prompt("Rayon intérieur", "Inner radius point"),
+            (CommandId::Capsule, Active::Capsule { a: None, .. }) => {
+                prompt("Premier bout", "First end")
+            }
+            (CommandId::Capsule, Active::Capsule { b: None, .. }) => {
+                prompt("Second bout", "Second end")
+            }
+            (CommandId::Capsule, _) => prompt("Rayon (distance à l'axe)", "Radius (distance to axis)"),
+            (CommandId::Arrow, Active::Arrow { from: None }) => {
+                prompt("Origine de la flèche", "Arrow start")
+            }
+            (CommandId::Arrow, _) => prompt("Pointe", "Arrow tip"),
+            (CommandId::Grid, Active::Grid { cols: None, .. }) => {
+                prompt("Colonnes (≥1)", "Columns (≥1)")
+            }
+            (CommandId::Grid, Active::Grid { rows: None, .. }) => {
+                prompt("Lignes (≥1)", "Rows (≥1)")
+            }
+            (CommandId::Grid, Active::Grid { origin: None, .. }) => {
+                prompt("Origine de la grille", "Grid origin")
+            }
+            (CommandId::Grid, _) => prompt("Coin d'une cellule (dx, dy)", "Cell corner (dx, dy)"),
+            (CommandId::Triangle, Active::Triangle { a: None, .. }) => {
+                prompt("Premier coin de la base", "First base corner")
+            }
+            (CommandId::Triangle, Active::Triangle { b: None, .. }) => {
+                prompt("Second coin de la base", "Second base corner")
+            }
+            (CommandId::Triangle, _) => prompt("Sommet (hauteur)", "Apex (height)"),
             _ => prompt(id.name(), id.name()),
         })
     }
@@ -984,6 +1026,77 @@ impl<G: IdGen> CommandEngine<G> {
             Active::Rectang { first: Some(a) } => {
                 vec![Geometry::Polyline(Polyline::rectangle(*a, cursor))]
             }
+            Active::Star {
+                tips: Some(n),
+                center: Some(c),
+            } => star_polygon(*c, cursor, *n, 0.4)
+                .map(|p| vec![Geometry::Polyline(p)])
+                .unwrap_or_default(),
+            Active::Donut {
+                center: Some(c),
+                outer: None,
+            } => {
+                let r = c.distance(cursor);
+                vec![Geometry::Circle(Circle::new(*c, r))]
+            }
+            Active::Donut {
+                center: Some(c),
+                outer: Some(ro),
+            } => {
+                let ri = c.distance(cursor).min(*ro * 0.99);
+                vec![
+                    Geometry::Circle(Circle::new(*c, *ro)),
+                    Geometry::Circle(Circle::new(*c, ri)),
+                ]
+            }
+            Active::Capsule {
+                a: Some(a),
+                b: None,
+            } => vec![Geometry::Line(Line::new(*a, cursor))],
+            Active::Capsule {
+                a: Some(a),
+                b: Some(b),
+            } => {
+                let ab = *b - *a;
+                let len = ab.length().max(1e-12);
+                let nrm = ab.perp() / len;
+                let radius = ((cursor - *a).dot(nrm)).abs().max(1e-6);
+                capsule(*a, *b, radius, 10)
+                    .map(|p| vec![Geometry::Polyline(p)])
+                    .unwrap_or_default()
+            }
+            Active::Arrow { from: Some(f) } => arrow(*f, cursor, f.distance(cursor) * 0.25)
+                .map(|p| vec![Geometry::Polyline(p)])
+                .unwrap_or_default(),
+            Active::Grid {
+                cols: Some(c),
+                rows: Some(r),
+                origin: Some(o),
+            } => {
+                let dx = (cursor.x - o.x).abs().max(1e-6);
+                let dy = (cursor.y - o.y).abs().max(1e-6);
+                grid_lines(*o, *c, *r, dx, dy)
+                    .into_iter()
+                    .map(Geometry::Line)
+                    .collect()
+            }
+            Active::Triangle {
+                a: Some(a),
+                b: Some(b),
+            } => {
+                let mid = a.lerp(*b, 0.5);
+                let base = *b - *a;
+                let len = base.length().max(1e-12);
+                let nrm = base.perp() / len;
+                let height = (cursor - mid).dot(nrm);
+                isosceles_triangle(*a, *b, height)
+                    .map(|p| vec![Geometry::Polyline(p)])
+                    .unwrap_or_default()
+            }
+            Active::Triangle {
+                a: Some(a),
+                b: None,
+            } => vec![Geometry::Line(Line::new(*a, cursor))],
             Active::Arc {
                 center: Some(c),
                 start: Some(s),
@@ -1242,6 +1355,46 @@ impl<G: IdGen> CommandEngine<G> {
                     Active::Polygon {
                         sides: Some(sides),
                         center,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Star, Active::Star { tips: None, center }) => {
+                let tips = n.round().max(3.0) as usize;
+                self.active = Some((
+                    CommandId::Star,
+                    Active::Star {
+                        tips: Some(tips),
+                        center,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Grid, Active::Grid { cols: None, rows, origin }) => {
+                self.active = Some((
+                    CommandId::Grid,
+                    Active::Grid {
+                        cols: Some(n.round().max(1.0) as usize),
+                        rows,
+                        origin,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Grid,
+                Active::Grid {
+                    cols: Some(c),
+                    rows: None,
+                    origin,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::Grid,
+                    Active::Grid {
+                        cols: Some(c),
+                        rows: Some(n.round().max(1.0) as usize),
+                        origin,
                     },
                 ));
                 out.prompt = self.current_prompt();
@@ -1768,6 +1921,214 @@ impl<G: IdGen> CommandEngine<G> {
                 match midline(a, p, Tolerance::DEFAULT) {
                     Some(l) => out = self.commit_one(Geometry::Line(l)),
                     None => out.echoes.push("MIDLINE dégénérée.".into()),
+                }
+                self.active = None;
+            }
+            (
+                CommandId::Star,
+                Active::Star {
+                    tips: Some(n),
+                    center: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::Star,
+                    Active::Star {
+                        tips: Some(n),
+                        center: Some(p),
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Star,
+                Active::Star {
+                    tips: Some(n),
+                    center: Some(c),
+                },
+            ) => {
+                if let Some(poly) = star_polygon(c, p, n, 0.4) {
+                    out = self.commit_one(Geometry::Polyline(poly));
+                } else {
+                    out.echoes.push("STAR invalide.".into());
+                }
+                self.active = None;
+            }
+            (CommandId::Donut, Active::Donut { center: None, .. }) => {
+                self.active = Some((
+                    CommandId::Donut,
+                    Active::Donut {
+                        center: Some(p),
+                        outer: None,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Donut,
+                Active::Donut {
+                    center: Some(c),
+                    outer: None,
+                },
+            ) => {
+                let ro = c.distance(p);
+                if ro < 1e-9 {
+                    out.echoes.push("Rayon extérieur nul.".into());
+                    self.active = None;
+                } else {
+                    self.active = Some((
+                        CommandId::Donut,
+                        Active::Donut {
+                            center: Some(c),
+                            outer: Some(ro),
+                        },
+                    ));
+                    out.prompt = self.current_prompt();
+                }
+            }
+            (
+                CommandId::Donut,
+                Active::Donut {
+                    center: Some(c),
+                    outer: Some(ro),
+                },
+            ) => {
+                let ri = c.distance(p).min(ro * 0.99).max(1e-9);
+                let layer_id = self.session.document.current_layer;
+                let mut ops = Vec::new();
+                for (r, kind) in [(ro, EntityKind::Circle), (ri, EntityKind::Circle)] {
+                    let id = self.ids.next();
+                    ops.push(Operation::CreateEntity {
+                        record: EntityRecord {
+                            id,
+                            kind,
+                            geometry: Geometry::Circle(Circle::new(c, r)),
+                            layer_id,
+                        },
+                    });
+                }
+                out = self.apply_batch(ops, "Donut créé".into());
+                self.active = None;
+            }
+            (CommandId::Capsule, Active::Capsule { a: None, .. }) => {
+                self.active = Some((CommandId::Capsule, Active::Capsule { a: Some(p), b: None }));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Capsule, Active::Capsule { a: Some(a), b: None }) => {
+                self.active = Some((
+                    CommandId::Capsule,
+                    Active::Capsule {
+                        a: Some(a),
+                        b: Some(p),
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Capsule,
+                Active::Capsule {
+                    a: Some(a),
+                    b: Some(b),
+                },
+            ) => {
+                let ab = b - a;
+                let len = ab.length().max(1e-12);
+                let nrm = ab.perp() / len;
+                let radius = ((p - a).dot(nrm)).abs().max(1e-6);
+                if let Some(poly) = capsule(a, b, radius, 12) {
+                    out = self.commit_one(Geometry::Polyline(poly));
+                } else {
+                    out.echoes.push("CAPSULE invalide.".into());
+                }
+                self.active = None;
+            }
+            (CommandId::Arrow, Active::Arrow { from: None }) => {
+                self.active = Some((CommandId::Arrow, Active::Arrow { from: Some(p) }));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Arrow, Active::Arrow { from: Some(f) }) => {
+                let hs = f.distance(p) * 0.25;
+                if let Some(poly) = arrow(f, p, hs) {
+                    out = self.commit_one(Geometry::Polyline(poly));
+                } else {
+                    out.echoes.push("ARROW invalide.".into());
+                }
+                self.active = None;
+            }
+            (
+                CommandId::Grid,
+                Active::Grid {
+                    cols: Some(c),
+                    rows: Some(r),
+                    origin: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::Grid,
+                    Active::Grid {
+                        cols: Some(c),
+                        rows: Some(r),
+                        origin: Some(p),
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Grid,
+                Active::Grid {
+                    cols: Some(c),
+                    rows: Some(r),
+                    origin: Some(o),
+                },
+            ) => {
+                let dx = (p.x - o.x).abs().max(1e-6);
+                let dy = (p.y - o.y).abs().max(1e-6);
+                let layer_id = self.session.document.current_layer;
+                let mut ops = Vec::new();
+                for line in grid_lines(o, c, r, dx, dy) {
+                    let id = self.ids.next();
+                    ops.push(Operation::CreateEntity {
+                        record: EntityRecord {
+                            id,
+                            kind: EntityKind::Line,
+                            geometry: Geometry::Line(line),
+                            layer_id,
+                        },
+                    });
+                }
+                out = self.apply_batch(ops, format!("Grille {c}×{r}"));
+                self.active = None;
+            }
+            (CommandId::Triangle, Active::Triangle { a: None, .. }) => {
+                self.active = Some((CommandId::Triangle, Active::Triangle { a: Some(p), b: None }));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Triangle, Active::Triangle { a: Some(a), b: None }) => {
+                self.active = Some((
+                    CommandId::Triangle,
+                    Active::Triangle {
+                        a: Some(a),
+                        b: Some(p),
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Triangle,
+                Active::Triangle {
+                    a: Some(a),
+                    b: Some(b),
+                },
+            ) => {
+                let mid = a.lerp(b, 0.5);
+                let base = b - a;
+                let len = base.length().max(1e-12);
+                let nrm = base.perp() / len;
+                let height = (p - mid).dot(nrm);
+                if let Some(poly) = isosceles_triangle(a, b, height) {
+                    out = self.commit_one(Geometry::Polyline(poly));
+                } else {
+                    out.echoes.push("TRIANGLE invalide.".into());
                 }
                 self.active = None;
             }

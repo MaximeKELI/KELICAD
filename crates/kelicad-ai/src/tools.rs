@@ -7,6 +7,9 @@ use kelicad_doc::{
     BlockDef, DimKind, DimensionGeom, EntityId, EntityRecord, Geometry, HatchGeom,
     InsertGeom, TextAlign, TextGeom,
 };
+use kelicad_geom::construct::{
+    arrow, capsule, grid_lines, isosceles_triangle, regular_polygon_center_vertex, star_polygon,
+};
 use kelicad_geom::transform::offset_line;
 use kelicad_geom::{Arc, Circle, Line, Polyline};
 use kelicad_math::Vec2;
@@ -72,6 +75,13 @@ pub fn execute_tool(
         "draw_circle" => write_draw_circle(call, ctx, ids),
         "draw_arc" => write_draw_arc(call, ctx, ids),
         "draw_rectangle" => write_draw_rectangle(call, ctx, ids),
+        "draw_polygon" => write_draw_polygon(call, ctx, ids),
+        "draw_star" => write_draw_star(call, ctx, ids),
+        "draw_donut" => write_draw_donut(call, ctx, ids),
+        "draw_capsule" => write_draw_capsule(call, ctx, ids),
+        "draw_arrow" => write_draw_arrow(call, ctx, ids),
+        "draw_grid" => write_draw_grid(call, ctx, ids),
+        "draw_triangle" => write_draw_triangle(call, ctx, ids),
         "draw_text" => write_draw_text(call, ctx, ids),
         "add_dimension" => write_add_dimension(call, ctx, ids),
         "hatch_region" => write_hatch(call, ctx, ids),
@@ -108,6 +118,13 @@ pub fn tool_names() -> &'static [&'static str] {
         "draw_circle",
         "draw_arc",
         "draw_rectangle",
+        "draw_polygon",
+        "draw_star",
+        "draw_donut",
+        "draw_capsule",
+        "draw_arrow",
+        "draw_grid",
+        "draw_triangle",
         "draw_text",
         "add_dimension",
         "hatch_region",
@@ -671,6 +688,274 @@ fn write_draw_rectangle(
             false,
             None,
         ),
+        ops: vec![create_entity_op(id, layer, geom.clone())],
+        ghosts: vec![geom],
+        bindings,
+    })
+}
+
+fn write_draw_polygon(
+    call: &ToolCall,
+    ctx: &ToolContext<'_>,
+    ids: &mut dyn IdGen,
+) -> Result<ToolExecResult, AiError> {
+    let tool = "draw_polygon";
+    let sides = call
+        .args
+        .get("sides")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(6) as usize;
+    let radius = req_f64(tool, &call.args, "radius")?;
+    let center = opt_array2(&call.args, "center").unwrap_or(Vec2::ZERO);
+    let layer = resolve_layer(ctx, &call.args);
+    let id = ids.next_entity();
+    let vertex = center + Vec2::new(radius, 0.0);
+    let poly = regular_polygon_center_vertex(center, vertex, sides).ok_or_else(|| {
+        AiError::InvalidArgs {
+            tool: tool.into(),
+            reason: "invalid polygon".into(),
+        }
+    })?;
+    let geom = Geometry::Polyline(poly);
+    let mut bindings = HashMap::new();
+    bindings.insert("last".into(), id);
+    Ok(ToolExecResult {
+        step: step(
+            tool,
+            &call.args,
+            &format!("polygone {sides} côtés r={radius:.3}"),
+            &format!("polygon {sides}-gon r={radius:.3}"),
+            false,
+            None,
+        ),
+        ops: vec![create_entity_op(id, layer, geom.clone())],
+        ghosts: vec![geom],
+        bindings,
+    })
+}
+
+fn write_draw_star(
+    call: &ToolCall,
+    ctx: &ToolContext<'_>,
+    ids: &mut dyn IdGen,
+) -> Result<ToolExecResult, AiError> {
+    let tool = "draw_star";
+    let tips = call
+        .args
+        .get("tips")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(5) as usize;
+    let radius = req_f64(tool, &call.args, "radius")?;
+    let inner = call
+        .args
+        .get("inner_ratio")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.4);
+    let center = opt_array2(&call.args, "center").unwrap_or(Vec2::ZERO);
+    let layer = resolve_layer(ctx, &call.args);
+    let id = ids.next_entity();
+    let poly = star_polygon(center, center + Vec2::new(radius, 0.0), tips, inner).ok_or_else(
+        || AiError::InvalidArgs {
+            tool: tool.into(),
+            reason: "invalid star".into(),
+        },
+    )?;
+    let geom = Geometry::Polyline(poly);
+    let mut bindings = HashMap::new();
+    bindings.insert("last".into(), id);
+    Ok(ToolExecResult {
+        step: step(
+            tool,
+            &call.args,
+            &format!("étoile {tips} branches"),
+            &format!("{tips}-point star"),
+            false,
+            None,
+        ),
+        ops: vec![create_entity_op(id, layer, geom.clone())],
+        ghosts: vec![geom],
+        bindings,
+    })
+}
+
+fn write_draw_donut(
+    call: &ToolCall,
+    ctx: &ToolContext<'_>,
+    ids: &mut dyn IdGen,
+) -> Result<ToolExecResult, AiError> {
+    let tool = "draw_donut";
+    let outer = req_f64(tool, &call.args, "outer")?;
+    let inner = req_f64(tool, &call.args, "inner")?;
+    if outer <= 0.0 || inner <= 0.0 || inner >= outer {
+        return Err(AiError::InvalidArgs {
+            tool: tool.into(),
+            reason: "need outer > inner > 0".into(),
+        });
+    }
+    let center = opt_array2(&call.args, "center").unwrap_or(Vec2::ZERO);
+    let layer = resolve_layer(ctx, &call.args);
+    let id_o = ids.next_entity();
+    let id_i = ids.next_entity();
+    let go = Geometry::Circle(Circle::new(center, outer));
+    let gi = Geometry::Circle(Circle::new(center, inner));
+    let mut bindings = HashMap::new();
+    bindings.insert("last".into(), id_o);
+    Ok(ToolExecResult {
+        step: step(
+            tool,
+            &call.args,
+            &format!("donut R={outer:.3} r={inner:.3}"),
+            &format!("donut R={outer:.3} r={inner:.3}"),
+            false,
+            None,
+        ),
+        ops: vec![
+            create_entity_op(id_o, layer, go.clone()),
+            create_entity_op(id_i, layer, gi.clone()),
+        ],
+        ghosts: vec![go, gi],
+        bindings,
+    })
+}
+
+fn write_draw_capsule(
+    call: &ToolCall,
+    ctx: &ToolContext<'_>,
+    ids: &mut dyn IdGen,
+) -> Result<ToolExecResult, AiError> {
+    let tool = "draw_capsule";
+    let length = req_f64(tool, &call.args, "length")?;
+    let radius = req_f64(tool, &call.args, "radius")?;
+    let origin = opt_array2(&call.args, "origin").unwrap_or(Vec2::ZERO);
+    let layer = resolve_layer(ctx, &call.args);
+    let id = ids.next_entity();
+    let a = origin;
+    let b = origin + Vec2::new(length, 0.0);
+    let poly = capsule(a, b, radius, 12).ok_or_else(|| AiError::InvalidArgs {
+        tool: tool.into(),
+        reason: "invalid capsule".into(),
+    })?;
+    let geom = Geometry::Polyline(poly);
+    let mut bindings = HashMap::new();
+    bindings.insert("last".into(), id);
+    Ok(ToolExecResult {
+        step: step(tool, &call.args, "capsule", "capsule", false, None),
+        ops: vec![create_entity_op(id, layer, geom.clone())],
+        ghosts: vec![geom],
+        bindings,
+    })
+}
+
+fn write_draw_arrow(
+    call: &ToolCall,
+    ctx: &ToolContext<'_>,
+    ids: &mut dyn IdGen,
+) -> Result<ToolExecResult, AiError> {
+    let tool = "draw_arrow";
+    let from = req_array2(tool, &call.args, "from")?;
+    let to = req_array2(tool, &call.args, "to")?;
+    let head = call
+        .args
+        .get("head_size")
+        .and_then(|v| v.as_f64())
+        .unwrap_or_else(|| from.distance(to) * 0.25);
+    let layer = resolve_layer(ctx, &call.args);
+    let id = ids.next_entity();
+    let poly = arrow(from, to, head).ok_or_else(|| AiError::InvalidArgs {
+        tool: tool.into(),
+        reason: "invalid arrow".into(),
+    })?;
+    let geom = Geometry::Polyline(poly);
+    let mut bindings = HashMap::new();
+    bindings.insert("last".into(), id);
+    Ok(ToolExecResult {
+        step: step(tool, &call.args, "flèche", "arrow", false, None),
+        ops: vec![create_entity_op(id, layer, geom.clone())],
+        ghosts: vec![geom],
+        bindings,
+    })
+}
+
+fn write_draw_grid(
+    call: &ToolCall,
+    ctx: &ToolContext<'_>,
+    ids: &mut dyn IdGen,
+) -> Result<ToolExecResult, AiError> {
+    let tool = "draw_grid";
+    let cols = call
+        .args
+        .get("cols")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(4) as usize;
+    let rows = call
+        .args
+        .get("rows")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(3) as usize;
+    let dx = call
+        .args
+        .get("dx")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(1.0);
+    let dy = call
+        .args
+        .get("dy")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(1.0);
+    let origin = opt_array2(&call.args, "origin").unwrap_or(Vec2::ZERO);
+    let layer = resolve_layer(ctx, &call.args);
+    let lines = grid_lines(origin, cols, rows, dx, dy);
+    let mut ops = Vec::new();
+    let mut ghosts = Vec::new();
+    let mut last = None;
+    for line in lines {
+        let id = ids.next_entity();
+        let geom = Geometry::Line(line);
+        ops.push(create_entity_op(id, layer, geom.clone()));
+        ghosts.push(geom);
+        last = Some(id);
+    }
+    let mut bindings = HashMap::new();
+    if let Some(id) = last {
+        bindings.insert("last".into(), id);
+    }
+    Ok(ToolExecResult {
+        step: step(
+            tool,
+            &call.args,
+            &format!("grille {cols}×{rows}"),
+            &format!("grid {cols}×{rows}"),
+            false,
+            None,
+        ),
+        ops,
+        ghosts,
+        bindings,
+    })
+}
+
+fn write_draw_triangle(
+    call: &ToolCall,
+    ctx: &ToolContext<'_>,
+    ids: &mut dyn IdGen,
+) -> Result<ToolExecResult, AiError> {
+    let tool = "draw_triangle";
+    let base = req_f64(tool, &call.args, "base")?;
+    let height = req_f64(tool, &call.args, "height")?;
+    let origin = opt_array2(&call.args, "origin").unwrap_or(Vec2::ZERO);
+    let layer = resolve_layer(ctx, &call.args);
+    let id = ids.next_entity();
+    let a = origin;
+    let b = origin + Vec2::new(base, 0.0);
+    let poly = isosceles_triangle(a, b, height).ok_or_else(|| AiError::InvalidArgs {
+        tool: tool.into(),
+        reason: "invalid triangle".into(),
+    })?;
+    let geom = Geometry::Polyline(poly);
+    let mut bindings = HashMap::new();
+    bindings.insert("last".into(), id);
+    Ok(ToolExecResult {
+        step: step(tool, &call.args, "triangle", "triangle", false, None),
         ops: vec![create_entity_op(id, layer, geom.clone())],
         ghosts: vec![geom],
         bindings,
