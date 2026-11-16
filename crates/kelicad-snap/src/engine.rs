@@ -145,6 +145,27 @@ impl SnapEngine {
                         Self::push(out, i.position, SnapKind::Endpoint, query.cursor);
                     }
                 }
+                Geometry::Ellipse(e) => {
+                    if self.modes.center {
+                        Self::push(out, e.center, SnapKind::Center, query.cursor);
+                    }
+                    if self.modes.endpoint {
+                        Self::push(out, e.center + e.major, SnapKind::Endpoint, query.cursor);
+                    }
+                    if self.modes.nearest {
+                        for poly in [e.to_polyline(32)] {
+                            for seg in poly.segments() {
+                                self.line_snaps(seg, query, out);
+                            }
+                        }
+                    }
+                }
+                Geometry::Spline(s) => {
+                    let poly = s.to_polyline(8);
+                    for seg in poly.segments() {
+                        self.line_snaps(seg, query, out);
+                    }
+                }
             }
         }
     }

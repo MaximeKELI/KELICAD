@@ -6,9 +6,13 @@
 pub mod aabb;
 pub mod arc;
 pub mod circle;
+pub mod construct;
+pub mod ellipse;
 pub mod intersect;
 pub mod line;
+pub mod pat;
 pub mod polyline;
+pub mod spline;
 pub mod transform;
 pub mod trim;
 
@@ -18,8 +22,18 @@ mod rigorous;
 pub use aabb::Aabb;
 pub use arc::Arc;
 pub use circle::Circle;
+pub use construct::{
+    angle_bisector, chamfer_lines, circle_from_2_points, circle_from_3_points, fillet_lines,
+    regular_polygon_center_vertex, regular_polygon_side, tangents_circle_circle,
+    tangents_point_circle,
+};
+pub use ellipse::Ellipse;
 pub use intersect::{
     circle_circle, line_circle, line_line, CircleCircleResult, LineCircleResult, LineLineResult,
 };
 pub use line::Line;
+pub use pat::{
+    builtin_pattern, builtin_patterns, generate_hatch, parse_pat, PatLineDef, PatPattern,
+};
 pub use polyline::Polyline;
+pub use spline::Spline;

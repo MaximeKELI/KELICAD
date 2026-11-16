@@ -1,12 +1,13 @@
 //! Geometry component attached to entities.
 
 use kelicad_geom::transform::{
-    mirror_arc, mirror_circle, mirror_line, mirror_point, mirror_polyline, rotate_arc,
-    rotate_circle, rotate_line, rotate_point, rotate_polyline, scale_arc, scale_circle, scale_line,
-    scale_point, scale_polyline, translate_arc, translate_circle, translate_line,
-    translate_polyline,
+    mirror_arc, mirror_circle, mirror_ellipse, mirror_line, mirror_point, mirror_polyline,
+    mirror_spline, rotate_arc, rotate_circle, rotate_ellipse, rotate_line, rotate_point,
+    rotate_polyline, rotate_spline, scale_arc, scale_circle, scale_ellipse, scale_line, scale_point,
+    scale_polyline, scale_spline, translate_arc, translate_circle, translate_ellipse, translate_line,
+    translate_polyline, translate_spline,
 };
-use kelicad_geom::{Arc, Circle, Line, Polyline};
+use kelicad_geom::{Arc, Circle, Ellipse, Line, Polyline, Spline};
 use kelicad_math::Vec2;
 
 use crate::annotation::{DimensionGeom, HatchGeom, MTextGeom, TextGeom};
@@ -27,6 +28,10 @@ pub enum Geometry {
     Circle(Circle),
     /// Polyline / rectangle.
     Polyline(Polyline),
+    /// Ellipse.
+    Ellipse(Ellipse),
+    /// Spline.
+    Spline(Spline),
     /// Single-line text.
     Text(TextGeom),
     /// Multi-line text.
@@ -48,6 +53,8 @@ impl Geometry {
             Self::Arc(_) => EntityKind::Arc,
             Self::Circle(_) => EntityKind::Circle,
             Self::Polyline(_) => EntityKind::Polyline,
+            Self::Ellipse(_) => EntityKind::Ellipse,
+            Self::Spline(_) => EntityKind::Spline,
             Self::Text(_) => EntityKind::Text,
             Self::MText(_) => EntityKind::MText,
             Self::Dimension(_) => EntityKind::Dimension,
@@ -64,6 +71,8 @@ impl Geometry {
             Self::Arc(a) => Self::Arc(translate_arc(*a, delta)),
             Self::Circle(c) => Self::Circle(translate_circle(*c, delta)),
             Self::Polyline(p) => Self::Polyline(translate_polyline(p, delta)),
+            Self::Ellipse(e) => Self::Ellipse(translate_ellipse(*e, delta)),
+            Self::Spline(s) => Self::Spline(translate_spline(s, delta)),
             Self::Text(t) => {
                 let mut n = t.clone();
                 n.position += delta;
@@ -102,6 +111,8 @@ impl Geometry {
             Self::Arc(a) => Self::Arc(rotate_arc(*a, origin, radians)),
             Self::Circle(c) => Self::Circle(rotate_circle(*c, origin, radians)),
             Self::Polyline(p) => Self::Polyline(rotate_polyline(p, origin, radians)),
+            Self::Ellipse(e) => Self::Ellipse(rotate_ellipse(*e, origin, radians)),
+            Self::Spline(s) => Self::Spline(rotate_spline(s, origin, radians)),
             Self::Text(t) => {
                 let mut n = t.clone();
                 n.position = rotate_point(n.position, origin, radians);
@@ -147,6 +158,8 @@ impl Geometry {
             Self::Arc(a) => Self::Arc(scale_arc(*a, origin, factor)),
             Self::Circle(c) => Self::Circle(scale_circle(*c, origin, factor)),
             Self::Polyline(p) => Self::Polyline(scale_polyline(p, origin, factor)),
+            Self::Ellipse(e) => Self::Ellipse(scale_ellipse(*e, origin, factor)),
+            Self::Spline(s) => Self::Spline(scale_spline(s, origin, factor)),
             Self::Text(t) => {
                 let mut n = t.clone();
                 n.position = scale_point(n.position, origin, factor);
@@ -174,6 +187,7 @@ impl Geometry {
                     .iter()
                     .map(|p| scale_point(*p, origin, factor))
                     .collect();
+                n.scale *= factor.abs();
                 Self::Hatch(n)
             }
             Self::Insert(i) => {
@@ -193,6 +207,8 @@ impl Geometry {
             Self::Arc(ar) => Self::Arc(mirror_arc(*ar, a, b)),
             Self::Circle(c) => Self::Circle(mirror_circle(*c, a, b)),
             Self::Polyline(p) => Self::Polyline(mirror_polyline(p, a, b)),
+            Self::Ellipse(e) => Self::Ellipse(mirror_ellipse(*e, a, b)),
+            Self::Spline(s) => Self::Spline(mirror_spline(s, a, b)),
             Self::Text(t) => {
                 let mut n = t.clone();
                 n.position = mirror_point(n.position, a, b);

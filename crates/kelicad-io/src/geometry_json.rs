@@ -5,7 +5,7 @@ use kelicad_doc::{
     DimKind, DimensionGeom, Geometry, HatchGeom, HatchPattern, InsertGeom, MTextGeom, TextAlign,
     TextGeom,
 };
-use kelicad_geom::{Arc, Circle, Line, Polyline};
+use kelicad_geom::{Arc, Circle, Ellipse, Line, Polyline, Spline};
 use kelicad_math::Vec2;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -73,6 +73,22 @@ enum GeomDto {
     Hatch {
         boundary: Vec<[f64; 2]>,
         pattern: String,
+    },
+    Ellipse {
+        cx: f64,
+        cy: f64,
+        mjx: f64,
+        mjy: f64,
+        ratio: f64,
+        start_angle: f64,
+        end_angle: f64,
+    },
+    Spline {
+        degree: u8,
+        closed: bool,
+        controls: Vec<[f64; 2]>,
+        #[serde(default)]
+        fit: Vec<[f64; 2]>,
     },
     Insert {
         block_id: String,
@@ -158,6 +174,21 @@ pub fn geometry_to_json(g: &Geometry) -> Result<String, IoError> {
                 HatchPattern::Solid => "SOLID".into(),
                 HatchPattern::Named(n) => n.clone(),
             },
+        },
+        Geometry::Ellipse(e) => GeomDto::Ellipse {
+            cx: e.center.x,
+            cy: e.center.y,
+            mjx: e.major.x,
+            mjy: e.major.y,
+            ratio: e.ratio,
+            start_angle: e.start_angle,
+            end_angle: e.end_angle,
+        },
+        Geometry::Spline(s) => GeomDto::Spline {
+            degree: s.degree,
+            closed: s.closed,
+            controls: s.control_points.iter().map(|v| [v.x, v.y]).collect(),
+            fit: s.fit_points.iter().map(|v| [v.x, v.y]).collect(),
         },
         Geometry::Insert(i) => GeomDto::Insert {
             block_id: i.block_id.to_string(),
@@ -274,7 +305,48 @@ pub fn geometry_from_json(s: &str) -> Result<Geometry, IoError> {
             } else {
                 HatchPattern::Named(pattern)
             },
+            scale: 1.0,
+            angle: 0.0,
         }),
+        GeomDto::Ellipse {
+            cx,
+            cy,
+            mjx,
+            mjy,
+            ratio,
+            start_angle,
+            end_angle,
+        } => {
+            let mut e = Ellipse {
+                center: Vec2::new(cx, cy),
+                major: Vec2::new(mjx, mjy),
+                ratio,
+                start_angle,
+                end_angle,
+            };
+            if (end_angle - start_angle).abs() >= std::f64::consts::TAU - 1e-6
+                || (start_angle == 0.0 && end_angle == 0.0)
+            {
+                e.start_angle = 0.0;
+                e.end_angle = 0.0;
+            }
+            Geometry::Ellipse(e)
+        }
+        GeomDto::Spline {
+            degree,
+            closed,
+            controls,
+            fit,
+        } => {
+            let mut s = Spline::from_controls(
+                controls.into_iter().map(|[x, y]| Vec2::new(x, y)).collect(),
+                degree,
+                closed,
+            )
+            .ok_or_else(|| IoError::Format("spline needs enough controls".into()))?;
+            s.fit_points = fit.into_iter().map(|[x, y]| Vec2::new(x, y)).collect();
+            Geometry::Spline(s)
+        }
         GeomDto::Insert {
             block_id,
             x,

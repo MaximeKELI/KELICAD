@@ -129,4 +129,36 @@ pub struct HatchGeom {
     pub boundary: Vec<Vec2>,
     /// Pattern.
     pub pattern: HatchPattern,
+    /// Pattern scale (1.0 = as defined in PAT).
+    #[serde(default = "default_hatch_scale")]
+    pub scale: f64,
+    /// Pattern rotation in degrees.
+    #[serde(default)]
+    pub angle: f64,
+}
+
+fn default_hatch_scale() -> f64 {
+    1.0
+}
+
+impl HatchGeom {
+    /// Solid hatch with default scale/angle.
+    pub fn solid(boundary: Vec<Vec2>) -> Self {
+        Self {
+            boundary,
+            pattern: HatchPattern::Solid,
+            scale: 1.0,
+            angle: 0.0,
+        }
+    }
+
+    /// Named PAT pattern hatch.
+    pub fn named(boundary: Vec<Vec2>, name: impl Into<String>, scale: f64, angle: f64) -> Self {
+        Self {
+            boundary,
+            pattern: HatchPattern::Named(name.into()),
+            scale,
+            angle,
+        }
+    }
 }

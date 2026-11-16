@@ -192,6 +192,8 @@ fn kind_str(kind: kelicad_doc::EntityKind) -> &'static str {
         kelicad_doc::EntityKind::Arc => "arc",
         kelicad_doc::EntityKind::Circle => "circle",
         kelicad_doc::EntityKind::Polyline => "polyline",
+        kelicad_doc::EntityKind::Ellipse => "ellipse",
+        kelicad_doc::EntityKind::Spline => "spline",
         kelicad_doc::EntityKind::Text => "text",
         kelicad_doc::EntityKind::MText => "mtext",
         kelicad_doc::EntityKind::Dimension => "dimension",

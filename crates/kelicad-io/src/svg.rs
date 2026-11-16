@@ -99,6 +99,16 @@ fn expand_bounds(g: &Geometry, min_x: &mut f64, min_y: &mut f64, max_x: &mut f64
         }
         Geometry::Insert(i) => add(i.position.x, i.position.y),
         Geometry::Point(p) => add(p.x, p.y),
+        Geometry::Ellipse(e) => {
+            let bb = e.aabb();
+            add(bb.min.x, bb.min.y);
+            add(bb.max.x, bb.max.y);
+        }
+        Geometry::Spline(s) => {
+            for v in &s.to_polyline(8).vertices {
+                add(v.x, v.y);
+            }
+        }
     }
 }
 
@@ -220,6 +230,36 @@ fn write_geom(out: &mut String, g: &Geometry) -> Result<(), IoError> {
                 p.x, p.y
             )
             .map_err(|e| IoError::Format(e.to_string()))?;
+        }
+        Geometry::Ellipse(e) => {
+            let poly = e.to_polyline(64);
+            let mut d = String::new();
+            for (i, v) in poly.vertices.iter().enumerate() {
+                if i == 0 {
+                    write!(d, "M {} {}", v.x, v.y).ok();
+                } else {
+                    write!(d, " L {} {}", v.x, v.y).ok();
+                }
+            }
+            if poly.closed {
+                d.push_str(" Z");
+            }
+            writeln!(out, "<path d=\"{d}\" />").map_err(|e| IoError::Format(e.to_string()))?;
+        }
+        Geometry::Spline(s) => {
+            let poly = s.to_polyline(12);
+            let mut d = String::new();
+            for (i, v) in poly.vertices.iter().enumerate() {
+                if i == 0 {
+                    write!(d, "M {} {}", v.x, v.y).ok();
+                } else {
+                    write!(d, " L {} {}", v.x, v.y).ok();
+                }
+            }
+            if poly.closed {
+                d.push_str(" Z");
+            }
+            writeln!(out, "<path d=\"{d}\" />").map_err(|e| IoError::Format(e.to_string()))?;
         }
     }
     Ok(())

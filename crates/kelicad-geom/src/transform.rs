@@ -6,8 +6,10 @@ use kelicad_math::Vec2;
 
 use crate::arc::Arc;
 use crate::circle::Circle;
+use crate::ellipse::Ellipse;
 use crate::line::Line;
 use crate::polyline::Polyline;
+use crate::spline::Spline;
 
 /// Translate a point.
 #[inline]
@@ -181,6 +183,117 @@ pub fn mirror_polyline(poly: &Polyline, a: Vec2, b: Vec2) -> Polyline {
             .map(|&p| mirror_point(p, a, b))
             .collect(),
         closed: poly.closed,
+    }
+}
+
+/// Translate ellipse.
+pub fn translate_ellipse(e: Ellipse, delta: Vec2) -> Ellipse {
+    Ellipse {
+        center: translate_point(e.center, delta),
+        ..e
+    }
+}
+
+/// Rotate ellipse about origin.
+pub fn rotate_ellipse(e: Ellipse, origin: Vec2, radians: f64) -> Ellipse {
+    Ellipse {
+        center: rotate_point(e.center, origin, radians),
+        major: e.major.rotate(radians),
+        ..e
+    }
+}
+
+/// Scale ellipse about origin (uniform).
+pub fn scale_ellipse(e: Ellipse, origin: Vec2, factor: f64) -> Ellipse {
+    Ellipse {
+        center: scale_point(e.center, origin, factor),
+        major: e.major * factor.abs(),
+        ..e
+    }
+}
+
+/// Mirror ellipse across line ab.
+pub fn mirror_ellipse(e: Ellipse, a: Vec2, b: Vec2) -> Ellipse {
+    let tip = mirror_point(e.center + e.major, a, b);
+    let center = mirror_point(e.center, a, b);
+    Ellipse {
+        center,
+        major: tip - center,
+        start_angle: -e.start_angle,
+        end_angle: -e.end_angle,
+        ..e
+    }
+}
+
+/// Translate spline.
+pub fn translate_spline(s: &Spline, delta: Vec2) -> Spline {
+    Spline {
+        control_points: s
+            .control_points
+            .iter()
+            .map(|&p| translate_point(p, delta))
+            .collect(),
+        fit_points: s
+            .fit_points
+            .iter()
+            .map(|&p| translate_point(p, delta))
+            .collect(),
+        degree: s.degree,
+        closed: s.closed,
+    }
+}
+
+/// Rotate spline.
+pub fn rotate_spline(s: &Spline, origin: Vec2, radians: f64) -> Spline {
+    Spline {
+        control_points: s
+            .control_points
+            .iter()
+            .map(|&p| rotate_point(p, origin, radians))
+            .collect(),
+        fit_points: s
+            .fit_points
+            .iter()
+            .map(|&p| rotate_point(p, origin, radians))
+            .collect(),
+        degree: s.degree,
+        closed: s.closed,
+    }
+}
+
+/// Scale spline.
+pub fn scale_spline(s: &Spline, origin: Vec2, factor: f64) -> Spline {
+    Spline {
+        control_points: s
+            .control_points
+            .iter()
+            .map(|&p| scale_point(p, origin, factor))
+            .collect(),
+        fit_points: s
+            .fit_points
+            .iter()
+            .map(|&p| scale_point(p, origin, factor))
+            .collect(),
+        degree: s.degree,
+        closed: s.closed,
+    }
+}
+
+/// Mirror spline.
+pub fn mirror_spline(s: &Spline, a: Vec2, b: Vec2) -> Spline {
+    Spline {
+        control_points: s
+            .control_points
+            .iter()
+            .map(|&p| mirror_point(p, a, b))
+            .collect(),
+        fit_points: s
+            .fit_points
+            .iter()
+            .map(|&p| mirror_point(p, a, b))
+            .collect(),
+        degree: s.degree,
+        closed: s.closed,
     }
 }
 

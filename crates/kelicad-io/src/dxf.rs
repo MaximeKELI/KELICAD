@@ -7,7 +7,7 @@ use kelicad_doc::{
     DimKind, DimensionGeom, Document, EntityId, EntityRecord, Geometry, HatchGeom, HatchPattern,
     TextAlign, TextGeom,
 };
-use kelicad_geom::{Arc, Circle, Line, Polyline};
+use kelicad_geom::{Arc, Circle, Ellipse, Line, Polyline, Spline};
 use kelicad_math::Vec2;
 use kelicad_ops::{DocSession, Operation};
 use uuid::Uuid;
@@ -212,6 +212,38 @@ fn write_entity(
                 p.x, p.y
             )
             .map_err(io_fmt)?;
+        }
+        Geometry::Ellipse(e) => {
+            let tip = e.center + e.major;
+            writeln!(
+                out,
+                "0\nELLIPSE\n8\n{layer}\n10\n{}\n20\n{}\n30\n0.0\n11\n{}\n21\n{}\n31\n0.0\n40\n{}\n41\n{}\n42\n{}",
+                e.center.x,
+                e.center.y,
+                tip.x,
+                tip.y,
+                e.ratio,
+                e.start_angle,
+                if e.is_full(kelicad_math::Tolerance::DEFAULT) {
+                    std::f64::consts::TAU
+                } else {
+                    e.end_angle
+                }
+            )
+            .map_err(io_fmt)?;
+        }
+        Geometry::Spline(s) => {
+            writeln!(
+                out,
+                "0\nSPLINE\n8\n{layer}\n70\n{}\n71\n{}\n73\n{}",
+                if s.closed { 1 } else { 0 },
+                s.degree,
+                s.control_points.len()
+            )
+            .map_err(io_fmt)?;
+            for p in &s.control_points {
+                writeln!(out, "10\n{}\n20\n{}\n30\n0.0", p.x, p.y).map_err(io_fmt)?;
+            }
         }
     }
     Ok(())
@@ -420,6 +452,50 @@ fn read_entity(ty: &str, chunk: &[(i32, String)], report: &mut ImportReport) -> 
                 text_override,
             }))
         }
+        "ELLIPSE" => {
+            let cx = f(&m, 10, 0)?;
+            let cy = f(&m, 20, 0)?;
+            let mx = f(&m, 11, 0)?;
+            let my = f(&m, 21, 0)?;
+            let ratio = f(&m, 40, 0).unwrap_or(1.0);
+            let a0 = f(&m, 41, 0).unwrap_or(0.0);
+            let a1 = f(&m, 42, 0).unwrap_or(std::f64::consts::TAU);
+            let center = Vec2::new(cx, cy);
+            let tip = Vec2::new(mx, my);
+            // DXF stores major endpoint as absolute point (group 11/21).
+            let mut e = Ellipse::full(center, tip, ratio);
+            if (a1 - a0).abs() < std::f64::consts::TAU - 1e-6 {
+                e.start_angle = a0;
+                e.end_angle = a1;
+            }
+            Some(Geometry::Ellipse(e))
+        }
+        "SPLINE" => {
+            let xs = m.get(&10).cloned().unwrap_or_default();
+            let ys = m.get(&20).cloned().unwrap_or_default();
+            let mut pts = Vec::new();
+            for (x, y) in xs.iter().zip(ys.iter()) {
+                if let (Ok(xv), Ok(yv)) = (x.parse::<f64>(), y.parse::<f64>()) {
+                    pts.push(Vec2::new(xv, yv));
+                }
+            }
+            let degree = m
+                .get(&71)
+                .and_then(|v| v.first())
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(3u8);
+            let closed = m
+                .get(&70)
+                .and_then(|v| v.first())
+                .and_then(|s| s.parse::<i32>().ok())
+                .map(|f| f & 1 == 1)
+                .unwrap_or(false);
+            let spline = Spline::from_controls(pts, degree, closed).or_else(|| {
+                report.skipped.push("SPLINE: too few control points".into());
+                None
+            })?;
+            Some(Geometry::Spline(spline))
+        }
         "HATCH" => {
             let xs = m.get(&10).cloned().unwrap_or_default();
             let ys = m.get(&20).cloned().unwrap_or_default();
@@ -448,6 +524,8 @@ fn read_entity(ty: &str, chunk: &[(i32, String)], report: &mut ImportReport) -> 
                 } else {
                     HatchPattern::Named(pat)
                 },
+                scale: 1.0,
+                angle: 0.0,
             }))
         }
         "POINT" => {

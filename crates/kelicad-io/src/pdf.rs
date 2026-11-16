@@ -147,6 +147,16 @@ fn content_bounds(session: &DocSession) -> (f64, f64, f64, f64) {
             }
             Geometry::Insert(i) => add(i.position.x, i.position.y),
             Geometry::Point(p) => add(p.x, p.y),
+            Geometry::Ellipse(e) => {
+                let bb = e.aabb();
+                add(bb.min.x, bb.min.y);
+                add(bb.max.x, bb.max.y);
+            }
+            Geometry::Spline(s) => {
+                for v in &s.to_polyline(8).vertices {
+                    add(v.x, v.y);
+                }
+            }
         }
     }
     if !min_x.is_finite() {

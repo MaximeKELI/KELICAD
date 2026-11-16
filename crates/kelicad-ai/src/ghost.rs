@@ -22,6 +22,22 @@ pub fn append_geometry_lines(geom: &Geometry, out: &mut Vec<f32>) {
                 }
             }
         }
+        Geometry::Ellipse(e) => {
+            let poly = e.to_polyline(48);
+            for i in 0..poly.segment_count() {
+                if let Some(seg) = poly.segment(i) {
+                    push_seg(out, seg.start, seg.end);
+                }
+            }
+        }
+        Geometry::Spline(s) => {
+            let poly = s.to_polyline(8);
+            for i in 0..poly.segment_count() {
+                if let Some(seg) = poly.segment(i) {
+                    push_seg(out, seg.start, seg.end);
+                }
+            }
+        }
         Geometry::Text(t) => {
             let w = t.height * t.content.len().max(1) as f64 * 0.6;
             let h = t.height;

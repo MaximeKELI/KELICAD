@@ -41,6 +41,10 @@ pub enum EntityKind {
     Circle,
     /// Polyline (including rectangles).
     Polyline,
+    /// Ellipse / elliptical arc.
+    Ellipse,
+    /// Spline (B-spline / fit points).
+    Spline,
     /// Single-line text.
     Text,
     /// Multi-line text.
