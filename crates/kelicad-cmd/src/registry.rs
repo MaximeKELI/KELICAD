@@ -101,6 +101,18 @@ pub enum CommandId {
     Xref,
     /// PDF underlay attach
     PdfUnderlay,
+    /// STAR (regular star polygon)
+    Star,
+    /// DONUT (two concentric circles)
+    Donut,
+    /// CAPSULE / slot (stadium)
+    Capsule,
+    /// ARROW (shaft + head)
+    Arrow,
+    /// GRID construction lines
+    Grid,
+    /// TRIANGLE isosceles from base + height pick
+    Triangle,
 }
 
 impl CommandId {
@@ -156,6 +168,12 @@ impl CommandId {
             Self::Xline => "XLINE",
             Self::Xref => "XREF",
             Self::PdfUnderlay => "PDFATTACH",
+            Self::Star => "STAR",
+            Self::Donut => "DONUT",
+            Self::Capsule => "CAPSULE",
+            Self::Arrow => "ARROW",
+            Self::Grid => "GRID",
+            Self::Triangle => "TRIANGLE",
         }
     }
 
@@ -212,6 +230,12 @@ impl CommandId {
             "XLINE" | "XL" => Self::Xline,
             "XREF" | "XR" => Self::Xref,
             "PDFATTACH" | "PDF" => Self::PdfUnderlay,
+            "STAR" | "ETOILE" => Self::Star,
+            "DONUT" | "RING" | "ANNEAU" => Self::Donut,
+            "CAPSULE" | "SLOT" | "STADIUM" => Self::Capsule,
+            "ARROW" | "FLECHE" => Self::Arrow,
+            "GRID" | "GRILLE" => Self::Grid,
+            "TRIANGLE" | "TRI" => Self::Triangle,
             _ => return None,
         })
     }
@@ -222,7 +246,7 @@ impl CommandId {
     }
 }
 
-const ALL_COMMANDS: [CommandId; 49] = [
+const ALL_COMMANDS: [CommandId; 55] = [
     CommandId::Line,
     CommandId::Pline,
     CommandId::Circle,
@@ -272,4 +296,10 @@ const ALL_COMMANDS: [CommandId; 49] = [
     CommandId::Xline,
     CommandId::Xref,
     CommandId::PdfUnderlay,
+    CommandId::Star,
+    CommandId::Donut,
+    CommandId::Capsule,
+    CommandId::Arrow,
+    CommandId::Grid,
+    CommandId::Triangle,
 ];
