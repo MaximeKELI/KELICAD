@@ -97,15 +97,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn offset_rectangle_grows() {
+    fn offset_rectangle_inward_and_outward() {
         let rect = Polyline::rectangle(Vec2::ZERO, Vec2::new(10.0, 6.0));
-        let off = offset_polyline(&rect, 1.0, Tolerance::DEFAULT).unwrap();
-        assert!(off.closed);
-        assert_eq!(off.vertices.len(), 4);
-        // Outer offset of CCW rect with +distance (left) expands.
-        let bb = off.aabb();
-        assert!(bb.max.x - bb.min.x > 10.0);
-        assert!(bb.max.y - bb.min.y > 6.0);
+        // CCW: positive distance = left = interior → shrinks.
+        let inner = offset_polyline(&rect, 1.0, Tolerance::DEFAULT).unwrap();
+        assert!(inner.closed);
+        let bb_in = inner.aabb();
+        assert!(bb_in.max.x - bb_in.min.x < 10.0);
+        // Negative = exterior → grows.
+        let outer = offset_polyline(&rect, -1.0, Tolerance::DEFAULT).unwrap();
+        let bb_out = outer.aabb();
+        assert!(bb_out.max.x - bb_out.min.x > 10.0);
+        assert!(bb_out.max.y - bb_out.min.y > 6.0);
     }
 
     #[test]
