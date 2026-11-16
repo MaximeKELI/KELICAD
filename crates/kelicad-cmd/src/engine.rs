@@ -1666,6 +1666,34 @@ impl<G: IdGen> CommandEngine<G> {
                 }
                 self.active = None;
             }
+            Active::Boundary { points } => {
+                if points.len() >= 3 {
+                    let mut pts = points;
+                    if let Some(first) = pts.first().copied() {
+                        pts.push(first);
+                    }
+                    out = self.commit_one(Geometry::Polyline(Polyline {
+                        vertices: pts,
+                        closed: true,
+                    }));
+                } else {
+                    out.echoes.push("BOUNDARY : ≥3 points.".into());
+                }
+                self.active = None;
+            }
+            Active::Copy { multiple: true, .. } => {
+                out.echoes.push("COPY terminé.".into());
+                self.active = None;
+            }
+            Active::SelectGather => {
+                out.echoes
+                    .push(format!("Sélection : {}", self.selection.len()));
+                self.active = None;
+            }
+            Active::Matchprop { .. } => {
+                out.echoes.push("MATCHPROP terminé.".into());
+                self.active = None;
+            }
             Active::Spline { points } => {
                 if points.len() >= 2 {
                     if let Some(s) = Spline::from_fit_points(points, false) {
@@ -3726,10 +3754,230 @@ impl<G: IdGen> CommandEngine<G> {
                 out = self.apply_array_polar(count, c, p, fill);
                 self.active = None;
             }
+            (CommandId::Mtext, Active::Mtext { position: None }) => {
+                self.active = Some((CommandId::Mtext, Active::Mtext { position: Some(p) }));
+                out.prompt = Some(prompt("Saisissez le texte multiligne", "Enter mtext"));
+            }
+            (CommandId::Matchprop, Active::Matchprop { source: None }) => {
+                if let Some(eid) = self.pick_entity(p) {
+                    self.active = Some((
+                        CommandId::Matchprop,
+                        Active::Matchprop {
+                            source: Some(eid),
+                        },
+                    ));
+                    out.prompt = Some(prompt(
+                        "Objets destination",
+                        "Destination objects",
+                    ));
+                }
+            }
+            (CommandId::Matchprop, Active::Matchprop { source: Some(src) }) => {
+                if let Some(dst) = self.pick_entity(p) {
+                    if let (Some(s), Some(d)) = (
+                        self.session.document.get_entity(src).cloned(),
+                        self.session.document.get_entity(dst).cloned(),
+                    ) {
+                        out = self.apply_batch(
+                            vec![
+                                Operation::SetEntityLayer {
+                                    id: dst,
+                                    layer_id: s.layer_id,
+                                },
+                                Operation::SetEntityProps {
+                                    id: dst,
+                                    props: s.props.clone(),
+                                },
+                            ],
+                            format!("MATCHPROP {src} → {dst}"),
+                        );
+                        // keep source for more destinations
+                        let _ = d;
+                        self.active = Some((
+                            CommandId::Matchprop,
+                            Active::Matchprop {
+                                source: Some(src),
+                            },
+                        ));
+                    }
+                }
+            }
+            (CommandId::Draworder, Active::Draworder) => {
+                if let Some(eid) = self.pick_entity(p) {
+                    self.selection.set_single(eid);
+                    out = self.draworder_shift(true);
+                    self.active = None;
+                }
+            }
+            (CommandId::Boundary, Active::Boundary { mut points }) => {
+                points.push(p);
+                self.active = Some((CommandId::Boundary, Active::Boundary { points }));
+                out.prompt = Some(prompt(
+                    "Point suivant ou Entrée pour fermer",
+                    "Next point or Enter to close",
+                ));
+            }
+            (CommandId::Select | CommandId::SelectSimilar, Active::SelectGather) => {
+                if let Some(eid) = self.pick_entity(p) {
+                    if matches!(id, CommandId::SelectSimilar) {
+                        if let Some(src) = self.session.document.get_entity(eid) {
+                            let kind = src.kind;
+                            self.remember_selection();
+                            self.selection.clear();
+                            for e in self.session.document.entities() {
+                                if e.kind == kind {
+                                    self.selection.add(e.id);
+                                }
+                            }
+                            out.echoes.push(format!(
+                                "SELECTSIMILAR : {} objet(s)",
+                                self.selection.len()
+                            ));
+                            self.active = None;
+                        }
+                    } else {
+                        self.selection.toggle(eid);
+                        out.echoes
+                            .push(format!("Sélection : {}", self.selection.len()));
+                    }
+                }
+            }
+            (CommandId::Divide, Active::Divide { count: Some(n), target: None }) => {
+                if let Some(eid) = self.pick_entity(p) {
+                    out = self.divide_entity(eid, n);
+                    self.active = None;
+                }
+            }
+            (CommandId::Measure, Active::Measure { spacing: Some(sp), target: None }) => {
+                if let Some(eid) = self.pick_entity(p) {
+                    out = self.measure_entity(eid, sp);
+                    self.active = None;
+                }
+            }
+            (CommandId::Pedit, Active::Pedit { target: None, .. }) => {
+                if let Some(eid) = self.pick_entity(p) {
+                    self.selection.set_single(eid);
+                    self.active = Some((
+                        CommandId::Pedit,
+                        Active::Pedit {
+                            target: Some(eid),
+                            wait_width: false,
+                        },
+                    ));
+                    out.prompt = Some(prompt(
+                        "[Close/Open/Join/Width/Reverse]",
+                        "[Close/Open/Join/Width/Reverse]",
+                    ));
+                }
+            }
+            (CommandId::Wblock, Active::Wblock { name: None, .. }) => {
+                // Point as base; name via text next — store base first using temp name.
+                self.active = Some((
+                    CommandId::Wblock,
+                    Active::Wblock {
+                        name: Some("WBLOCK".into()),
+                        base: Some(p),
+                    },
+                ));
+                if !self.selection.is_empty() {
+                    out = self.create_block_from_selection("WBLOCK", p);
+                    self.active = None;
+                } else {
+                    out.echoes.push("Sélectionnez des objets puis relancez WBLOCK.".into());
+                    self.active = None;
+                }
+            }
 
             _ => {}
         }
         out
+    }
+
+    fn divide_entity(&mut self, eid: EntityId, count: usize) -> CommandOutput {
+        let Some(ent) = self.session.document.get_entity(eid) else {
+            return CommandOutput::default();
+        };
+        let pts: Vec<Vec2> = match &ent.geometry {
+            Geometry::Line(l) => (1..count)
+                .map(|i| l.point_at(i as f64 / count as f64))
+                .collect(),
+            Geometry::Polyline(poly) => {
+                let segs: Vec<_> = poly.segments().collect();
+                let total: f64 = segs.iter().map(|s| s.start.distance(s.end)).sum();
+                if total < 1e-12 {
+                    Vec::new()
+                } else {
+                    let mut out = Vec::new();
+                    for i in 1..count {
+                        let target = total * (i as f64 / count as f64);
+                        let mut acc = 0.0;
+                        for s in &segs {
+                            let len = s.start.distance(s.end);
+                            if acc + len >= target {
+                                let t = ((target - acc) / len).clamp(0.0, 1.0);
+                                out.push(s.point_at(t));
+                                break;
+                            }
+                            acc += len;
+                        }
+                    }
+                    out
+                }
+            }
+            _ => Vec::new(),
+        };
+        if pts.is_empty() {
+            return CommandOutput {
+                echoes: vec!["DIVIDE : géométrie non supportée.".into()],
+                ..Default::default()
+            };
+        }
+        let ops: Vec<_> = pts
+            .into_iter()
+            .map(|pt| {
+                let id = self.ids.next();
+                Operation::CreateEntity {
+                    record: EntityRecord::new(id, Geometry::Point(pt), self.session.document.current_layer),
+                }
+            })
+            .collect();
+        let n = ops.len();
+        self.apply_batch(ops, format!("DIVIDE : {n} point(s)."))
+    }
+
+    fn measure_entity(&mut self, eid: EntityId, spacing: f64) -> CommandOutput {
+        let Some(ent) = self.session.document.get_entity(eid) else {
+            return CommandOutput::default();
+        };
+        let Geometry::Line(l) = &ent.geometry else {
+            return CommandOutput {
+                echoes: vec!["MEASURE : ligne uniquement pour l'instant.".into()],
+                ..Default::default()
+            };
+        };
+        let len = l.start.distance(l.end);
+        if spacing <= 1e-12 || len < spacing {
+            return CommandOutput {
+                echoes: vec!["MEASURE : espacement invalide.".into()],
+                ..Default::default()
+            };
+        }
+        let mut ops = Vec::new();
+        let mut d = spacing;
+        while d < len - 1e-9 {
+            let t = d / len;
+            let id = self.ids.next();
+            ops.push(Operation::CreateEntity {
+                record: EntityRecord::new(
+                    id,
+                    Geometry::Point(l.point_at(t)),
+                    self.session.document.current_layer,
+                ),
+            });
+            d += spacing;
+        }
+        let n = ops.len();
+        self.apply_batch(ops, format!("MEASURE : {n} point(s)."))
     }
 
     fn create_block_from_selection(&mut self, name: &str, base: Vec2) -> CommandOutput {

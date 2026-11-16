@@ -79,6 +79,8 @@ export const RIBBON_TABS: RibbonTab[] = [
               "capsule",
               "arrow",
               "gridDraw",
+              "boundary",
+              "ddptype",
             ],
           },
         ],
@@ -88,16 +90,22 @@ export const RIBBON_TABS: RibbonTab[] = [
         items: [
           { type: "tool", id: "move", size: "lg" },
           {
-            type: "stack",
-            ids: ["copy", "stretch", "rotate"],
+            type: "flyout",
+            main: "copy",
+            items: ["copy", "matchprop", "oops"],
           },
           {
             type: "stack",
-            ids: ["mirror", "scale", "offset"],
+            ids: ["stretch", "rotate", "mirror"],
           },
           {
             type: "stack",
-            ids: ["trim", "fillet", "arrayRect"],
+            ids: ["scale", "offset", "trim"],
+          },
+          {
+            type: "flyout",
+            main: "fillet",
+            items: ["fillet", "chamfer", "pedit"],
           },
           {
             type: "expand",
@@ -106,11 +114,23 @@ export const RIBBON_TABS: RibbonTab[] = [
               "lengthen",
               "break",
               "join",
-              "chamfer",
+              "arrayRect",
               "arrayPolar",
+              "arrayPath",
               "align",
               "erase",
               "explode",
+              "draworder",
+              "overkill",
+              "divide",
+              "cadMeasure",
+              "group",
+              "ungroup",
+              "selectAll",
+              "selectPrev",
+              "select",
+              "selectSimilar",
+              "qselect",
             ],
           },
         ],
@@ -118,7 +138,11 @@ export const RIBBON_TABS: RibbonTab[] = [
       {
         title: "Annotation",
         items: [
-          { type: "tool", id: "text", size: "lg" },
+          {
+            type: "flyout",
+            main: "text",
+            items: ["text", "mtext"],
+          },
           {
             type: "flyout",
             main: "dimLinear",
@@ -149,7 +173,11 @@ export const RIBBON_TABS: RibbonTab[] = [
           { type: "layer-combo" },
           {
             type: "stack",
-            ids: ["layerNew", "layerSetSel"],
+            ids: ["layerNew", "layerSetSel", "laycur"],
+          },
+          {
+            type: "expand",
+            ids: ["layiso", "layoff", "layfrz", "laylck"],
           },
         ],
       },
@@ -159,7 +187,7 @@ export const RIBBON_TABS: RibbonTab[] = [
           { type: "tool", id: "insert", size: "lg" },
           {
             type: "stack",
-            ids: ["block", "explode"],
+            ids: ["block", "wblock", "explode"],
           },
         ],
       },
@@ -314,14 +342,18 @@ export const RIBBON_TABS: RibbonTab[] = [
       {
         title: "État",
         items: [
-          { type: "tool", id: "layerFreeze", size: "md" },
-          { type: "tool", id: "layerLock", size: "md" },
+          { type: "tool", id: "layfrz", size: "md" },
+          { type: "tool", id: "layoff", size: "md" },
+          { type: "tool", id: "laylck", size: "md" },
+          { type: "tool", id: "layiso", size: "md" },
+          { type: "tool", id: "laylck", size: "md" },
+          { type: "tool", id: "laycur", size: "md" },
         ],
       },
       {
         title: "Propriétés",
         items: [
-          { type: "tool", id: "layerColor", size: "md" },
+          { type: "tool", id: "setvar", size: "md" },
           { type: "tool", id: "layerLtype", size: "md" },
           { type: "tool", id: "layerWeight", size: "md" },
         ],

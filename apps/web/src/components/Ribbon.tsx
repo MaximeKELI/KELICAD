@@ -317,18 +317,34 @@ function IconRows({
   );
 }
 
-function PropsStack({ onEcho }: { onEcho: (lines: string[]) => void }) {
+function PropsStack({
+  cad,
+  onChanged,
+  onEcho,
+}: {
+  cad: CadSession;
+  onChanged: () => void;
+  onEcho: (lines: string[]) => void;
+}) {
   return (
     <div className="cad-prop-stack">
       <label>
         Couleur
         <select
           className="cad-select"
-          defaultValue="bylayer"
-          onChange={() => onEcho(["Couleur : DuCalque (par objet à venir)"])}
+          defaultValue="BYLAYER"
+          onChange={(e) => {
+            try {
+              cad.set_sysvar("CECOLOR", e.target.value);
+              onChanged();
+              onEcho([`CECOLOR = ${e.target.value}`]);
+            } catch (err) {
+              onEcho([String(err)]);
+            }
+          }}
         >
-          <option value="bylayer">DuCalque</option>
-          <option value="byblock">DuBloc</option>
+          <option value="BYLAYER">DuCalque</option>
+          <option value="BYBLOCK">DuBloc</option>
           <option value="red">Rouge</option>
           <option value="yellow">Jaune</option>
           <option value="green">Vert</option>
@@ -342,29 +358,45 @@ function PropsStack({ onEcho }: { onEcho: (lines: string[]) => void }) {
         Type de ligne
         <select
           className="cad-select"
-          defaultValue="bylayer"
-          onChange={() => onEcho(["Type de ligne : DuCalque"])}
+          defaultValue="BYLAYER"
+          onChange={(e) => {
+            try {
+              cad.set_sysvar("CELTYPE", e.target.value);
+              onChanged();
+              onEcho([`CELTYPE = ${e.target.value}`]);
+            } catch (err) {
+              onEcho([String(err)]);
+            }
+          }}
         >
-          <option value="bylayer">DuCalque</option>
-          <option value="continuous">Continuous</option>
-          <option value="dashed">Dashed</option>
-          <option value="center">Center</option>
-          <option value="hidden">Hidden</option>
+          <option value="BYLAYER">DuCalque</option>
+          <option value="CONTINUOUS">Continuous</option>
+          <option value="DASHED">Dashed</option>
+          <option value="CENTER">Center</option>
+          <option value="HIDDEN">Hidden</option>
         </select>
       </label>
       <label>
         Épaisseur
         <select
           className="cad-select"
-          defaultValue="bylayer"
-          onChange={() => onEcho(["Épaisseur : DuCalque"])}
+          defaultValue="-1"
+          onChange={(e) => {
+            try {
+              cad.set_sysvar("CELWEIGHT", e.target.value);
+              onChanged();
+              onEcho([`CELWEIGHT = ${e.target.value}`]);
+            } catch (err) {
+              onEcho([String(err)]);
+            }
+          }}
         >
-          <option value="bylayer">DuCalque</option>
-          <option value="0.00">0.00 mm</option>
-          <option value="0.25">0.25 mm</option>
-          <option value="0.50">0.50 mm</option>
-          <option value="0.70">0.70 mm</option>
-          <option value="1.00">1.00 mm</option>
+          <option value="-1">DuCalque</option>
+          <option value="0">0.00 mm</option>
+          <option value="25">0.25 mm</option>
+          <option value="50">0.50 mm</option>
+          <option value="70">0.70 mm</option>
+          <option value="100">1.00 mm</option>
         </select>
       </label>
     </div>
@@ -538,7 +570,14 @@ function renderItem(
         />
       );
     case "props-stack":
-      return <PropsStack key="props-stack" onEcho={handlers.onEcho} />;
+      return (
+        <PropsStack
+          key="props-stack"
+          cad={ctx.cad}
+          onChanged={handlers.onChanged}
+          onEcho={handlers.onEcho}
+        />
+      );
   }
 }
 

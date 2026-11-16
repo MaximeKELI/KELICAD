@@ -27,6 +27,7 @@ import { parseCadOutput, type CadSession } from "./cad/types";
 import { BlockLibrary } from "./components/BlockLibrary";
 import { CollabBar } from "./components/CollabBar";
 import { CommandLine } from "./components/CommandLine";
+import { CommandPalette } from "./components/CommandPalette";
 import { DrawingViewport } from "./components/DrawingViewport";
 import { KeliPanel } from "./components/KeliPanel";
 import { LayerPanel } from "./components/LayerPanel";
@@ -60,6 +61,10 @@ export function App() {
   );
   const [activeCmd, setActiveCmd] = useState<string | null>(null);
   const [ribbonCollapsed, setRibbonCollapsed] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [optionChips, setOptionChips] = useState<{ key: string; label: string }[]>(
+    [],
+  );
 
   useEffect(() => {
     void loadCad()
@@ -148,6 +153,16 @@ export function App() {
       } catch {
         setSolidCount(0);
       }
+      try {
+        setOptionChips(
+          JSON.parse(session.active_options_json()) as {
+            key: string;
+            label: string;
+          }[],
+        );
+      } catch {
+        setOptionChips([]);
+      }
     },
     [collab],
   );
@@ -161,6 +176,17 @@ export function App() {
     },
     [applyOutput, cad],
   );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const onSubmit = useCallback(
     (text: string) => {
@@ -824,7 +850,31 @@ export function App() {
         </aside>
       </div>
 
+      {optionChips.length > 0 && (
+        <div className="cad-option-chips">
+          {optionChips.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => {
+                if (!cad) return;
+                applyOutput(cad.submit_text(c.key), cad);
+              }}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
       <CommandLine prompt={prompt} echoes={echoes} onSubmit={onSubmit} />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onPick={(cmd) => {
+          runCmd(cmd);
+          setPaletteOpen(false);
+        }}
+      />
       <StatusBar
         cad={cad}
         revision={revision}

@@ -1059,3 +1059,87 @@ body {
   border-color: #666;
   color: #fff;
 }
+
+/* Command palette + option chips */
+.cad-cmdpal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+}
+.cad-cmdpal {
+  width: min(520px, 92vw);
+  background: #2a2a2a;
+  border: 1px solid #555;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.cad-cmdpal-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: none;
+  border-bottom: 1px solid #444;
+  background: #1e1e1e;
+  color: #eee;
+  font-size: 15px;
+  outline: none;
+}
+.cad-cmdpal-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.cad-cmdpal-list button {
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: #ddd;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.cad-cmdpal-list button:hover {
+  background: #3a4550;
+}
+.cad-cmdpal-glyph {
+  width: 22px;
+  text-align: center;
+  color: #6cb6ff;
+}
+.cad-cmdpal-list small {
+  display: block;
+  color: #888;
+  font-size: 10px;
+}
+.cad-option-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #1a1a1a;
+  border-top: 1px solid #333;
+}
+.cad-option-chips button {
+  border: 1px solid #4a6a8a;
+  background: #243040;
+  color: #cde;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.cad-option-chips button:hover {
+  background: #2d4a66;
+}

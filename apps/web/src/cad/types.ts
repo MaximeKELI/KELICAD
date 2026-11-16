@@ -58,9 +58,12 @@ export type CadStatus = {
   layer_id: string;
   ortho: boolean;
   osnap: boolean;
+  grid?: boolean;
+  polar?: boolean;
   selection: number;
   entities: number;
   solids: number;
+  active?: string | null;
 };
 
 export type SceneBatch = {
@@ -118,6 +121,11 @@ export type CadSession = {
   ortho(): boolean;
   set_osnap(enabled: boolean): void;
   osnap(): boolean;
+  get_sysvar(name: string): string;
+  set_sysvar(name: string, value: string): void;
+  sysvars_json(): string;
+  active_options_json(): string;
+  commands_catalog_json(): string;
   status_json(): string;
   prompt_fr(): string;
   keli_ask(utterance: string): string;

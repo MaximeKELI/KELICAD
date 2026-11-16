@@ -481,6 +481,10 @@ impl WasmCad {
     /// Toggle ORTHO (F8-style).
     pub fn set_ortho(&mut self, enabled: bool) {
         self.engine.ortho = enabled;
+        let _ = self.engine.sysvars.set(
+            "ORTHOMODE",
+            kelicad_cmd::SysVarValue::Int(if enabled { 1 } else { 0 }),
+        );
     }
 
     /// ORTHO state.
@@ -491,11 +495,68 @@ impl WasmCad {
     /// Toggle object snap master (F3-style).
     pub fn set_osnap(&mut self, enabled: bool) {
         self.engine.osnap_enabled = enabled;
+        if enabled && self.engine.sysvars.get_int("OSMODE") == 0 {
+            let _ = self
+                .engine
+                .sysvars
+                .set("OSMODE", kelicad_cmd::SysVarValue::Int(4133));
+        }
+        if !enabled {
+            let _ = self
+                .engine
+                .sysvars
+                .set("OSMODE", kelicad_cmd::SysVarValue::Int(0));
+        }
+        self.engine.sync_from_sysvars();
     }
 
     /// OSNAP state.
     pub fn osnap(&self) -> bool {
         self.engine.osnap_enabled
+    }
+
+    /// Read a system variable (display string).
+    pub fn get_sysvar(&self, name: &str) -> Result<String, JsValue> {
+        self.engine
+            .sysvars
+            .get(name)
+            .map(|v| v.display())
+            .ok_or_else(|| JsValue::from_str("unknown sysvar"))
+    }
+
+    /// Set a system variable from a token (int/real/string).
+    pub fn set_sysvar(&mut self, name: &str, value: &str) -> Result<(), JsValue> {
+        let val = kelicad_cmd::parse_sysvar_token(value);
+        self.engine
+            .sysvars
+            .set(name, val)
+            .map_err(|e| JsValue::from_str(&e))?;
+        self.engine.sync_from_sysvars();
+        Ok(())
+    }
+
+    /// All sysvars as JSON object.
+    pub fn sysvars_json(&self) -> String {
+        serde_json::to_string(&self.engine.sysvars.to_json_map()).unwrap_or_else(|_| "{}".into())
+    }
+
+    /// Active command option chips JSON: `[{key,label},…]`.
+    pub fn active_options_json(&self) -> String {
+        let chips = self.engine.active_option_chips();
+        let v: Vec<_> = chips
+            .iter()
+            .map(|c| serde_json::json!({"key": c.key, "label": c.label}))
+            .collect();
+        serde_json::to_string(&v).unwrap_or_else(|_| "[]".into())
+    }
+
+    /// Built-in command names JSON array.
+    pub fn commands_catalog_json(&self) -> String {
+        let names: Vec<_> = kelicad_cmd::CommandId::all()
+            .iter()
+            .map(|c| c.name())
+            .collect();
+        serde_json::to_string(&names).unwrap_or_else(|_| "[]".into())
     }
 
     /// Status bar JSON: layer, ortho, osnap, selection count, entity count.
@@ -510,9 +571,12 @@ impl WasmCad {
             "layer_id": doc.current_layer.to_string(),
             "ortho": self.engine.ortho,
             "osnap": self.engine.osnap_enabled,
+            "grid": self.engine.sysvars.get_int("GRIDMODE") != 0,
+            "polar": self.engine.sysvars.get_int("POLARMODE") != 0,
             "selection": self.engine.selection.len(),
             "entities": doc.entity_count(),
             "solids": self.solids.len(),
+            "active": self.engine.active_command().map(|c| c.name()),
         })
         .to_string()
     }

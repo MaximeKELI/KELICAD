@@ -267,7 +267,7 @@ export const CATALOG: Record<string, CatalogTool> = {
 
   // ——— Annotate ———
   text: cad("text", "DT", "Texte", "A", "Texte simple", ["TEXT"], "working", "annotate"),
-  mtext: soon("mtext", "MTexte", "T", "Texte multiligne (modèle prêt)"),
+  mtext: cad("mtext", "MT", "MText", "¶", "Texte multiligne", ["MTEXT"], "working", "annotate"),
   dimLinear: cad("dimLinear", "DLI", "Linéaire", "↔", "Cote linéaire", [
     "DIMLINEAR",
     "DIMLIN",
@@ -318,7 +318,7 @@ export const CATALOG: Record<string, CatalogTool> = {
     "partial",
     "block",
   ),
-  wblock: soon("wblock", "WBLOCK", "▭", "Écrire bloc sur disque"),
+  wblock: cad("wblock", "WB", "WBlock", "📦", "Écrire bloc", ["WBLOCK"], "working", "block"),
   image: soon("image", "Image", "🖼", "Insérer une image raster"),
   importDxf: ui(
     "importDxf",
@@ -599,6 +599,32 @@ export const CATALOG: Record<string, CatalogTool> = {
   collab: soon("collab", "Collab", "👥", "Voir barre collaboration"),
   plugins: soon("plugins", "Plugins", "🧩", "Hôte de plugins"),
   macros: soon("macros", "Macros", "⏺", "Enregistrement macro (API)"),
+
+  // ——— Lot B / sysvars ———
+  setvar: cad("setvar", "SETVAR", "SETVAR", "⚙", "Variable système", ["SET"], "working", "file"),
+  getvar: cad("getvar", "GETVAR", "GETVAR", "?", "Lire variable", ["GET"], "working", "file"),
+  pedit: cad("pedit", "PE", "Pedit", "⌁", "Éditer polyligne", ["PEDIT"], "working", "modify"),
+  matchprop: cad("matchprop", "MA", "Matchprop", "🖌", "Copier propriétés", ["MATCHPROP"], "working", "modify"),
+  draworder: cad("draworder", "DR", "Ordre", "⇵", "Ordre de dessin", ["DRAWORDER"], "working", "modify"),
+  group: cad("group", "GRP", "Groupe", "⧉", "Groupe", ["GROUP"], "working", "modify"),
+  ungroup: cad("ungroup", "UG", "Dégroupe", "⧉̸", "Dégrouper", ["UNGROUP"], "working", "modify"),
+  overkill: cad("overkill", "OV", "Overkill", "✂", "Supprimer doublons", ["OVERKILL"], "working", "modify"),
+  oops: cad("oops", "OOPS", "Oops", "↩", "Restaurer effacement", [], "working", "modify"),
+  divide: cad("divide", "DIV", "Diviser", "➗", "Diviser", ["DIVIDE"], "working", "modify"),
+  cadMeasure: cad("cadMeasure", "ME", "MEASURE", "┊", "Points à intervalle", ["MEASURE"], "working", "modify"),
+  boundary: cad("boundary", "BO", "Contour", "⬡", "Contour", ["BOUNDARY"], "working", "draw"),
+  select: cad("select", "SELECT", "Sélect.", "▢", "Sélection", [], "working", "modify"),
+  selectSimilar: cad("selectSimilar", "SELECTSIMILAR", "Similaire", "▣", "Sélection similaire", [], "working", "modify"),
+  qselect: cad("qselect", "QSELECT", "QSelect", "⚙▢", "Sélection rapide", ["QSE"], "working", "modify"),
+  selectAll: cad("selectAll", "SELECTALL", "Tout", "▦", "Tout sélectionner", [], "working", "modify"),
+  selectPrev: cad("selectPrev", "SELECTPREV", "Préc.", "↶▢", "Sélection précédente", [], "working", "modify"),
+  ddptype: cad("ddptype", "DDPTYPE", "Style pt", "•", "Style de point", ["PTYPE"], "working", "draw"),
+  arrayPath: cad("arrayPath", "ARRAYPATH", "Réseau chemin", "〰▦", "Réseau sur chemin", ["APATH"], "working", "modify"),
+  layiso: cad("layiso", "LAYISO", "Isoler", "👁", "Isoler calque", [], "working", "layer"),
+  layoff: cad("layoff", "LAYOFF", "Éteindre", "○", "Éteindre calque", [], "working", "layer"),
+  layfrz: cad("layfrz", "LAYFRZ", "Geler", "❄", "Geler calque", [], "working", "layer"),
+  laylck: cad("laylck", "LAYLCK", "Verrouiller", "🔒", "Verrouiller calque", [], "working", "layer"),
+  laycur: cad("laycur", "LAYCUR", "Courant", "★", "Calque courant", [], "working", "layer"),
 };
 
 export function getTool(id: string): CatalogTool | undefined {

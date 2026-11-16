@@ -31,9 +31,14 @@ export function StatusBar({
 
   if (!status) return null;
 
-  const toggle = (key: "ortho" | "osnap") => {
+  const toggle = (key: "ortho" | "osnap" | "grid" | "polar") => {
     if (key === "ortho") cad.set_ortho(!status.ortho);
-    else cad.set_osnap(!status.osnap);
+    else if (key === "osnap") cad.set_osnap(!status.osnap);
+    else if (key === "grid") {
+      cad.set_sysvar("GRIDMODE", status.grid ? "0" : "1");
+    } else {
+      cad.set_sysvar("POLARMODE", status.polar ? "0" : "1");
+    }
     onChanged();
   };
 
@@ -68,9 +73,9 @@ export function StatusBar({
       <div className="cad-tray">
         <button
           type="button"
-          title="Grille (affichage)"
-          className="is-on"
-          disabled
+          title="F7 — Grille"
+          className={status.grid ? "is-on" : ""}
+          onClick={() => toggle("grid")}
         >
           GRID
         </button>
@@ -90,7 +95,12 @@ export function StatusBar({
         >
           OSNAP
         </button>
-        <button type="button" title="Polar (bientôt)" disabled>
+        <button
+          type="button"
+          title="F10 — Polar"
+          className={status.polar ? "is-on" : ""}
+          onClick={() => toggle("polar")}
+        >
           POLAR
         </button>
         <span className="cad-tray-sep" />

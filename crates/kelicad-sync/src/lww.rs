@@ -30,11 +30,15 @@ pub enum TargetKey {
 pub fn targets_of(op: &Operation) -> Vec<TargetKey> {
     match op {
         Operation::CreateEntity { record } => vec![TargetKey::Entity(record.id)],
-        Operation::SetGeometry { id, .. } | Operation::SetEntityLayer { id, .. } => {
+        Operation::SetGeometry { id, .. }
+        | Operation::SetEntityLayer { id, .. }
+        | Operation::SetEntityProps { id, .. } => {
             vec![TargetKey::Entity(*id)]
         }
         Operation::DeleteEntity { id } => vec![TargetKey::Entity(*id)],
-        Operation::CreateLayer { layer } => vec![TargetKey::Layer(layer.id)],
+        Operation::CreateLayer { layer } | Operation::UpdateLayer { layer } => {
+            vec![TargetKey::Layer(layer.id)]
+        }
         Operation::DeleteLayer { id } => vec![TargetKey::Layer(*id)],
         Operation::SetCurrentLayer { .. } => vec![TargetKey::CurrentLayer],
         Operation::UpsertBlock { def } => vec![TargetKey::Block(def.id)],
