@@ -873,10 +873,33 @@ fn geometry_from_value(v: &serde_json::Value) -> Result<Geometry, String> {
                     arr[1].as_f64().unwrap_or(0.0),
                 ));
             }
-            Ok(Geometry::Hatch(kelicad_doc::HatchGeom {
-                boundary,
-                pattern: kelicad_doc::HatchPattern::Solid,
-            }))
+            Ok(Geometry::Hatch(kelicad_doc::HatchGeom::solid(boundary)))
+        }
+        "ellipse" => Ok(Geometry::Ellipse(kelicad_geom::Ellipse {
+            center: Vec2::new(num(v, "cx")?, num(v, "cy")?),
+            major: Vec2::new(num(v, "mjx")?, num(v, "mjy")?),
+            ratio: num(v, "ratio").unwrap_or(1.0),
+            start_angle: num(v, "start_angle").unwrap_or(0.0),
+            end_angle: num(v, "end_angle").unwrap_or(0.0),
+        })),
+        "spline" => {
+            let controls = v
+                .get("controls")
+                .and_then(|x| x.as_array())
+                .ok_or_else(|| "controls".to_string())?;
+            let mut pts = Vec::new();
+            for item in controls {
+                let arr = item.as_array().ok_or_else(|| "cp".to_string())?;
+                pts.push(Vec2::new(
+                    arr[0].as_f64().unwrap_or(0.0),
+                    arr[1].as_f64().unwrap_or(0.0),
+                ));
+            }
+            let degree = v.get("degree").and_then(|x| x.as_u64()).unwrap_or(3) as u8;
+            let closed = v.get("closed").and_then(|x| x.as_bool()).unwrap_or(false);
+            kelicad_geom::Spline::from_controls(pts, degree, closed)
+                .map(Geometry::Spline)
+                .ok_or_else(|| "spline controls".into())
         }
         other => Err(format!("unknown geometry type {other}")),
     }

@@ -552,10 +552,7 @@ impl<G: IdGen> CommandEngine<G> {
                             boundary.push(first);
                         }
                     }
-                    out = self.commit_one(Geometry::Hatch(HatchGeom {
-                        boundary,
-                        pattern: HatchPattern::Solid,
-                    }));
+                    out = self.commit_one(Geometry::Hatch(HatchGeom::solid(boundary)));
                 } else {
                     out.echoes.push("HATCH : au moins 3 points.".into());
                 }
@@ -1106,6 +1103,18 @@ impl<G: IdGen> CommandEngine<G> {
                     .map(|q| q.distance(p))
                     .fold(f64::INFINITY, f64::min),
                 Geometry::Insert(i) => i.position.distance(p),
+                Geometry::Ellipse(e) => e
+                    .to_polyline(32)
+                    .segments()
+                    .map(|s| s.distance_squared(p))
+                    .fold(f64::INFINITY, f64::min)
+                    .sqrt(),
+                Geometry::Spline(s) => s
+                    .to_polyline(8)
+                    .segments()
+                    .map(|seg| seg.distance_squared(p))
+                    .fold(f64::INFINITY, f64::min)
+                    .sqrt(),
             };
             if d <= self.snap_aperture * 2.0 && best.map(|(_, bd)| d < bd).unwrap_or(true) {
                 best = Some((ent.id, d));

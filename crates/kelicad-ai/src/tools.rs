@@ -834,10 +834,7 @@ fn write_hatch(
     }
     let layer = resolve_layer(ctx, &call.args);
     let id = ids.next_entity();
-    let geom = Geometry::Hatch(HatchGeom {
-        boundary,
-        pattern: HatchPattern::Solid,
-    });
+    let geom = Geometry::Hatch(HatchGeom::solid(boundary));
     let mut bindings = HashMap::new();
     bindings.insert("last".into(), id);
     Ok(ToolExecResult {
