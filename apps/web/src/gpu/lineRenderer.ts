@@ -1,5 +1,7 @@
 /**
- * WebGPU line-list renderer with multi-batch layer colors.
+ * WebGPU solid stroke renderer.
+ * Expands line segments into screen-constant-width triangle quads
+ * (WebGPU line-list is 1px / non-AA and looks dashed on diagonals).
  */
 
 export type Camera2D = {
@@ -15,6 +17,7 @@ export type LineBatch = {
   r: number;
   g: number;
   b: number;
+  /** Interleaved line-list pairs: x0,y0,x1,y1,... */
   verts: Float32Array;
 };
 
@@ -48,6 +51,58 @@ function ortho(left: number, right: number, bottom: number, top: number): Float3
   return out;
 }
 
+/** Expand line-list pairs into triangle-list quads (6 verts / segment). */
+function expandStrokes(
+  lines: Float32Array,
+  halfWidthWorld: number,
+): Float32Array {
+  const segCount = Math.floor(lines.length / 4);
+  if (segCount <= 0) return new Float32Array(0);
+  const out = new Float32Array(segCount * 12); // 6 * vec2
+  let o = 0;
+  const hw = Math.max(halfWidthWorld, 1e-9);
+  for (let i = 0; i < segCount; i++) {
+    const ax = lines[i * 4]!;
+    const ay = lines[i * 4 + 1]!;
+    const bx = lines[i * 4 + 2]!;
+    const by = lines[i * 4 + 3]!;
+    let dx = bx - ax;
+    let dy = by - ay;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-12) {
+      dx = 1;
+      dy = 0;
+    } else {
+      dx /= len;
+      dy /= len;
+    }
+    const px = -dy * hw;
+    const py = dx * hw;
+    // tri 1: A+p, A-p, B+p
+    out[o++] = ax + px;
+    out[o++] = ay + py;
+    out[o++] = ax - px;
+    out[o++] = ay - py;
+    out[o++] = bx + px;
+    out[o++] = by + py;
+    // tri 2: A-p, B-p, B+p
+    out[o++] = ax - px;
+    out[o++] = ay - py;
+    out[o++] = bx - px;
+    out[o++] = by - py;
+    out[o++] = bx + px;
+    out[o++] = by + py;
+  }
+  return out;
+}
+
+type CpuBatch = {
+  lines: Float32Array;
+  r: number;
+  g: number;
+  b: number;
+};
+
 type GpuBatch = {
   buffer: GPUBuffer;
   count: number;
@@ -62,7 +117,10 @@ export class LineRenderer {
   private readonly pipeline: GPURenderPipeline;
   private readonly uniformBuffer: GPUBuffer;
   private readonly bindGroup: GPUBindGroup;
-  private batches: GpuBatch[] = [];
+  private cpuBatches: CpuBatch[] = [];
+  private gpuBatches: GpuBatch[] = [];
+  /** Stroke width in CSS pixels. */
+  strokePx = 2.0;
 
   private constructor(
     device: GPUDevice,
@@ -125,7 +183,8 @@ export class LineRenderer {
         entryPoint: "fs_main",
         targets: [{ format }],
       },
-      primitive: { topology: "line-list" },
+      // Solid filled strokes (not hairline line-list).
+      primitive: { topology: "triangle-list" },
     });
 
     const uniformBuffer = device.createBuffer({
@@ -142,31 +201,18 @@ export class LineRenderer {
 
   /** Legacy single-color path. */
   setLines(vertices: Float32Array): void {
-    this.setBatches([{ r: 0.55, g: 0.78, b: 1.0, verts: vertices }]);
+    this.setBatches([{ r: 0.92, g: 0.92, b: 0.92, verts: vertices }]);
   }
 
   setBatches(batches: LineBatch[]): void {
-    for (const b of this.batches) {
-      b.buffer.destroy();
-    }
-    this.batches = [];
-    for (const batch of batches) {
-      if (!batch.verts.length) continue;
-      const buffer = this.device.createBuffer({
-        size: batch.verts.byteLength,
-        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-        mappedAtCreation: true,
-      });
-      new Float32Array(buffer.getMappedRange()).set(batch.verts);
-      buffer.unmap();
-      this.batches.push({
-        buffer,
-        count: batch.verts.length / 2,
-        r: batch.r,
-        g: batch.g,
-        b: batch.b,
-      });
-    }
+    this.cpuBatches = batches
+      .filter((b) => b.verts.length >= 4)
+      .map((b) => ({
+        lines: b.verts,
+        r: b.r,
+        g: b.g,
+        b: b.b,
+      }));
   }
 
   resize(width: number, height: number): void {
@@ -177,6 +223,31 @@ export class LineRenderer {
     if (canvas.width !== w || canvas.height !== h) {
       canvas.width = w;
       canvas.height = h;
+    }
+  }
+
+  private rebuildGpu(halfWidthWorld: number): void {
+    for (const b of this.gpuBatches) {
+      b.buffer.destroy();
+    }
+    this.gpuBatches = [];
+    for (const batch of this.cpuBatches) {
+      const tris = expandStrokes(batch.lines, halfWidthWorld);
+      if (!tris.length) continue;
+      const buffer = this.device.createBuffer({
+        size: tris.byteLength,
+        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+        mappedAtCreation: true,
+      });
+      new Float32Array(buffer.getMappedRange()).set(tris);
+      buffer.unmap();
+      this.gpuBatches.push({
+        buffer,
+        count: tris.length / 2,
+        r: batch.r,
+        g: batch.g,
+        b: batch.b,
+      });
     }
   }
 
@@ -192,12 +263,18 @@ export class LineRenderer {
       camera.y + halfH,
     );
 
+    // Keep stroke ~strokePx CSS pixels wide at current zoom/DPR.
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const worldPerCssPx = camera.zoom / Math.max(canvas.height / dpr, 1);
+    const halfWidthWorld = (this.strokePx * 0.5) * worldPerCssPx;
+    this.rebuildGpu(halfWidthWorld);
+
     const encoder = this.device.createCommandEncoder();
     const pass = encoder.beginRenderPass({
       colorAttachments: [
         {
           view: this.context.getCurrentTexture().createView(),
-          clearValue: { r: 0.043, g: 0.071, b: 0.125, a: 1 },
+          clearValue: { r: 0.06, g: 0.06, b: 0.06, a: 1 },
           loadOp: "clear",
           storeOp: "store",
         },
@@ -206,7 +283,7 @@ export class LineRenderer {
     pass.setPipeline(this.pipeline);
     pass.setBindGroup(0, this.bindGroup);
 
-    for (const batch of this.batches) {
+    for (const batch of this.gpuBatches) {
       const color = new Float32Array([batch.r, batch.g, batch.b, 1.0]);
       const payload = new Float32Array(24);
       payload.set(viewProj, 0);
@@ -221,10 +298,11 @@ export class LineRenderer {
   }
 
   destroy(): void {
-    for (const b of this.batches) {
+    for (const b of this.gpuBatches) {
       b.buffer.destroy();
     }
-    this.batches = [];
+    this.gpuBatches = [];
+    this.cpuBatches = [];
     this.uniformBuffer.destroy();
   }
 }
