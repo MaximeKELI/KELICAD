@@ -344,8 +344,8 @@ export function DrawingViewport({
           }}
         />
       )}
-      <p className="pointer-events-none absolute bottom-3 left-3 rounded bg-ink-900/80 px-3 py-1 font-mono text-xs text-ink-100">
-        Clic = pick · Shift = multi · Glisser L→R fenêtre / R→L crossing · Espace+pan · Échap
+      <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/60 px-2 py-0.5 font-mono text-[10px] text-[#aaa]">
+        Clic · Shift+multi · L→R fenêtre · R→L crossing · Espace pan · Échap
       </p>
     </div>
   );

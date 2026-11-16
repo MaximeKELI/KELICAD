@@ -57,7 +57,7 @@ export function PropertiesPanel({ cad, revision, onChanged, onEcho }: Props) {
   const bbox = first?.bbox;
 
   return (
-    <div className="flex h-full w-52 shrink-0 flex-col border-l border-ink-700/60 bg-ink-900/90">
+    <div className="flex h-full w-full flex-col bg-transparent">
       <div className="border-b border-ink-700/60 p-2">
         <p className="mb-1 text-[10px] uppercase tracking-wider text-ink-500">
           Projet

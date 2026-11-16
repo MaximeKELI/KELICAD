@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import type { CadLayer, CadSession } from "../cad/types";
 
@@ -53,7 +53,7 @@ function Btn({
   );
 }
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="cad-panel">
       <div className="cad-panel-body">{children}</div>

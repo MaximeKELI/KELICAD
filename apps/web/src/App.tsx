@@ -14,7 +14,6 @@ import {
 } from "./cad/kelicadFile";
 import { loadCad } from "./cad/loadCad";
 import {
-  listRecent,
   loadAutosave,
   pushRecent,
   saveAutosave,
@@ -335,394 +334,159 @@ export function App() {
     );
   }
 
+  const runCmd = useCallback(
+    (cmd: string) => {
+      setActiveCmd(cmd);
+      applyOutput(cad.start_command(cmd), cad);
+    },
+    [applyOutput, cad],
+  );
+
+  const bump = useCallback(() => {
+    setRevision((n) => n + 1);
+    setEntityCount(cad.entity_count());
+    setSolidCount(cad.solid_count());
+  }, [cad]);
+
+  const onSolidAction = useCallback(
+    (action: string) => {
+      try {
+        switch (action) {
+          case "box": {
+            const s = cad.solid_box(0, 0, 0, 4, 3, 2.5);
+            setEchoes((p) => [...p, `BOX: ${s}`]);
+            setViewMode((m) => (m === "2d" ? "split" : m));
+            break;
+          }
+          case "cyl":
+            setEchoes((p) => [...p, `CYL: ${cad.solid_cylinder(2, 2, 1.2, 3)}`]);
+            break;
+          case "sph":
+            setEchoes((p) => [...p, `SPH: ${cad.solid_sphere(0, 0, 1, 1)}`]);
+            break;
+          case "cone":
+            setEchoes((p) => [...p, `CONE: ${cad.solid_cone(0, 0, 1.5, 3)}`]);
+            break;
+          case "tor":
+            setEchoes((p) => [
+              ...p,
+              `TOR: ${cad.solid_torus(0, 0, 0, 2, 0.4)}`,
+            ]);
+            break;
+          case "extrude": {
+            const s = cad.solid_extrude_selected(2.5);
+            const n = cad.view_derive_apply("plan");
+            setEchoes((p) => [...p, `EXTRUDE: ${s}`, `Plan: +${n}`]);
+            break;
+          }
+          case "rev":
+            setEchoes((p) => [
+              ...p,
+              `REV: ${cad.solid_revolve_selected(360)}`,
+            ]);
+            break;
+          case "union":
+            setEchoes((p) => [...p, `BOOL+: ${cad.solid_boolean("union")}`]);
+            break;
+          case "diff":
+            setEchoes((p) => [
+              ...p,
+              `BOOL−: ${cad.solid_boolean("difference")}`,
+            ]);
+            break;
+          case "clear":
+            cad.solids_clear();
+            setEchoes((p) => [...p, "Solids cleared"]);
+            break;
+          case "view-plan":
+            setEchoes((p) => [
+              ...p,
+              `Vue plan: +${cad.view_derive_apply("plan")}`,
+            ]);
+            break;
+          case "view-elevx":
+            setEchoes((p) => [
+              ...p,
+              `Élév X: +${cad.view_derive_apply("elevation_x")}`,
+            ]);
+            break;
+          case "view-elevy":
+            setEchoes((p) => [
+              ...p,
+              `Élév Y: +${cad.view_derive_apply("elevation_y")}`,
+            ]);
+            break;
+          case "tpl-a4":
+          case "tpl-a3":
+          case "tpl-a1":
+          case "tpl-arch":
+          case "tpl-mech": {
+            const name = action.replace("tpl-", "");
+            const n = cad.apply_template(name);
+            setEchoes((p) => [...p, `Gabarit ${name}: +${n}`]);
+            break;
+          }
+          case "ifc":
+            downloadText("model.ifc", cad.ifc_export(), "application/x-step");
+            setEchoes((p) => [...p, "IFC exporté"]);
+            break;
+          case "sched":
+            downloadText("schedule.csv", cad.bim_schedule_csv(), "text/csv");
+            setEchoes((p) => [...p, "SCHED exporté"]);
+            break;
+          default:
+            break;
+        }
+        bump();
+      } catch (e) {
+        setEchoes((p) => [...p, String(e)]);
+      }
+    },
+    [bump, cad],
+  );
+
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-700/60 bg-ink-900 px-4 py-2">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-accent-soft">KELICAD</p>
-          <h1 className="text-base font-medium">2D · 3D · KELI</h1>
-          <p className="font-mono text-[10px] text-ink-500">{projectName}</p>
-        </div>
-        <div className="flex flex-wrap gap-1">
-          {QUICK.map((cmd) => (
-            <button
-              key={cmd}
-              type="button"
-              className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-              onClick={() => applyOutput(cad.start_command(cmd), cad)}
-            >
-              {cmd}
-            </button>
-          ))}
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={() => {
-              cad.new_drawing();
-              setProjectName("dessin.kelicad");
-              setRevision((n) => n + 1);
-              setEntityCount(0);
-              setEchoes((prev) => [...prev, "Nouveau dessin."]);
-            }}
-          >
-            NEW
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={() => void openKelicad()}
-          >
-            OPEN
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={() => void saveKelicad()}
-          >
-            SAVE
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={() => applyOutput(cad.undo(), cad)}
-          >
-            UNDO
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={() => applyOutput(cad.redo(), cad)}
-          >
-            REDO
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={importDxf}
-          >
-            DXF↓
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={exportDxf}
-          >
-            DXF↑
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={exportSvg}
-          >
-            SVG
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={exportPdf}
-          >
-            PDF
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={() => {
-              const recent = listRecent();
-              if (!recent.length) {
-                setEchoes((prev) => [...prev, "Aucun fichier récent."]);
-                return;
-              }
-              const pick = recent[0];
-              try {
-                cad.import_snapshot_json(pick.snapshotJson);
-                setProjectName(pick.name);
-                setRevision((n) => n + 1);
-                setEntityCount(cad.entity_count());
-                setEchoes((prev) => [...prev, `Récent : ${pick.name}`]);
-              } catch (e) {
-                setEchoes((prev) => [...prev, `Récent: ${String(e)}`]);
-              }
-            }}
-          >
-            RÉCENT
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={() => {
-              const json = cad.macro_record_json();
-              downloadText("macro.json", json, "application/json");
-              setEchoes((prev) => [...prev, "Macro exportée (macro.json)"]);
-            }}
-          >
-            MACRO
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={() => {
-              try {
-                const sel = JSON.parse(cad.selection_json()) as string[];
-                const id = sel[0];
-                if (!id) {
-                  setEchoes((prev) => [
-                    ...prev,
-                    "CONSTR: sélectionnez une ligne (Horizontal+Distance)",
-                  ]);
-                  return;
-                }
-                cad.constraint_add_json(
-                  JSON.stringify({ kind: "horizontal", entity: id }),
-                );
-                cad.constraint_add_json(
-                  JSON.stringify({
-                    kind: "distance",
-                    entity: id,
-                    value: 5,
-                  }),
-                );
-                const result = cad.constraint_solve();
-                setRevision((n) => n + 1);
-                setEntityCount(cad.entity_count());
-                setEchoes((prev) => [...prev, `CONSTR solve: ${result}`]);
-              } catch (e) {
-                setEchoes((prev) => [...prev, `CONSTR erreur: ${String(e)}`]);
-              }
-            }}
-          >
-            CONSTR
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={() => {
-              const input = document.createElement("input");
-              input.type = "file";
-              input.accept = ".svg,.png,image/svg+xml,image/png";
-              input.onchange = () => {
-                const file = input.files?.[0];
-                if (!file) return;
-                void file.arrayBuffer().then((buf) => {
-                  try {
-                    const n = cad.vectorize_bytes(
-                      new Uint8Array(buf),
-                      file.name,
-                    );
-                    setRevision((r) => r + 1);
-                    setEntityCount(cad.entity_count());
-                    setEchoes((prev) => [
-                      ...prev,
-                      `VECTORIZE: ${n} entité(s) depuis ${file.name}`,
-                    ]);
-                  } catch (e) {
-                    setEchoes((prev) => [
-                      ...prev,
-                      `VECTORIZE erreur: ${String(e)}`,
-                    ]);
-                  }
-                });
-              };
-              input.click();
-            }}
-          >
-            VECTORIZE
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={() => {
-              try {
-                const summary = cad.solid_extrude_selected(2.5);
-                const n = cad.view_derive_apply("plan");
-                setRevision((r) => r + 1);
-                setEntityCount(cad.entity_count());
-                setSolidCount(cad.solid_count());
-                setEchoes((prev) => [
-                  ...prev,
-                  `EXTRUDE: ${summary}`,
-                  `Vue plan: ${n} géométrie(s); solids=${cad.solid_count()}`,
-                ]);
-              } catch (e) {
-                setEchoes((prev) => [...prev, `EXTRUDE erreur: ${String(e)}`]);
-              }
-            }}
-          >
-            EXTRUDE
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={() => {
-              try {
-                const s = cad.solid_box(0, 0, 0, 4, 3, 2.5);
-                setRevision((r) => r + 1);
-                setSolidCount(cad.solid_count());
-                setEchoes((prev) => [...prev, `BOX: ${s}`]);
-                setViewMode((m) => (m === "2d" ? "split" : m));
-              } catch (e) {
-                setEchoes((prev) => [...prev, `BOX: ${String(e)}`]);
-              }
-            }}
-          >
-            BOX3D
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={() => {
-              try {
-                const s = cad.solid_cylinder(2, 2, 1.2, 3);
-                setRevision((r) => r + 1);
-                setSolidCount(cad.solid_count());
-                setEchoes((prev) => [...prev, `CYL: ${s}`]);
-              } catch (e) {
-                setEchoes((prev) => [...prev, `CYL: ${String(e)}`]);
-              }
-            }}
-          >
-            CYL
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={() => {
-              try {
-                const s = cad.solid_boolean("difference");
-                setRevision((r) => r + 1);
-                setSolidCount(cad.solid_count());
-                setEchoes((prev) => [...prev, `BOOL−: ${s}`]);
-              } catch (e) {
-                setEchoes((prev) => [...prev, `BOOL: ${String(e)}`]);
-              }
-            }}
-          >
-            BOOL−
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={() => {
-              try {
-                const s = cad.solid_boolean("union");
-                setRevision((r) => r + 1);
-                setSolidCount(cad.solid_count());
-                setEchoes((prev) => [...prev, `BOOL+: ${s}`]);
-              } catch (e) {
-                setEchoes((prev) => [...prev, `BOOL: ${String(e)}`]);
-              }
-            }}
-          >
-            BOOL+
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={() => {
-              cad.solids_clear();
-              setRevision((r) => r + 1);
-              setSolidCount(0);
-              setEchoes((prev) => [...prev, "Solids cleared"]);
-            }}
-          >
-            CLR3D
-          </button>
-          {(["2d", "split", "3d"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              className={`rounded border px-2 py-1 font-mono text-xs uppercase ${
-                viewMode === m
-                  ? "border-accent-soft text-accent-soft"
-                  : "border-ink-700 hover:border-accent-soft"
-              }`}
-              onClick={() => setViewMode(m)}
-            >
-              {m}
-            </button>
-          ))}
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={() => {
-              const csv = cad.bim_schedule_csv();
-              downloadText("schedule.csv", csv, "text/csv");
-              setEchoes((prev) => [...prev, "SCHED exportée (schedule.csv)"]);
-            }}
-          >
-            SCHED
-          </button>
-          <button
-            type="button"
-            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
-            onClick={() => {
-              try {
-                const ifc = cad.ifc_export();
-                downloadText("model.ifc", ifc, "application/x-step");
-                setEchoes((prev) => [...prev, "IFC↑ exporté (model.ifc)"]);
-              } catch (e) {
-                setEchoes((prev) => [...prev, `IFC erreur: ${String(e)}`]);
-              }
-            }}
-          >
-            IFC↑
-          </button>
-        </div>
-        <div className="font-mono text-xs text-ink-500">
-          Entités <span className="text-ink-100">{entityCount}</span>
-          {" · "}
-          Solids <span className="text-ink-100">{solidCount}</span>
-        </div>
-      </header>
-      <CollabBar
-        collab={collab}
-        status={collabStatus}
-        name={displayName}
-        onName={setDisplayName}
-        onEcho={(line) => setEchoes((prev) => [...prev, line].slice(-40))}
+    <div className="flex h-full flex-col bg-[#0e0e0e] text-[#e6e6e6]">
+      <Ribbon
+        cad={cad}
+        revision={revision}
+        projectName={projectName}
+        viewMode={viewMode}
+        entityCount={entityCount}
+        solidCount={solidCount}
+        onCommand={runCmd}
+        onNew={() => {
+          cad.new_drawing();
+          setProjectName("dessin.kelicad");
+          setEntityCount(0);
+          setSolidCount(0);
+          setRevision((n) => n + 1);
+          setEchoes((p) => [...p, "Nouveau dessin."]);
+        }}
+        onOpen={() => void openKelicad()}
+        onSave={() => void saveKelicad()}
+        onUndo={() => applyOutput(cad.undo(), cad)}
+        onRedo={() => applyOutput(cad.redo(), cad)}
+        onPdf={exportPdf}
+        onImportDxf={importDxf}
+        onExportDxf={exportDxf}
+        onExportSvg={exportSvg}
+        onViewMode={setViewMode}
+        onSolid={onSolidAction}
+        onChanged={bump}
+        onEcho={(lines) => setEchoes((p) => [...p, ...lines].slice(-40))}
       />
-      <div className="flex min-h-0 flex-1">
-        <aside className="flex h-full w-52 shrink-0 flex-col border-r border-ink-700/60 bg-ink-900/90">
-          <LayerPanel
-            cad={cad}
-            revision={revision}
-            onChanged={() => {
-              setRevision((n) => n + 1);
-              setEntityCount(cad.entity_count());
-            }}
-            onEcho={(lines) => setEchoes((prev) => [...prev, ...lines].slice(-40))}
-          />
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <ShapePalette
-              cad={cad}
-              onCommand={(raw) => applyOutput(raw, cad)}
-              onEcho={(lines) =>
-                setEchoes((prev) => [...prev, ...lines].slice(-40))
-              }
-              onChanged={() => {
-                setRevision((n) => n + 1);
-                setEntityCount(cad.entity_count());
-                collab.flush();
-              }}
-            />
-          </div>
-          <SelectionPanel
-            cad={cad}
-            revision={revision}
-            onEcho={(lines) => setEchoes((prev) => [...prev, ...lines].slice(-40))}
-            onChanged={() => setRevision((n) => n + 1)}
-          />
-          <BlockLibrary
-            cad={cad}
-            revision={revision}
-            onCommand={(raw) => applyOutput(raw, cad)}
-            onEcho={(lines) => setEchoes((prev) => [...prev, ...lines].slice(-40))}
-          />
-        </aside>
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
+
+      <div className="min-h-0 flex flex-1">
+        <ToolRail activeCmd={activeCmd} onCommand={runCmd} />
+
+        <main className="cad-canvas-wrap relative flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
           {viewMode !== "3d" && (
             <div
-              className={`min-h-0 min-w-0 ${
-                viewMode === "split" ? "h-1/2 md:h-full md:w-1/2" : "h-full w-full"
+              className={`relative min-h-0 min-w-0 ${
+                viewMode === "split"
+                  ? "h-1/2 md:h-full md:w-1/2"
+                  : "h-full w-full"
               }`}
             >
               <DrawingViewport
@@ -732,18 +496,23 @@ export function App() {
                 peers={peers}
                 peerTick={peerTick}
                 onHoverWorld={(x, y) => {
-                  if (collabStatus === "online") {
-                    collab.sendPresence(x, y);
-                  }
+                  setCursor({ x, y });
+                  if (collabStatus === "online") collab.sendPresence(x, y);
                 }}
               />
+              {viewMode === "2d" && (
+                <div className="cad-navrail">
+                  <button type="button" title="Zoom étendu">⊕</button>
+                  <button type="button" title="Pan (Espace)">✋</button>
+                </div>
+              )}
             </div>
           )}
           {viewMode !== "2d" && (
             <div
-              className={`min-h-0 min-w-0 border-ink-700/60 ${
+              className={`relative min-h-0 min-w-0 ${
                 viewMode === "split"
-                  ? "h-1/2 border-t md:h-full md:w-1/2 md:border-l md:border-t-0"
+                  ? "h-1/2 border-t border-[#2e2e2e] md:h-full md:w-1/2 md:border-l md:border-t-0"
                   : "h-full w-full"
               }`}
             >
@@ -751,42 +520,120 @@ export function App() {
                 cad={cad}
                 revision={revision}
                 onEcho={(lines) =>
-                  setEchoes((prev) => [...prev, ...lines].slice(-40))
+                  setEchoes((p) => [...p, ...lines].slice(-40))
                 }
               />
+              <div className="cad-viewcube">
+                <button type="button" onClick={() => setViewMode("3d")}>
+                  ISO
+                </button>
+                <button type="button" onClick={() => setViewMode("split")}>
+                  SPLIT
+                </button>
+                <button type="button" onClick={() => setViewMode("2d")}>
+                  2D
+                </button>
+              </div>
             </div>
           )}
         </main>
-        <PropertiesPanel
-          cad={cad}
-          revision={revision}
-          onChanged={() => {
-            setRevision((n) => n + 1);
-            setEntityCount(cad.entity_count());
-          }}
-          onEcho={(lines) => setEchoes((prev) => [...prev, ...lines].slice(-40))}
-        />
-        <CommentsPanel
-          cad={cad}
-          collab={collab}
-          revision={revision}
-          onEcho={(line) => setEchoes((prev) => [...prev, line].slice(-40))}
-        />
-        <KeliPanel
-          cad={cad}
-          revision={revision}
-          onChanged={() => {
-            setRevision((n) => n + 1);
-            setEntityCount(cad.entity_count());
-            collab.flush();
-          }}
-          onEcho={(lines) => setEchoes((prev) => [...prev, ...lines].slice(-40))}
-        />
+
+        <aside className="cad-dock">
+          <div className="cad-dock-tabs">
+            {(
+              [
+                ["layers", "Calques"],
+                ["blocks", "Blocs"],
+                ["props", "Props"],
+                ["keli", "KELI"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={dockTab === id ? "is-active" : ""}
+                onClick={() => setDockTab(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="cad-dock-body">
+            {dockTab === "layers" && (
+              <>
+                <LayerPanel
+                  cad={cad}
+                  revision={revision}
+                  onChanged={bump}
+                  onEcho={(lines) =>
+                    setEchoes((p) => [...p, ...lines].slice(-40))
+                  }
+                />
+                <SelectionPanel
+                  cad={cad}
+                  revision={revision}
+                  onEcho={(lines) =>
+                    setEchoes((p) => [...p, ...lines].slice(-40))
+                  }
+                  onChanged={() => setRevision((n) => n + 1)}
+                />
+              </>
+            )}
+            {dockTab === "blocks" && (
+              <BlockLibrary
+                cad={cad}
+                revision={revision}
+                onCommand={(raw) => applyOutput(raw, cad)}
+                onEcho={(lines) =>
+                  setEchoes((p) => [...p, ...lines].slice(-40))
+                }
+              />
+            )}
+            {dockTab === "props" && (
+              <PropertiesPanel
+                cad={cad}
+                revision={revision}
+                onChanged={bump}
+                onEcho={(lines) =>
+                  setEchoes((p) => [...p, ...lines].slice(-40))
+                }
+              />
+            )}
+            {dockTab === "keli" && (
+              <>
+                <CollabBar
+                  collab={collab}
+                  status={collabStatus}
+                  name={displayName}
+                  onName={setDisplayName}
+                  onEcho={(line) =>
+                    setEchoes((p) => [...p, line].slice(-40))
+                  }
+                />
+                <KeliPanel
+                  cad={cad}
+                  revision={revision}
+                  onChanged={() => {
+                    bump();
+                    collab.flush();
+                  }}
+                  onEcho={(lines) =>
+                    setEchoes((p) => [...p, ...lines].slice(-40))
+                  }
+                />
+              </>
+            )}
+          </div>
+        </aside>
       </div>
+
       <CommandLine prompt={prompt} echoes={echoes} onSubmit={onSubmit} />
       <StatusBar
         cad={cad}
         revision={revision}
+        cursor={cursor}
+        layout={layout}
+        onLayout={setLayout}
         onChanged={() => setRevision((n) => n + 1)}
       />
     </div>
