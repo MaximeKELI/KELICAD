@@ -40,7 +40,8 @@ mod convergence_tests {
                 kind: EntityKind::Line,
                 geometry: Geometry::Line(Line::new(Vec2::new(x0, y0), Vec2::new(x1, y1))),
                 layer_id: kelicad_doc::LayerId::from_uuid(Uuid::nil()),
-            },
+                props: Default::default(),
+        },
         }
     }
 

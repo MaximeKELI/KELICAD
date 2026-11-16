@@ -108,6 +108,9 @@ impl SnapEngine {
                     if self.modes.endpoint {
                         Self::push(out, *p, SnapKind::Endpoint, query.cursor);
                     }
+                    if self.modes.node {
+                        Self::push(out, *p, SnapKind::Node, query.cursor);
+                    }
                 }
                 Geometry::Text(t) => {
                     if self.modes.endpoint {
@@ -143,6 +146,9 @@ impl SnapEngine {
                 Geometry::Insert(i) => {
                     if self.modes.endpoint {
                         Self::push(out, i.position, SnapKind::Endpoint, query.cursor);
+                    }
+                    if self.modes.insertion {
+                        Self::push(out, i.position, SnapKind::Insertion, query.cursor);
                     }
                 }
                 Geometry::Ellipse(e) => {
@@ -201,6 +207,9 @@ impl SnapEngine {
                     if self.modes.endpoint {
                         Self::push(out, x.position, SnapKind::Endpoint, query.cursor);
                     }
+                    if self.modes.insertion {
+                        Self::push(out, x.position, SnapKind::Insertion, query.cursor);
+                    }
                 }
             }
         }
@@ -226,6 +235,31 @@ impl SnapEngine {
             if let Some(base) = query.base {
                 let t = line.closest_param(base).clamp(0.0, 1.0);
                 Self::push(out, line.point_at(t), SnapKind::Perpendicular, query.cursor);
+            }
+        }
+        if self.modes.extension {
+            let dir = line.end - line.start;
+            let len = dir.length();
+            if len > self.tol.abs {
+                let u = dir / len;
+                // Project cursor onto infinite line; if outside segment, offer extension.
+                let t = (query.cursor - line.start).dot(u);
+                if t < 0.0 {
+                    Self::push(out, line.start + u * t, SnapKind::Extension, query.cursor);
+                } else if t > len {
+                    Self::push(out, line.start + u * t, SnapKind::Extension, query.cursor);
+                }
+            }
+        }
+        if self.modes.parallel {
+            if let Some(base) = query.base {
+                let dir = line.end - line.start;
+                let len = dir.length();
+                if len > self.tol.abs {
+                    let u = dir / len;
+                    let foot = base + u * (query.cursor - base).dot(u);
+                    Self::push(out, foot, SnapKind::Parallel, query.cursor);
+                }
             }
         }
     }
@@ -269,6 +303,27 @@ impl SnapEngine {
                 }
             }
         }
+        if self.modes.tangent {
+            if let Some(base) = query.base {
+                let d = base.distance(circle.center);
+                if d > circle.radius + self.tol.abs {
+                    let ang = (base - circle.center).angle();
+                    let alpha = (circle.radius / d).acos();
+                    Self::push(
+                        out,
+                        circle.point_at_angle(ang + alpha),
+                        SnapKind::Tangent,
+                        query.cursor,
+                    );
+                    Self::push(
+                        out,
+                        circle.point_at_angle(ang - alpha),
+                        SnapKind::Tangent,
+                        query.cursor,
+                    );
+                }
+            }
+        }
     }
 
     fn collect_intersections(&self, doc: &Document, query: SnapQuery, out: &mut Vec<SnapHit>) {
@@ -307,6 +362,7 @@ mod tests {
             kind: EntityKind::Line,
             geometry: Geometry::Line(Line::new(Vec2::ZERO, Vec2::new(10.0, 0.0))),
             layer_id: doc.default_layer_id(),
+            props: Default::default(),
         });
         let mut engine = SnapEngine::default();
         engine.modes.nearest = false;

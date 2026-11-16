@@ -34,6 +34,9 @@ pub struct LayerFlags {
     pub locked: bool,
     /// Non-plottable layers are skipped on print/export.
     pub no_plot: bool,
+    /// Off layers are hidden (distinct from freeze in AutoCAD).
+    #[serde(default)]
+    pub off: bool,
 }
 
 /// A named layer with display attributes.

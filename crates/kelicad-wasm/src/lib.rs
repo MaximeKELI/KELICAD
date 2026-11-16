@@ -320,7 +320,8 @@ impl WasmCad {
                         kind: geometry.kind(),
                         geometry,
                         layer_id,
-                    },
+                        props: Default::default(),
+        },
                 })
                 .map_err(|e| JsValue::from_str(&e.to_string()))?;
         }
@@ -636,7 +637,8 @@ impl WasmCad {
                     kind: seed.geometry.kind(),
                     geometry: seed.geometry,
                     layer_id,
-                },
+                    props: Default::default(),
+        },
             });
             n += 1;
         }
@@ -1058,7 +1060,8 @@ impl WasmCad {
                     kind: geom.kind(),
                     geometry: geom,
                     layer_id: layer,
-                },
+                    props: Default::default(),
+        },
             });
         }
         let n = ops.len() as u32;
@@ -1278,7 +1281,8 @@ impl WasmCad {
                     kind: geom.kind(),
                     geometry: geom,
                     layer_id: layer,
-                },
+                    props: Default::default(),
+        },
             });
         }
         let n = ops.len() as u32;

@@ -131,6 +131,58 @@ pub enum CommandId {
     DimBaseline,
     /// SECTION — section cut mark with labels
     Section,
+    /// SETVAR
+    Setvar,
+    /// GETVAR
+    Getvar,
+    /// PEDIT
+    Pedit,
+    /// MATCHPROP
+    Matchprop,
+    /// DRAWORDER
+    Draworder,
+    /// GROUP
+    Group,
+    /// UNGROUP
+    Ungroup,
+    /// OVERKILL
+    Overkill,
+    /// OOPS restore last erase
+    Oops,
+    /// DIVIDE
+    Divide,
+    /// MEASURE
+    Measure,
+    /// BOUNDARY
+    Boundary,
+    /// SELECT
+    Select,
+    /// SELECTSIMILAR
+    SelectSimilar,
+    /// QSELECT
+    Qselect,
+    /// DDPTYPE
+    Ddptype,
+    /// WBLOCK
+    Wblock,
+    /// MTEXT
+    Mtext,
+    /// ARRAYPATH
+    ArrayPath,
+    /// LAYISO
+    Layiso,
+    /// LAYOFF
+    Layoff,
+    /// LAYFRZ
+    Layfrz,
+    /// LAYLCK
+    Laylck,
+    /// LAYCUR
+    Laycur,
+    /// SELECTALL
+    SelectAll,
+    /// SELECTPREV
+    SelectPrev,
 }
 
 impl CommandId {
@@ -201,6 +253,32 @@ impl CommandId {
             Self::DimContinue => "DIMCONTINUE",
             Self::DimBaseline => "DIMBASELINE",
             Self::Section => "SECTION",
+            Self::Setvar => "SETVAR",
+            Self::Getvar => "GETVAR",
+            Self::Pedit => "PEDIT",
+            Self::Matchprop => "MATCHPROP",
+            Self::Draworder => "DRAWORDER",
+            Self::Group => "GROUP",
+            Self::Ungroup => "UNGROUP",
+            Self::Overkill => "OVERKILL",
+            Self::Oops => "OOPS",
+            Self::Divide => "DIVIDE",
+            Self::Measure => "MEASURE",
+            Self::Boundary => "BOUNDARY",
+            Self::Select => "SELECT",
+            Self::SelectSimilar => "SELECTSIMILAR",
+            Self::Qselect => "QSELECT",
+            Self::Ddptype => "DDPTYPE",
+            Self::Wblock => "WBLOCK",
+            Self::Mtext => "MTEXT",
+            Self::ArrayPath => "ARRAYPATH",
+            Self::Layiso => "LAYISO",
+            Self::Layoff => "LAYOFF",
+            Self::Layfrz => "LAYFRZ",
+            Self::Laylck => "LAYLCK",
+            Self::Laycur => "LAYCUR",
+            Self::SelectAll => "SELECTALL",
+            Self::SelectPrev => "SELECTPREV",
         }
     }
 
@@ -282,7 +360,7 @@ impl CommandId {
     }
 }
 
-const ALL_COMMANDS: [CommandId; 64] = [
+const ALL_COMMANDS: [CommandId; 90] = [
     CommandId::Line,
     CommandId::Pline,
     CommandId::Circle,
@@ -347,4 +425,30 @@ const ALL_COMMANDS: [CommandId; 64] = [
     CommandId::DimContinue,
     CommandId::DimBaseline,
     CommandId::Section,
+    CommandId::Setvar,
+    CommandId::Getvar,
+    CommandId::Pedit,
+    CommandId::Matchprop,
+    CommandId::Draworder,
+    CommandId::Group,
+    CommandId::Ungroup,
+    CommandId::Overkill,
+    CommandId::Oops,
+    CommandId::Divide,
+    CommandId::Measure,
+    CommandId::Boundary,
+    CommandId::Select,
+    CommandId::SelectSimilar,
+    CommandId::Qselect,
+    CommandId::Ddptype,
+    CommandId::Wblock,
+    CommandId::Mtext,
+    CommandId::ArrayPath,
+    CommandId::Layiso,
+    CommandId::Layoff,
+    CommandId::Layfrz,
+    CommandId::Laylck,
+    CommandId::Laycur,
+    CommandId::SelectAll,
+    CommandId::SelectPrev,
 ];

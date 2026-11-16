@@ -271,6 +271,7 @@ fn create_entity_op(id: EntityId, layer: kelicad_doc::LayerId, geometry: Geometr
             kind: geometry.kind(),
             geometry,
             layer_id: layer,
+            props: Default::default(),
         },
     }
 }

@@ -1,8 +1,8 @@
 //! Atomic operations applied to a document.
 
 use kelicad_doc::{
-    BlockDef, BlockId, DocError, Document, EntityId, EntityRecord, Geometry, Layer, LayerId,
-    Layout, LayoutId, XrefDef, XrefId,
+    BlockDef, BlockId, DocError, Document, EntityId, EntityProps, EntityRecord, Geometry, Layer,
+    LayerId, Layout, LayoutId, XrefDef, XrefId,
 };
 
 /// Errors while applying an operation.
@@ -99,6 +99,18 @@ pub enum Operation {
     DeleteXref {
         /// XREF id.
         id: XrefId,
+    },
+    /// Replace a layer definition (color, flags, linetype, …).
+    UpdateLayer {
+        /// Full layer record.
+        layer: Layer,
+    },
+    /// Set per-entity property overrides.
+    SetEntityProps {
+        /// Target entity.
+        id: EntityId,
+        /// New props.
+        props: EntityProps,
     },
 }
 
@@ -223,6 +235,26 @@ impl Operation {
                     return Err(OpError::Doc(DocError::UnknownXref(*id)));
                 };
                 Ok(Operation::UpsertXref { def })
+            }
+            Self::UpdateLayer { layer } => {
+                let Some(prev) = doc.get_layer(layer.id).cloned() else {
+                    return Err(OpError::Doc(DocError::UnknownLayer(layer.id)));
+                };
+                doc.upsert_layer(layer.clone());
+                Ok(Operation::UpdateLayer { layer: prev })
+            }
+            Self::SetEntityProps { id, props } => {
+                let Some(prev) = doc.get_entity(*id).cloned() else {
+                    return Err(OpError::EntityNotFound(*id));
+                };
+                let inverse = Operation::SetEntityProps {
+                    id: *id,
+                    props: prev.props.clone(),
+                };
+                let mut next = prev;
+                next.props = props.clone();
+                doc.upsert_entity(next);
+                Ok(inverse)
             }
         }
     }

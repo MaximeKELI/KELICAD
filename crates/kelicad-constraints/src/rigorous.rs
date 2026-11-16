@@ -20,7 +20,8 @@ fn line_entity(id: EntityId, layer: LayerId, start: Vec2, end: Vec2) -> EntityRe
         kind: EntityKind::Line,
         geometry: Geometry::Line(Line::new(start, end)),
         layer_id: layer,
-    }
+        props: Default::default(),
+        }
 }
 
 #[test]

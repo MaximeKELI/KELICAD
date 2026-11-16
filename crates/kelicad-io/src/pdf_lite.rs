@@ -188,7 +188,8 @@ mod tests {
                 kind: Geometry::Line(Line::new(Vec2::ZERO, Vec2::X)).kind(),
                 geometry: Geometry::Line(Line::new(Vec2::ZERO, Vec2::new(5.0, 3.0))),
                 layer_id: layer,
-            },
+                props: Default::default(),
+        },
         });
         let bytes = export_pdf_lite(&s).unwrap();
         assert!(bytes.starts_with(b"%PDF"));

@@ -23,6 +23,22 @@ pub struct EntityRecord {
     pub geometry: Geometry,
     /// Layer assignment.
     pub layer_id: LayerId,
+    /// Optional property overrides (BYLAYER when default).
+    #[serde(default)]
+    pub props: crate::props::EntityProps,
+}
+
+impl EntityRecord {
+    /// Create a record with default (BYLAYER) props.
+    pub fn new(id: EntityId, geometry: Geometry, layer_id: LayerId) -> Self {
+        Self {
+            id,
+            kind: geometry.kind(),
+            geometry,
+            layer_id,
+            props: crate::props::EntityProps::default(),
+        }
+    }
 }
 
 /// Drawing units for the project (display / property inspector).
@@ -409,6 +425,7 @@ mod tests {
             kind: EntityKind::Point,
             geometry: Geometry::Point(Vec2::new(1.0, 2.0)),
             layer_id: doc.default_layer_id(),
+            props: Default::default(),
         });
         assert_eq!(doc.entity_count(), 1);
         assert!(doc.get_entity(id).is_some());

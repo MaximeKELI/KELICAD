@@ -267,7 +267,8 @@ mod tests {
                 kind: EntityKind::Line,
                 geometry: Geometry::Line(Line::new(Vec2::ZERO, Vec2::new(0.001, 0.0))),
                 layer_id: layer,
-            },
+                props: Default::default(),
+        },
         })
         .unwrap();
         let rs = load_ruleset("default").unwrap();

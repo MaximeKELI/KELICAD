@@ -78,7 +78,8 @@ pub fn import_shp_bytes(bytes: &[u8]) -> Result<(DocSession, ShpImportReport), I
                             kind: EntityKind::Point,
                             geometry: Geometry::Point(Vec2::new(x, y)),
                             layer_id: layer,
-                        },
+                            props: Default::default(),
+        },
                     })
                     .map_err(|e| IoError::Format(e.to_string()))?;
                 report.imported += 1;
@@ -136,7 +137,8 @@ pub fn import_shp_bytes(bytes: &[u8]) -> Result<(DocSession, ShpImportReport), I
                                 kind: EntityKind::Polyline,
                                 geometry: Geometry::Polyline(poly),
                                 layer_id: layer,
-                            },
+                                props: Default::default(),
+        },
                         })
                         .map_err(|e| IoError::Format(e.to_string()))?;
                     report.imported += 1;

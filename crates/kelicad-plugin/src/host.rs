@@ -110,7 +110,8 @@ impl PluginHost {
                     kind: EntityKind::Line,
                     geometry: geom,
                     layer_id,
-                },
+                    props: Default::default(),
+        },
             })
             .map_err(|e| PluginError::Execution(e.to_string()))?;
         Ok(json!({ "id": id.to_string() }))

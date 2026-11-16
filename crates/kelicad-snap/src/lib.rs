@@ -7,4 +7,4 @@ pub mod engine;
 pub mod kinds;
 
 pub use engine::{SnapEngine, SnapHit, SnapQuery};
-pub use kinds::SnapKind;
+pub use kinds::{SnapKind, SnapModes};

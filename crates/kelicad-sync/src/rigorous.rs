@@ -18,6 +18,7 @@ fn line_op(id: u128) -> Operation {
             kind: EntityKind::Line,
             geometry: Geometry::Line(Line::new(Vec2::ZERO, Vec2::X)),
             layer_id: LayerId::from_uuid(Uuid::nil()),
+            props: Default::default(),
         },
     }
 }

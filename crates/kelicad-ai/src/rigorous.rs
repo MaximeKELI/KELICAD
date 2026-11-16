@@ -24,6 +24,7 @@ fn add_line(s: &mut DocSession, id: u128, a: Vec2, b: Vec2) {
             kind: EntityKind::Line,
             geometry: Geometry::Line(Line::new(a, b)),
             layer_id: layer,
+            props: Default::default(),
         },
     })
     .unwrap();
@@ -73,6 +74,7 @@ fn layer_whitelist_rule() {
             kind: EntityKind::Line,
             geometry: Geometry::Line(Line::new(Vec2::ZERO, Vec2::X)),
             layer_id: walls,
+            props: Default::default(),
         },
     })
     .unwrap();

@@ -97,6 +97,7 @@ mod tests {
             kind: EntityKind::Line,
             geometry: Geometry::Line(Line::new(Vec2::ZERO, Vec2::new(10.0, 0.0))),
             layer_id: layer,
+            props: Default::default(),
         }
     }
 

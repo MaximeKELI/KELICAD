@@ -335,7 +335,8 @@ pub fn import_dxf(text: &str) -> Result<(DocSession, ImportReport), IoError> {
                     kind: geometry.kind(),
                     geometry,
                     layer_id,
-                };
+                    props: Default::default(),
+        };
                 if let Err(e) = session.apply(Operation::CreateEntity { record }) {
                     report.skipped.push(format!("{entity_type}: {e}"));
                 } else {
@@ -615,7 +616,8 @@ mod tests {
                     kind: EntityKind::Line,
                     geometry: Geometry::Line(Line::new(Vec2::ZERO, Vec2::new(10.0, 0.0))),
                     layer_id: session.document.default_layer_id(),
-                },
+                    props: Default::default(),
+        },
             })
             .unwrap();
         session
@@ -625,7 +627,8 @@ mod tests {
                     kind: EntityKind::Circle,
                     geometry: Geometry::Circle(Circle::new(Vec2::new(5.0, 5.0), 2.0)),
                     layer_id: session.document.default_layer_id(),
-                },
+                    props: Default::default(),
+        },
             })
             .unwrap();
         let dxf = export_dxf(&session).unwrap();
@@ -675,7 +678,8 @@ mod tests {
                     kind: EntityKind::Line,
                     geometry: Geometry::Line(Line::new(Vec2::ZERO, Vec2::new(5.0, 5.0))),
                     layer_id: session.document.default_layer_id(),
-                },
+                    props: Default::default(),
+        },
             })
             .unwrap();
         let svg = crate::export_svg(&session, 800.0, 600.0).unwrap();

@@ -14,7 +14,8 @@ fn line_record(id: u128, layer: LayerId, start: Vec2, end: Vec2) -> EntityRecord
         kind: EntityKind::Line,
         geometry: Geometry::Line(Line::new(start, end)),
         layer_id: layer,
-    }
+        props: Default::default(),
+        }
 }
 
 #[test]
@@ -91,7 +92,8 @@ fn apply_remote_create_is_upsert() {
         kind: EntityKind::Line,
         geometry: Geometry::Line(Line::new(Vec2::Y, Vec2::new(1.0, 1.0))),
         layer_id: layer,
-    };
+        props: Default::default(),
+        };
     session
         .apply_remote(&Operation::CreateEntity { record: first })
         .unwrap();

@@ -196,7 +196,8 @@ pub fn load_document(path: &Path) -> Result<DocSession, IoError> {
                 kind: geometry.kind(),
                 geometry,
                 layer_id,
-            });
+                props: Default::default(),
+        });
         }
     }
 
@@ -373,7 +374,8 @@ mod tests {
                     kind: EntityKind::Line,
                     geometry: Geometry::Line(Line::new(Vec2::ZERO, Vec2::new(3.0, 4.0))),
                     layer_id: session.document.default_layer_id(),
-                },
+                    props: Default::default(),
+        },
             })
             .unwrap();
 

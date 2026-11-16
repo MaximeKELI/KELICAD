@@ -477,6 +477,7 @@ mod tests {
             kind: EntityKind::Line,
             geometry: Geometry::Line(Line::new(start, end)),
             layer_id: layer,
+            props: Default::default(),
         }
     }
 
