@@ -703,7 +703,9 @@ fn write_draw_text(
         rotation,
         content,
         align: TextAlign::Left,
-    });
+        style_id: None,
+        annotative: false,
+});
     let mut bindings = HashMap::new();
     bindings.insert("last".into(), id);
     Ok(ToolExecResult {
@@ -781,7 +783,10 @@ fn write_add_dimension(
         assoc_a: None,
         assoc_b: None,
         text_override: None,
-    };
+        style_id: None,
+        annotative: false,
+        angle_p3: None,
+};
     let measured = dim.measured_length();
     let geom = Geometry::Dimension(dim);
     let mut bindings = HashMap::new();
@@ -1546,7 +1551,10 @@ fn write_auto_dimension(
             assoc_a: Some(id),
             assoc_b: None,
             text_override: None,
-        };
+            style_id: None,
+            annotative: false,
+            angle_p3: None,
+};
         let geom = Geometry::Dimension(dim);
         let nid = ids.next_entity();
         ops.push(create_entity_op(nid, layer, geom.clone()));

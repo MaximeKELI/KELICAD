@@ -1,8 +1,9 @@
-//! Text, dimensions, and hatches.
+//! Text, dimensions, leaders, and hatches.
 
 use kelicad_math::Vec2;
 
 use crate::entity::EntityId;
+use crate::styles::{DimStyleId, TextStyleId};
 
 /// Horizontal/vertical text alignment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
@@ -32,6 +33,12 @@ pub struct TextGeom {
     pub content: String,
     /// Alignment.
     pub align: TextAlign,
+    /// Text style (`None` = document current / Standard).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub style_id: Option<TextStyleId>,
+    /// Annotative flag (viewport-scaled).
+    #[serde(default)]
+    pub annotative: bool,
 }
 
 /// Multi-line text (DXF MTEXT-compatible payload).
@@ -56,6 +63,12 @@ pub struct MTextGeom {
     /// Attachment point.
     #[serde(default)]
     pub align: crate::mtext::MTextAlign,
+    /// Text style.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub style_id: Option<TextStyleId>,
+    /// Annotative flag.
+    #[serde(default)]
+    pub annotative: bool,
 }
 
 fn default_width_factor() -> f64 {
@@ -77,6 +90,8 @@ impl MTextGeom {
             width_factor: 1.0,
             line_spacing: 1.0,
             align: crate::mtext::MTextAlign::TopLeft,
+            style_id: None,
+            annotative: false,
         }
     }
 
@@ -125,6 +140,15 @@ pub struct DimensionGeom {
     pub assoc_b: Option<EntityId>,
     /// Override text (`None` = auto measurement string).
     pub text_override: Option<String>,
+    /// Dimension style.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub style_id: Option<DimStyleId>,
+    /// Annotative flag.
+    #[serde(default)]
+    pub annotative: bool,
+    /// Angular: third ray point (vertex is def1; rays through def2 and angle_p3).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub angle_p3: Option<Vec2>,
 }
 
 impl DimensionGeom {
@@ -133,24 +157,77 @@ impl DimensionGeom {
         self.def1.distance(self.def2)
     }
 
-    /// Auto text for the dimension.
+    /// Measured angle in degrees (Angular) or 0.
+    pub fn measured_angle_deg(&self) -> f64 {
+        let Some(p3) = self.angle_p3 else {
+            return (self.def2 - self.def1).angle().to_degrees().abs();
+        };
+        let a = (self.def2 - self.def1).angle();
+        let b = (p3 - self.def1).angle();
+        let mut d = (b - a).to_degrees().abs();
+        if d > 180.0 {
+            d = 360.0 - d;
+        }
+        d
+    }
+
+    /// Auto text for the dimension (without style formatting).
     pub fn auto_text(&self) -> String {
         match self.kind {
             DimKind::Linear | DimKind::Aligned => format!("{:.3}", self.measured_length()),
             DimKind::Radius => format!("R{:.3}", self.measured_length()),
             DimKind::Diameter => format!("⌀{:.3}", self.measured_length()),
-            DimKind::Angular => {
-                let ang = (self.def2 - self.def1).angle().to_degrees().abs();
-                format!("{ang:.2}°")
-            }
+            DimKind::Angular => format!("{:.2}°", self.measured_angle_deg()),
         }
     }
 
-    /// Display text.
+    /// Display text, optionally applying a dim style formatter.
     pub fn display_text(&self) -> String {
         self.text_override
             .clone()
             .unwrap_or_else(|| self.auto_text())
+    }
+
+    /// Display text using a dim style (precision / suffix / factor).
+    pub fn display_text_styled(&self, style: &crate::styles::DimStyle) -> String {
+        if let Some(t) = &self.text_override {
+            return t.clone();
+        }
+        match self.kind {
+            DimKind::Linear | DimKind::Aligned => style.format_length(self.measured_length()),
+            DimKind::Radius => format!("R{}", style.format_length(self.measured_length())),
+            DimKind::Diameter => format!("⌀{}", style.format_length(self.measured_length())),
+            DimKind::Angular => format!("{:.prec$}°", self.measured_angle_deg(), prec = style.precision as usize),
+        }
+    }
+}
+
+/// Multileader / leader annotation.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct LeaderGeom {
+    /// Polyline vertices from arrow tip to landing (at least 2).
+    pub vertices: Vec<Vec2>,
+    /// Annotation text (empty = leader only).
+    pub text: String,
+    /// Text height.
+    pub text_height: f64,
+    /// Has arrowhead at first vertex.
+    pub has_arrow: bool,
+    /// Text style.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub style_id: Option<TextStyleId>,
+}
+
+impl LeaderGeom {
+    /// Simple two-point leader with text.
+    pub fn new(tip: Vec2, landing: Vec2, text: impl Into<String>) -> Self {
+        Self {
+            vertices: vec![tip, landing],
+            text: text.into(),
+            text_height: 2.5,
+            has_arrow: true,
+            style_id: None,
+        }
     }
 }
 

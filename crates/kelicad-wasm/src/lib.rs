@@ -847,7 +847,9 @@ fn geometry_from_value(v: &serde_json::Value) -> Result<Geometry, String> {
                 .unwrap_or("")
                 .to_string(),
             align: kelicad_doc::TextAlign::Left,
-        })),
+            style_id: None,
+            annotative: false,
+})),
         "dimension" => Ok(Geometry::Dimension(kelicad_doc::DimensionGeom {
             kind: kelicad_doc::DimKind::Linear,
             def1: Vec2::new(num(v, "x1")?, num(v, "y1")?),
@@ -859,7 +861,10 @@ fn geometry_from_value(v: &serde_json::Value) -> Result<Geometry, String> {
                 .get("text_override")
                 .and_then(|t| t.as_str())
                 .map(|s| s.to_string()),
-        })),
+                style_id: None,
+                annotative: false,
+                angle_p3: None,
+})),
         "hatch" => {
             let verts = v
                 .get("boundary")

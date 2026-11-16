@@ -414,7 +414,9 @@ fn read_entity(ty: &str, chunk: &[(i32, String)], report: &mut ImportReport) -> 
                 rotation: rot,
                 content,
                 align: TextAlign::Left,
-            }))
+                style_id: None,
+                annotative: false,
+}))
         }
         "MTEXT" => {
             let x = f(&m, 10, 0)?;
@@ -447,7 +449,10 @@ fn read_entity(ty: &str, chunk: &[(i32, String)], report: &mut ImportReport) -> 
                 assoc_a: None,
                 assoc_b: None,
                 text_override,
-            }))
+                style_id: None,
+                annotative: false,
+                angle_p3: None,
+}))
         }
         "ELLIPSE" => {
             let cx = f(&m, 10, 0)?;

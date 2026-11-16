@@ -2,11 +2,16 @@
 
 use kelicad_doc::{
     BlockDef, BlockId, DimKind, DimensionGeom, EntityId, EntityKind, EntityRecord, Geometry,
-    HatchGeom, InsertGeom, TextAlign, TextGeom,
+    HatchGeom, InsertGeom, LeaderGeom, RayGeom, TextAlign, TextGeom, XLineGeom, XrefDef,
+    XrefId, XrefInsertGeom, XrefKind,
 };
 use kelicad_geom::construct::{
     chamfer_lines, circle_from_3_points, fillet_lines, regular_polygon_center_vertex,
     tangents_circle_circle, tangents_point_circle,
+};
+use kelicad_geom::modify::{
+    align_2point, align_transform_point, break_line_near, join_collinear_lines, join_polylines,
+    lengthen_line, polar_array_copies, rectangular_array_offsets, stretch_line, stretch_polyline,
 };
 use kelicad_geom::transform::offset_line;
 use kelicad_geom::trim::{extend_line_to, trim_line_by_cut};
@@ -149,6 +154,60 @@ enum Active {
     },
     TangentCc {
         first: Option<EntityId>,
+    },
+    DimAligned {
+        def1: Option<Vec2>,
+        def2: Option<Vec2>,
+    },
+    DimRadius {
+        center: Option<Vec2>,
+    },
+    DimDiameter {
+        center: Option<Vec2>,
+    },
+    DimAngular {
+        vertex: Option<Vec2>,
+        p2: Option<Vec2>,
+    },
+    Leader {
+        points: Vec<Vec2>,
+    },
+    ArrayRect {
+        cols: Option<usize>,
+        rows: Option<usize>,
+        dx: Option<f64>,
+    },
+    ArrayPolar {
+        count: Option<usize>,
+        center: Option<Vec2>,
+        fill_deg: Option<f64>,
+    },
+    Stretch {
+        corner1: Option<Vec2>,
+        corner2: Option<Vec2>,
+        base: Option<Vec2>,
+    },
+    Break,
+    Join,
+    Explode,
+    Lengthen {
+        delta: Option<f64>,
+    },
+    Align {
+        src_from: Option<Vec2>,
+        src_to: Option<Vec2>,
+        dst_from: Option<Vec2>,
+    },
+    Ray {
+        origin: Option<Vec2>,
+    },
+    Xline {
+        first: Option<Vec2>,
+    },
+    Xref {
+        name: Option<String>,
+        path: Option<String>,
+        kind: XrefKind,
     },
 }
 
@@ -734,7 +793,9 @@ impl<G: IdGen> CommandEngine<G> {
                 rotation: 0.0,
                 content: t.to_string(),
                 align: TextAlign::Left,
-            }));
+                style_id: None,
+                annotative: false,
+}));
             self.active = None;
             return out;
         }
@@ -1068,7 +1129,10 @@ impl<G: IdGen> CommandEngine<G> {
                     assoc_a: None,
                     assoc_b: None,
                     text_override: None,
-                }));
+                    style_id: None,
+                    annotative: false,
+                    angle_p3: None,
+}));
                 self.active = None;
             }
             (CommandId::Hatch, Active::Hatch { mut points }) => {

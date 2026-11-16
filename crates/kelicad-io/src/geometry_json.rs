@@ -251,7 +251,9 @@ pub fn geometry_from_json(s: &str) -> Result<Geometry, IoError> {
                 "middle" => TextAlign::Middle,
                 _ => TextAlign::Left,
             },
-        }),
+            style_id: None,
+            annotative: false,
+}),
         GeomDto::Mtext {
             x,
             y,
@@ -296,7 +298,10 @@ pub fn geometry_from_json(s: &str) -> Result<Geometry, IoError> {
                 .and_then(|s| Uuid::parse_str(s).ok())
                 .map(EntityId::from_uuid),
             text_override,
-        }),
+            style_id: None,
+            annotative: false,
+            angle_p3: None,
+}),
         GeomDto::Hatch { boundary, pattern } => Geometry::Hatch(HatchGeom {
             boundary: boundary.into_iter().map(|[x, y]| Vec2::new(x, y)).collect(),
             pattern: if pattern.eq_ignore_ascii_case("SOLID") {

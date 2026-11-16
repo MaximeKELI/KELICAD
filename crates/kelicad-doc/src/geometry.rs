@@ -10,9 +10,11 @@ use kelicad_geom::transform::{
 use kelicad_geom::{Arc, Circle, Ellipse, Line, Polyline, Spline};
 use kelicad_math::Vec2;
 
-use crate::annotation::{DimensionGeom, HatchGeom, MTextGeom, TextGeom};
+use crate::annotation::{DimensionGeom, HatchGeom, LeaderGeom, MTextGeom, TextGeom};
 use crate::blocks::InsertGeom;
 use crate::entity::EntityKind;
+use crate::ray::{RayGeom, XLineGeom};
+use crate::xref::XrefInsertGeom;
 
 /// Geometry payload for an entity.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -42,6 +44,14 @@ pub enum Geometry {
     Hatch(HatchGeom),
     /// Block insert.
     Insert(InsertGeom),
+    /// Leader.
+    Leader(LeaderGeom),
+    /// Ray.
+    Ray(RayGeom),
+    /// Infinite xline.
+    XLine(XLineGeom),
+    /// XREF / underlay insert.
+    Xref(XrefInsertGeom),
 }
 
 impl Geometry {
@@ -60,6 +70,10 @@ impl Geometry {
             Self::Dimension(_) => EntityKind::Dimension,
             Self::Hatch(_) => EntityKind::Hatch,
             Self::Insert(_) => EntityKind::Insert,
+            Self::Leader(_) => EntityKind::Leader,
+            Self::Ray(_) => EntityKind::Ray,
+            Self::XLine(_) => EntityKind::XLine,
+            Self::Xref(_) => EntityKind::Xref,
         }
     }
 
@@ -99,6 +113,24 @@ impl Geometry {
                 let mut n = i.clone();
                 n.position += delta;
                 Self::Insert(n)
+            }
+            Self::Leader(l) => {
+                let mut n = l.clone();
+                n.vertices = n.vertices.iter().map(|p| *p + delta).collect();
+                Self::Leader(n)
+            }
+            Self::Ray(r) => Self::Ray(RayGeom {
+                origin: r.origin + delta,
+                direction: r.direction,
+            }),
+            Self::XLine(x) => Self::XLine(XLineGeom {
+                point: x.point + delta,
+                direction: x.direction,
+            }),
+            Self::Xref(x) => {
+                let mut n = x.clone();
+                n.position += delta;
+                Self::Xref(n)
             }
         }
     }
@@ -146,6 +178,29 @@ impl Geometry {
                 n.position = rotate_point(n.position, origin, radians);
                 n.rotation += radians;
                 Self::Insert(n)
+            }
+            Self::Leader(l) => {
+                let mut n = l.clone();
+                n.vertices = n
+                    .vertices
+                    .iter()
+                    .map(|p| rotate_point(*p, origin, radians))
+                    .collect();
+                Self::Leader(n)
+            }
+            Self::Ray(r) => Self::Ray(RayGeom {
+                origin: rotate_point(r.origin, origin, radians),
+                direction: rotate_point(r.direction, Vec2::ZERO, radians),
+            }),
+            Self::XLine(x) => Self::XLine(XLineGeom {
+                point: rotate_point(x.point, origin, radians),
+                direction: rotate_point(x.direction, Vec2::ZERO, radians),
+            }),
+            Self::Xref(x) => {
+                let mut n = x.clone();
+                n.position = rotate_point(n.position, origin, radians);
+                n.rotation += radians;
+                Self::Xref(n)
             }
         }
     }
@@ -196,6 +251,30 @@ impl Geometry {
                 n.scale = Vec2::new(n.scale.x * factor, n.scale.y * factor);
                 Self::Insert(n)
             }
+            Self::Leader(l) => {
+                let mut n = l.clone();
+                n.vertices = n
+                    .vertices
+                    .iter()
+                    .map(|p| scale_point(*p, origin, factor))
+                    .collect();
+                n.text_height *= factor.abs();
+                Self::Leader(n)
+            }
+            Self::Ray(r) => Self::Ray(RayGeom {
+                origin: scale_point(r.origin, origin, factor),
+                direction: r.direction,
+            }),
+            Self::XLine(x) => Self::XLine(XLineGeom {
+                point: scale_point(x.point, origin, factor),
+                direction: x.direction,
+            }),
+            Self::Xref(x) => {
+                let mut n = x.clone();
+                n.position = scale_point(n.position, origin, factor);
+                n.scale = Vec2::new(n.scale.x * factor, n.scale.y * factor);
+                Self::Xref(n)
+            }
         }
     }
 
@@ -235,6 +314,36 @@ impl Geometry {
                 let mut n = i.clone();
                 n.position = mirror_point(n.position, a, b);
                 Self::Insert(n)
+            }
+            Self::Leader(l) => {
+                let mut n = l.clone();
+                n.vertices = n.vertices.iter().map(|p| mirror_point(*p, a, b)).collect();
+                Self::Leader(n)
+            }
+            Self::Ray(r) => {
+                let o2 = mirror_point(r.origin, a, b);
+                let tip = mirror_point(r.origin + r.direction, a, b);
+                let d = tip - o2;
+                let len = d.length().max(1e-12);
+                Self::Ray(RayGeom {
+                    origin: o2,
+                    direction: d / len,
+                })
+            }
+            Self::XLine(x) => {
+                let p2 = mirror_point(x.point, a, b);
+                let tip = mirror_point(x.point + x.direction, a, b);
+                let d = tip - p2;
+                let len = d.length().max(1e-12);
+                Self::XLine(XLineGeom {
+                    point: p2,
+                    direction: d / len,
+                })
+            }
+            Self::Xref(x) => {
+                let mut n = x.clone();
+                n.position = mirror_point(n.position, a, b);
+                Self::Xref(n)
             }
         }
     }

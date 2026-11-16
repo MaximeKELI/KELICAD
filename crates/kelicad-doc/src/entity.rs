@@ -55,4 +55,12 @@ pub enum EntityKind {
     Hatch,
     /// Block insert / reference.
     Insert,
+    /// Leader / multileader.
+    Leader,
+    /// Semi-infinite ray.
+    Ray,
+    /// Infinite construction line (xline).
+    XLine,
+    /// External reference / underlay insert.
+    Xref,
 }

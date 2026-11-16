@@ -39,6 +39,16 @@ pub enum CommandId {
     Text,
     /// DIMLINEAR
     DimLinear,
+    /// DIMALIGNED
+    DimAligned,
+    /// DIMRADIUS
+    DimRadius,
+    /// DIMDIAMETER
+    DimDiameter,
+    /// DIMANGULAR
+    DimAngular,
+    /// LEADER
+    Leader,
     /// HATCH
     Hatch,
     /// BLOCK
@@ -61,6 +71,30 @@ pub enum CommandId {
     TangentPc,
     /// Common tangents between two circles
     TangentCc,
+    /// ARRAY rectangular
+    ArrayRect,
+    /// ARRAY polar
+    ArrayPolar,
+    /// STRETCH
+    Stretch,
+    /// BREAK
+    Break,
+    /// JOIN
+    Join,
+    /// EXPLODE
+    Explode,
+    /// LENGTHEN
+    Lengthen,
+    /// ALIGN
+    Align,
+    /// RAY
+    Ray,
+    /// XLINE
+    Xline,
+    /// XREF attach
+    Xref,
+    /// PDF underlay attach
+    PdfUnderlay,
 }
 
 impl CommandId {
@@ -85,6 +119,11 @@ impl CommandId {
             Self::Redo => "REDO",
             Self::Text => "TEXT",
             Self::DimLinear => "DIMLINEAR",
+            Self::DimAligned => "DIMALIGNED",
+            Self::DimRadius => "DIMRADIUS",
+            Self::DimDiameter => "DIMDIAMETER",
+            Self::DimAngular => "DIMANGULAR",
+            Self::Leader => "LEADER",
             Self::Hatch => "HATCH",
             Self::Block => "BLOCK",
             Self::Insert => "INSERT",
@@ -96,6 +135,18 @@ impl CommandId {
             Self::Chamfer => "CHAMFER",
             Self::TangentPc => "TANGENTPC",
             Self::TangentCc => "TANGENTCC",
+            Self::ArrayRect => "ARRAYRECT",
+            Self::ArrayPolar => "ARRAYPOLAR",
+            Self::Stretch => "STRETCH",
+            Self::Break => "BREAK",
+            Self::Join => "JOIN",
+            Self::Explode => "EXPLODE",
+            Self::Lengthen => "LENGTHEN",
+            Self::Align => "ALIGN",
+            Self::Ray => "RAY",
+            Self::Xline => "XLINE",
+            Self::Xref => "XREF",
+            Self::PdfUnderlay => "PDFATTACH",
         }
     }
 
@@ -121,6 +172,11 @@ impl CommandId {
             "REDO" => Self::Redo,
             "TEXT" | "DT" => Self::Text,
             "DIMLINEAR" | "DIMLIN" | "DLI" => Self::DimLinear,
+            "DIMALIGNED" | "DIMALI" | "DAL" => Self::DimAligned,
+            "DIMRADIUS" | "DIMRAD" | "DRA" => Self::DimRadius,
+            "DIMDIAMETER" | "DIMDIA" | "DDI" => Self::DimDiameter,
+            "DIMANGULAR" | "DIMANG" | "DAN" => Self::DimAngular,
+            "LEADER" | "LEAD" | "MLD" => Self::Leader,
             "HATCH" | "H" => Self::Hatch,
             "BLOCK" | "B" => Self::Block,
             "INSERT" | "I" => Self::Insert,
@@ -132,7 +188,73 @@ impl CommandId {
             "CHAMFER" | "CHA" => Self::Chamfer,
             "TANGENTPC" | "TANPC" | "LT" => Self::TangentPc,
             "TANGENTCC" | "TANCC" | "LC" => Self::TangentCc,
+            "ARRAYRECT" | "ARRAY" | "AR" => Self::ArrayRect,
+            "ARRAYPOLAR" | "APOLAR" => Self::ArrayPolar,
+            "STRETCH" | "S" => Self::Stretch,
+            "BREAK" | "BR" => Self::Break,
+            "JOIN" | "J" => Self::Join,
+            "EXPLODE" | "X" => Self::Explode,
+            "LENGTHEN" | "LEN" => Self::Lengthen,
+            "ALIGN" | "AL" => Self::Align,
+            "RAY" => Self::Ray,
+            "XLINE" | "XL" => Self::Xline,
+            "XREF" | "XR" => Self::Xref,
+            "PDFATTACH" | "PDF" => Self::PdfUnderlay,
             _ => return None,
         })
     }
+
+    /// All built-in commands (for palettes).
+    pub fn all() -> &'static [CommandId] {
+        &ALL_COMMANDS
+    }
 }
+
+const ALL_COMMANDS: [CommandId; 49] = [
+    CommandId::Line,
+    CommandId::Pline,
+    CommandId::Circle,
+    CommandId::Arc,
+    CommandId::Rectang,
+    CommandId::Move,
+    CommandId::Copy,
+    CommandId::Rotate,
+    CommandId::Scale,
+    CommandId::Mirror,
+    CommandId::Offset,
+    CommandId::Trim,
+    CommandId::Extend,
+    CommandId::Erase,
+    CommandId::Undo,
+    CommandId::Redo,
+    CommandId::Text,
+    CommandId::DimLinear,
+    CommandId::DimAligned,
+    CommandId::DimRadius,
+    CommandId::DimDiameter,
+    CommandId::DimAngular,
+    CommandId::Leader,
+    CommandId::Hatch,
+    CommandId::Block,
+    CommandId::Insert,
+    CommandId::Polygon,
+    CommandId::Ellipse,
+    CommandId::Spline,
+    CommandId::Circle3p,
+    CommandId::Fillet,
+    CommandId::Chamfer,
+    CommandId::TangentPc,
+    CommandId::TangentCc,
+    CommandId::ArrayRect,
+    CommandId::ArrayPolar,
+    CommandId::Stretch,
+    CommandId::Break,
+    CommandId::Join,
+    CommandId::Explode,
+    CommandId::Lengthen,
+    CommandId::Align,
+    CommandId::Ray,
+    CommandId::Xline,
+    CommandId::Xref,
+    CommandId::PdfUnderlay,
+];

@@ -8,7 +8,9 @@ use crate::blocks::{BlockDef, BlockId};
 use crate::entity::{EntityId, EntityKind};
 use crate::geometry::Geometry;
 use crate::layer::{Layer, LayerId};
-use crate::layout::{Layout, LayoutId};
+use crate::layout::{Layout, LayoutId, PlotStyle};
+use crate::styles::{DimStyle, DimStyleId, TextStyle, TextStyleId};
+use crate::xref::{XrefDef, XrefId};
 
 /// Stored entity record.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -44,6 +46,18 @@ pub struct Document {
     layouts: HashMap<LayoutId, Layout>,
     /// Active layout (`None` = model space).
     pub current_layout: Option<LayoutId>,
+    /// Text styles.
+    text_styles: HashMap<TextStyleId, TextStyle>,
+    /// Dimension styles.
+    dim_styles: HashMap<DimStyleId, DimStyle>,
+    /// Current text style for new text.
+    pub current_text_style: TextStyleId,
+    /// Current dim style for new dimensions.
+    pub current_dim_style: DimStyleId,
+    /// External references / underlays.
+    xrefs: HashMap<XrefId, XrefDef>,
+    /// Plot style tables by name.
+    plot_styles: HashMap<String, PlotStyle>,
 }
 
 impl Document {
@@ -56,6 +70,15 @@ impl Document {
         let layer = Layer::new(default_layer_id, "0", [255, 255, 255]);
         let mut layers = HashMap::new();
         layers.insert(default_layer_id, layer);
+        let mut text_styles = HashMap::new();
+        let std_text = TextStyle::standard();
+        text_styles.insert(std_text.id, std_text);
+        let mut dim_styles = HashMap::new();
+        let std_dim = DimStyle::standard();
+        dim_styles.insert(std_dim.id, std_dim);
+        let mut plot_styles = HashMap::new();
+        let mono = PlotStyle::monochrome();
+        plot_styles.insert(mono.name.clone(), mono);
         Self {
             version: Self::MODEL_VERSION,
             entities: HashMap::new(),
@@ -66,6 +89,12 @@ impl Document {
             block_names: HashMap::new(),
             layouts: HashMap::new(),
             current_layout: None,
+            text_styles,
+            dim_styles,
+            current_text_style: TextStyleId::STANDARD,
+            current_dim_style: DimStyleId::STANDARD,
+            xrefs: HashMap::new(),
+            plot_styles,
         }
     }
 
@@ -191,6 +220,79 @@ impl Document {
     /// Iterate layouts.
     pub fn layouts(&self) -> impl Iterator<Item = &Layout> {
         self.layouts.values()
+    }
+
+    /// Upsert a text style.
+    pub fn upsert_text_style(&mut self, style: TextStyle) {
+        self.text_styles.insert(style.id, style);
+    }
+
+    /// Get text style.
+    pub fn get_text_style(&self, id: TextStyleId) -> Option<&TextStyle> {
+        self.text_styles.get(&id)
+    }
+
+    /// Iterate text styles.
+    pub fn text_styles(&self) -> impl Iterator<Item = &TextStyle> {
+        self.text_styles.values()
+    }
+
+    /// Upsert a dim style.
+    pub fn upsert_dim_style(&mut self, style: DimStyle) {
+        self.dim_styles.insert(style.id, style);
+    }
+
+    /// Get dim style.
+    pub fn get_dim_style(&self, id: DimStyleId) -> Option<&DimStyle> {
+        self.dim_styles.get(&id)
+    }
+
+    /// Iterate dim styles.
+    pub fn dim_styles(&self) -> impl Iterator<Item = &DimStyle> {
+        self.dim_styles.values()
+    }
+
+    /// Upsert an xref definition.
+    pub fn upsert_xref(&mut self, def: XrefDef) {
+        self.xrefs.insert(def.id, def);
+    }
+
+    /// Remove xref definition.
+    pub fn remove_xref(&mut self, id: XrefId) -> Option<XrefDef> {
+        self.xrefs.remove(&id)
+    }
+
+    /// Get xref.
+    pub fn get_xref(&self, id: XrefId) -> Option<&XrefDef> {
+        self.xrefs.get(&id)
+    }
+
+    /// Lookup xref by name (case-insensitive).
+    pub fn xref_by_name(&self, name: &str) -> Option<&XrefDef> {
+        let key = name.to_ascii_uppercase();
+        self.xrefs
+            .values()
+            .find(|x| x.name.to_ascii_uppercase() == key)
+    }
+
+    /// Iterate xrefs.
+    pub fn xrefs(&self) -> impl Iterator<Item = &XrefDef> {
+        self.xrefs.values()
+    }
+
+    /// Upsert plot style.
+    pub fn upsert_plot_style(&mut self, style: PlotStyle) {
+        self.plot_styles.insert(style.name.clone(), style);
+    }
+
+    /// Get plot style by name.
+    pub fn get_plot_style(&self, name: &str) -> Option<&PlotStyle> {
+        self.plot_styles.get(name)
+    }
+
+    /// Iterate plot styles.
+    pub fn plot_styles(&self) -> impl Iterator<Item = &PlotStyle> {
+        self.plot_styles.values()
     }
 }
 
