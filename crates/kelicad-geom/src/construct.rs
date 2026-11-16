@@ -374,6 +374,62 @@ pub fn grid_lines(origin: Vec2, cols: usize, rows: usize, dx: f64, dy: f64) -> V
     lines
 }
 
+/// Revision cloud along an open/closed path (bulb arcs — LibreCAD/AutoCAD style).
+pub fn revision_cloud(path: &[Vec2], bulge: f64, closed: bool) -> Option<Polyline> {
+    if path.len() < 2 || bulge.abs() < 1e-9 {
+        return None;
+    }
+    let mut verts = Vec::new();
+    let n_seg = if closed { path.len() } else { path.len() - 1 };
+    for i in 0..n_seg {
+        let a = path[i];
+        let b = path[(i + 1) % path.len()];
+        let mid = a.lerp(b, 0.5);
+        let delta = b - a;
+        let len = delta.length();
+        if len < 1e-12 {
+            continue;
+        }
+        let nrm = delta.perp() / len;
+        let tip = mid + nrm * bulge.abs();
+        // Approximate each bulb with 5 points.
+        for k in 0..=4 {
+            let t = k as f64 / 4.0;
+            let p = if t <= 0.5 {
+                a.lerp(tip, t * 2.0)
+            } else {
+                tip.lerp(b, (t - 0.5) * 2.0)
+            };
+            if verts.last().map(|q: &Vec2| q.distance(p) > 1e-9).unwrap_or(true) {
+                verts.push(p);
+            }
+        }
+    }
+    if verts.len() < 3 {
+        return None;
+    }
+    Some(Polyline {
+        vertices: verts,
+        closed,
+    })
+}
+
+/// Center mark cross for a circle (axes ± radius * factor).
+pub fn center_mark(center: Vec2, radius: f64, factor: f64) -> Vec<Line> {
+    let r = radius.abs().max(1e-9);
+    let arm = r * factor.clamp(0.05, 2.0);
+    vec![
+        Line::new(
+            Vec2::new(center.x - arm, center.y),
+            Vec2::new(center.x + arm, center.y),
+        ),
+        Line::new(
+            Vec2::new(center.x, center.y - arm),
+            Vec2::new(center.x, center.y + arm),
+        ),
+    ]
+}
+
 /// Isosceles triangle given base corners `a`,`b` and apex height (signed via `height`).
 pub fn isosceles_triangle(a: Vec2, b: Vec2, height: f64) -> Option<Polyline> {
     let mid = a.lerp(b, 0.5);

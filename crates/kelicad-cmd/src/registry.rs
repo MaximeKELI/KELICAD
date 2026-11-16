@@ -113,6 +113,12 @@ pub enum CommandId {
     Grid,
     /// TRIANGLE isosceles from base + height pick
     Triangle,
+    /// POINT marker
+    Point,
+    /// REVCLOUD revision cloud
+    Revcloud,
+    /// CENTERMARK on a circle
+    Centermark,
 }
 
 impl CommandId {
