@@ -137,11 +137,23 @@ export function DrawingViewport({
       };
     };
 
+    let wheelRaf = 0;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const cam = cameraRef.current;
-      cam.zoom = Math.min(Math.max(cam.zoom * (e.deltaY > 0 ? 1.1 : 1 / 1.1), 1), 50_000);
-      setCamVersion((n) => n + 1);
+      const before = worldFromClient(e.clientX, e.clientY);
+      const factor = e.deltaY > 0 ? 1.12 : 1 / 1.12;
+      cam.zoom = Math.min(Math.max(cam.zoom * factor, 0.25), 2_000_000);
+      const after = worldFromClient(e.clientX, e.clientY);
+      cam.x += before.x - after.x;
+      cam.y += before.y - after.y;
+      // Batch overlay refresh — avoid React thrash on every wheel tick.
+      if (!wheelRaf) {
+        wheelRaf = requestAnimationFrame(() => {
+          wheelRaf = 0;
+          setCamVersion((n) => n + 1);
+        });
+      }
     };
 
     const isTypingTarget = (t: EventTarget | null) => {
@@ -386,12 +398,12 @@ export function DrawingViewport({
       const cam = cameraRef.current;
       const wrap = wrapRef.current;
       if (action === "zoom-in") {
-        cam.zoom = Math.max(cam.zoom / 1.25, 1);
+        cam.zoom = Math.max(cam.zoom / 1.25, 0.25);
         setCamVersion((n) => n + 1);
         return;
       }
       if (action === "zoom-out") {
-        cam.zoom = Math.min(cam.zoom * 1.25, 50_000);
+        cam.zoom = Math.min(cam.zoom * 1.25, 2_000_000);
         setCamVersion((n) => n + 1);
         return;
       }
@@ -427,7 +439,7 @@ export function DrawingViewport({
         const zoomW = (w * pad) / aspect;
         cam.x = cx;
         cam.y = cy;
-        cam.zoom = Math.min(Math.max(Math.max(zoomH, zoomW), 1), 50_000);
+        cam.zoom = Math.min(Math.max(Math.max(zoomH, zoomW), 0.25), 2_000_000);
         setCamVersion((n) => n + 1);
       }
     };
@@ -474,22 +486,19 @@ export function DrawingViewport({
     const maxX = cam.x + halfW;
     const minY = cam.y - halfH;
     const maxY = cam.y + halfH;
-    // Adaptive step so the grid stays readable when zoomed.
     let step = gridUnit;
     const worldPerPx = (halfH * 2) / Math.max(rect.height, 1);
-    while (step / worldPerPx < 6) step *= 2;
-    while (step / worldPerPx > 48) step *= 0.5;
+    while (step / worldPerPx < 8) step *= 2;
+    while (step / worldPerPx > 40) step *= 0.5;
     step = Math.max(step, 1e-6);
     const majorEvery = 5;
     const lines: ReactNode[] = [];
     const x0 = Math.floor(minX / step) * step;
     const y0 = Math.floor(minY / step) * step;
     let i = 0;
-    const isMajor = (v: number) => {
-      const k = Math.round(v / step);
-      return k % majorEvery === 0;
-    };
-    for (let x = x0; x <= maxX + step * 0.5; x += step) {
+    const maxLines = 120;
+    const isMajor = (v: number) => Math.round(v / step) % majorEvery === 0;
+    for (let x = x0; x <= maxX + step * 0.5 && i < maxLines; x += step) {
       const a = clientFromWorld(x, minY);
       const b = clientFromWorld(x, maxY);
       const maj = isMajor(x);
@@ -505,7 +514,7 @@ export function DrawingViewport({
         />,
       );
     }
-    for (let y = y0; y <= maxY + step * 0.5; y += step) {
+    for (let y = y0; y <= maxY + step * 0.5 && i < maxLines * 2; y += step) {
       const a = clientFromWorld(minX, y);
       const b = clientFromWorld(maxX, y);
       const maj = isMajor(y);
@@ -523,18 +532,6 @@ export function DrawingViewport({
     }
     return lines;
   })();
-
-  // World-origin axes when visible; otherwise screen-fixed UCS (AutoCAD-style).
-  const originScreen = clientFromWorld(0, 0);
-  const wrapBox = wrapRef.current?.getBoundingClientRect();
-  const originInView =
-    !!wrapBox &&
-    originScreen.x > 40 &&
-    originScreen.x < wrapBox.width - 40 &&
-    originScreen.y > 40 &&
-    originScreen.y < wrapBox.height - 40;
-  const ucsLeft = originInView ? originScreen.x : 28;
-  const ucsTop = originInView ? originScreen.y : (wrapBox?.height ?? 120) - 36;
 
   const goTopView = () => {
     window.dispatchEvent(
@@ -565,52 +562,50 @@ export function DrawingViewport({
         {gridOn && <span className="cad-vp-chrome-on">[Grille]</span>}
       </div>
 
-      {/* ViewCube / cercle d'orientation */}
-      <div className="cad-viewcube" title="Orientation — clic = zoom étendu (Haut)">
-        <button type="button" className="cad-vc-face cad-vc-n" onClick={goTopView}>
+      {/* Cercle d'orientation (ViewCube) */}
+      <div className="cad-orient" title="Orientation — HAUT = zoom étendu">
+        <svg viewBox="0 0 100 100" className="cad-orient-ring" aria-hidden>
+          <circle cx="50" cy="50" r="46" className="cad-orient-outer" />
+          <circle cx="50" cy="50" r="28" className="cad-orient-inner" />
+        </svg>
+        <button type="button" className="cad-orient-n" onClick={goTopView}>
           N
         </button>
-        <button type="button" className="cad-vc-face cad-vc-o" onClick={goTopView}>
-          O
-        </button>
-        <button type="button" className="cad-vc-core" onClick={goTopView}>
-          HAUT
-        </button>
-        <button type="button" className="cad-vc-face cad-vc-e" onClick={goTopView}>
+        <button type="button" className="cad-orient-e" onClick={goTopView}>
           E
         </button>
-        <button type="button" className="cad-vc-face cad-vc-s" onClick={goTopView}>
+        <button type="button" className="cad-orient-s" onClick={goTopView}>
           S
         </button>
-        <button type="button" className="cad-vc-scg" onClick={goTopView}>
+        <button type="button" className="cad-orient-o" onClick={goTopView}>
+          O
+        </button>
+        <button type="button" className="cad-orient-core" onClick={goTopView}>
+          HAUT
+        </button>
+        <button type="button" className="cad-orient-scg" onClick={goTopView}>
           SCG
         </button>
       </div>
 
-      {/* UCS / repère X Y */}
+      {/* UCS fixe — toujours coin bas-gauche du viewport */}
       <svg
         className="cad-ucs pointer-events-none absolute z-[12]"
-        style={{
-          left: ucsLeft,
-          top: ucsTop,
-          overflow: "visible",
-        }}
-        width="1"
-        height="1"
+        width="70"
+        height="70"
+        aria-hidden
       >
-        <g transform="translate(0,0)">
-          <line x1="0" y1="0" x2="42" y2="0" stroke="#e8e8e8" strokeWidth="2" />
-          <polygon points="42,-5 54,0 42,5" fill="#e8e8e8" />
-          <text x="58" y="4" fill="#e8e8e8" fontSize="12" fontFamily="IBM Plex Mono, monospace">
-            X
-          </text>
-          <line x1="0" y1="0" x2="0" y2="-42" stroke="#e8e8e8" strokeWidth="2" />
-          <polygon points="-5,-42 0,-54 5,-42" fill="#e8e8e8" />
-          <text x="6" y="-46" fill="#e8e8e8" fontSize="12" fontFamily="IBM Plex Mono, monospace">
-            Y
-          </text>
-          <circle cx="0" cy="0" r="3" fill="#e8e8e8" />
-        </g>
+        <line x1="10" y1="60" x2="52" y2="60" stroke="#e8e8e8" strokeWidth="2" />
+        <polygon points="52,55 64,60 52,65" fill="#e8e8e8" />
+        <text x="50" y="52" fill="#e8e8e8" fontSize="12" fontFamily="IBM Plex Mono, monospace">
+          X
+        </text>
+        <line x1="10" y1="60" x2="10" y2="18" stroke="#e8e8e8" strokeWidth="2" />
+        <polygon points="5,18 10,6 15,18" fill="#e8e8e8" />
+        <text x="16" y="16" fill="#e8e8e8" fontSize="12" fontFamily="IBM Plex Mono, monospace">
+          Y
+        </text>
+        <circle cx="10" cy="60" r="3" fill="#e8e8e8" />
       </svg>
 
       {paperLayout && (
