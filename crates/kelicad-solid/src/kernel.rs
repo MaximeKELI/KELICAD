@@ -134,6 +134,75 @@ impl SolidKernel for BuiltinSolidKernel {
         ))
     }
 
+    fn sphere(
+        &self,
+        center: Vec3,
+        radius: f64,
+        slices: usize,
+        stacks: usize,
+    ) -> Result<SolidBody, SolidError> {
+        if radius <= 0.0 {
+            return Err(SolidError::InvalidArg("radius must be > 0".into()));
+        }
+        Ok(SolidBody::from_mesh(
+            SolidId::new(),
+            sphere_mesh(center, radius, slices, stacks),
+        ))
+    }
+
+    fn cone(
+        &self,
+        center_xy: Vec2,
+        radius: f64,
+        height: f64,
+        segments: usize,
+    ) -> Result<SolidBody, SolidError> {
+        if radius <= 0.0 || height.abs() < 1e-12 {
+            return Err(SolidError::InvalidArg("radius/height must be non-zero".into()));
+        }
+        Ok(SolidBody::from_mesh(
+            SolidId::new(),
+            cone_mesh(center_xy, radius, 0.0, height, segments),
+        ))
+    }
+
+    fn wedge(&self, origin: Vec3, size: Vec3) -> Result<SolidBody, SolidError> {
+        if size.x <= 0.0 || size.y <= 0.0 || size.z <= 0.0 {
+            return Err(SolidError::InvalidArg("wedge size must be > 0".into()));
+        }
+        Ok(SolidBody::from_mesh(SolidId::new(), wedge_mesh(origin, size)))
+    }
+
+    fn sweep(
+        &self,
+        profile: &Profile2,
+        path: &[Vec2],
+        thickness: f64,
+    ) -> Result<SolidBody, SolidError> {
+        if path.len() < 2 {
+            return Err(SolidError::InvalidArg("sweep path needs ≥2 points".into()));
+        }
+        let mesh = sweep_xy_along_path(&profile.vertices, path, thickness);
+        if mesh.is_empty() {
+            return Err(SolidError::InvalidArg("sweep produced empty mesh".into()));
+        }
+        Ok(SolidBody::from_mesh(SolidId::new(), mesh))
+    }
+
+    fn loft(
+        &self,
+        a: &Profile2,
+        b: &Profile2,
+        height: f64,
+        sections: usize,
+    ) -> Result<SolidBody, SolidError> {
+        let mesh = loft_xy_profiles(&a.vertices, &b.vertices, height, sections);
+        if mesh.is_empty() {
+            return Err(SolidError::InvalidArg("loft produced empty mesh".into()));
+        }
+        Ok(SolidBody::from_mesh(SolidId::new(), mesh))
+    }
+
     fn boolean_union(&self, a: &SolidBody, b: &SolidBody) -> Result<SolidBody, SolidError> {
         let mut mesh = a.mesh.clone();
         mesh.append(&b.mesh);
