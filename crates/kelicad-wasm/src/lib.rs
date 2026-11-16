@@ -1296,15 +1296,14 @@ fn geometry_value(g: &Geometry) -> serde_json::Value {
     }
 }
 
+fn push_seg(out: &mut Vec<f32>, a: Vec2, b: Vec2) {
+    out.extend_from_slice(&[a.x as f32, a.y as f32, b.x as f32, b.y as f32]);
+}
+
 fn append_geometry_lines(g: &Geometry, out: &mut Vec<f32>) {
     match g {
         Geometry::Line(l) => {
-            out.extend_from_slice(&[
-                l.start.x as f32,
-                l.start.y as f32,
-                l.end.x as f32,
-                l.end.y as f32,
-            ]);
+            push_seg(out, l.start, l.end);
         }
         Geometry::Polyline(p) => {
             for seg in p.segments() {
