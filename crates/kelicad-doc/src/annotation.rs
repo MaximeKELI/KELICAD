@@ -241,7 +241,7 @@ pub enum HatchPattern {
     Named(String),
 }
 
-/// Hatch region defined by a closed polyline boundary (+ optional islands later).
+/// Hatch region defined by a closed polyline boundary (+ optional islands).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct HatchGeom {
     /// Outer boundary vertices (closed implied).
@@ -254,6 +254,12 @@ pub struct HatchGeom {
     /// Pattern rotation in degrees.
     #[serde(default)]
     pub angle: f64,
+    /// Island (hole) boundaries — each a closed ring.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub islands: Vec<Vec<Vec2>>,
+    /// Associative: regenerate with boundary entities when supported.
+    #[serde(default)]
+    pub associative: bool,
 }
 
 fn default_hatch_scale() -> f64 {
@@ -268,6 +274,8 @@ impl HatchGeom {
             pattern: HatchPattern::Solid,
             scale: 1.0,
             angle: 0.0,
+            islands: vec![],
+            associative: false,
         }
     }
 
@@ -278,6 +286,14 @@ impl HatchGeom {
             pattern: HatchPattern::Named(name.into()),
             scale,
             angle,
+            islands: vec![],
+            associative: false,
         }
+    }
+
+    /// Add an island (hole) ring.
+    pub fn with_island(mut self, ring: Vec<Vec2>) -> Self {
+        self.islands.push(ring);
+        self
     }
 }

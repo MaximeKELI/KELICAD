@@ -571,6 +571,8 @@ fn read_entity(ty: &str, chunk: &[(i32, String)], report: &mut ImportReport) -> 
                 },
                 scale: 1.0,
                 angle: 0.0,
+                islands: vec![],
+                associative: false,
             }))
         }
         "POINT" => {

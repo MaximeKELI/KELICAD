@@ -107,6 +107,11 @@ impl Geometry {
             Self::Hatch(h) => {
                 let mut n = h.clone();
                 n.boundary = n.boundary.iter().map(|p| *p + delta).collect();
+                n.islands = n
+                    .islands
+                    .iter()
+                    .map(|ring| ring.iter().map(|p| *p + delta).collect())
+                    .collect();
                 Self::Hatch(n)
             }
             Self::Insert(i) => {
@@ -170,6 +175,15 @@ impl Geometry {
                     .boundary
                     .iter()
                     .map(|p| rotate_point(*p, origin, radians))
+                    .collect();
+                n.islands = n
+                    .islands
+                    .iter()
+                    .map(|ring| {
+                        ring.iter()
+                            .map(|p| rotate_point(*p, origin, radians))
+                            .collect()
+                    })
                     .collect();
                 Self::Hatch(n)
             }
@@ -242,6 +256,15 @@ impl Geometry {
                     .iter()
                     .map(|p| scale_point(*p, origin, factor))
                     .collect();
+                n.islands = n
+                    .islands
+                    .iter()
+                    .map(|ring| {
+                        ring.iter()
+                            .map(|p| scale_point(*p, origin, factor))
+                            .collect()
+                    })
+                    .collect();
                 n.scale *= factor.abs();
                 Self::Hatch(n)
             }
@@ -308,6 +331,11 @@ impl Geometry {
             Self::Hatch(h) => {
                 let mut n = h.clone();
                 n.boundary = n.boundary.iter().map(|p| mirror_point(*p, a, b)).collect();
+                n.islands = n
+                    .islands
+                    .iter()
+                    .map(|ring| ring.iter().map(|p| mirror_point(*p, a, b)).collect())
+                    .collect();
                 Self::Hatch(n)
             }
             Self::Insert(i) => {

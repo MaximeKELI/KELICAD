@@ -365,6 +365,8 @@ pub fn geometry_from_json(s: &str) -> Result<Geometry, IoError> {
             },
             scale: 1.0,
             angle: 0.0,
+            islands: vec![],
+            associative: false,
         }),
         GeomDto::Ellipse {
             cx,
