@@ -289,6 +289,62 @@ export function DrawingViewport({
     // revision bump forces scene refresh on next RAF via cad.scene_line_vertices()
   }, [revision]);
 
+  useEffect(() => {
+    const onView = (ev: Event) => {
+      const action = (ev as CustomEvent<{ action?: string }>).detail?.action;
+      if (!action) return;
+      const cam = cameraRef.current;
+      const wrap = wrapRef.current;
+      if (action === "zoom-in") {
+        cam.zoom = Math.max(cam.zoom / 1.25, 1);
+        setCamVersion((n) => n + 1);
+        return;
+      }
+      if (action === "zoom-out") {
+        cam.zoom = Math.min(cam.zoom * 1.25, 50_000);
+        setCamVersion((n) => n + 1);
+        return;
+      }
+      if (action === "extents") {
+        const verts = toFloat32(cad.scene_line_vertices());
+        if (verts.length < 4) {
+          cam.x = 5;
+          cam.y = 5;
+          cam.zoom = 20;
+          setCamVersion((n) => n + 1);
+          return;
+        }
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        for (let i = 0; i < verts.length; i += 2) {
+          minX = Math.min(minX, verts[i]!);
+          maxX = Math.max(maxX, verts[i]!);
+          minY = Math.min(minY, verts[i + 1]!);
+          maxY = Math.max(maxY, verts[i + 1]!);
+        }
+        const cx = (minX + maxX) * 0.5;
+        const cy = (minY + maxY) * 0.5;
+        const w = Math.max(maxX - minX, 1e-6);
+        const h = Math.max(maxY - minY, 1e-6);
+        const aspect =
+          wrap && wrap.clientHeight > 0
+            ? wrap.clientWidth / wrap.clientHeight
+            : 1.5;
+        const pad = 1.15;
+        const zoomH = h * pad;
+        const zoomW = (w * pad) / aspect;
+        cam.x = cx;
+        cam.y = cy;
+        cam.zoom = Math.min(Math.max(Math.max(zoomH, zoomW), 1), 50_000);
+        setCamVersion((n) => n + 1);
+      }
+    };
+    window.addEventListener("kelicad-view", onView);
+    return () => window.removeEventListener("kelicad-view", onView);
+  }, [cad]);
+
   const clientFromWorld = (wx: number, wy: number) => {
     const wrap = wrapRef.current;
     if (!wrap) return { x: 0, y: 0 };

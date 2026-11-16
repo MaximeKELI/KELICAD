@@ -145,11 +145,87 @@ function Flyout({
   );
 }
 
-function Panel({ title, children }: { title: string; children: ReactNode }) {
+function Panel({
+  title,
+  children,
+  expandIds,
+  handlers,
+}: {
+  title: string;
+  children: ReactNode;
+  expandIds?: string[];
+  handlers: RibbonHandlers;
+}) {
+  const [open, setOpen] = useState(false);
+  const expandTools = (expandIds ?? [])
+    .map((id) => getTool(id))
+    .filter((t): t is CatalogTool => !!t && t.status !== "unavailable");
+
   return (
     <div className="cad-panel">
       <div className="cad-panel-body">{children}</div>
-      <div className="cad-panel-title">{title}</div>
+      <div className="cad-panel-title">
+        <span>{title}</span>
+        {expandTools.length > 0 && (
+          <button
+            type="button"
+            className="cad-panel-expand"
+            title="Plus d'outils"
+            onClick={() => setOpen((v) => !v)}
+          >
+            ▾
+          </button>
+        )}
+      </div>
+      {open && expandTools.length > 0 && (
+        <div className="cad-panel-flyout">
+          {expandTools.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              title={t.tip}
+              onClick={() => {
+                invokeTool(t, handlers);
+                setOpen(false);
+              }}
+            >
+              <span>{t.glyph}</span>
+              <span>
+                {t.label}
+                {t.kind.type === "cad" && <small>{t.kind.cmd}</small>}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function IconRows({
+  ids,
+  handlers,
+}: {
+  ids: string[];
+  handlers: RibbonHandlers;
+}) {
+  const tools = ids
+    .map((id) => getTool(id))
+    .filter((t): t is CatalogTool => !!t && t.status !== "unavailable");
+  return (
+    <div className="cad-icon-rows">
+      {tools.map((tool) => (
+        <button
+          key={tool.id}
+          type="button"
+          className={`cad-icon-cell${tool.status === "partial" ? " is-partial" : ""}`}
+          title={tool.tip}
+          onClick={() => invokeTool(tool, handlers)}
+        >
+          <span className="cad-icon-cell-glyph">{tool.glyph}</span>
+          <span className="cad-icon-cell-label">{tool.label}</span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -247,7 +323,7 @@ function renderItem(
         <div key={`stack-${item.ids.join("-")}`} className="cad-stack">
           {item.ids.map((id) => {
             const tool = getTool(id);
-            if (!tool) return null;
+            if (!tool || tool.status === "unavailable") return null;
             return (
               <ToolButton
                 key={id}
@@ -259,6 +335,17 @@ function renderItem(
           })}
         </div>
       );
+    case "rows":
+      return (
+        <IconRows
+          key={`rows-${item.ids.join("-")}`}
+          ids={item.ids}
+          handlers={handlers}
+        />
+      );
+    case "expand":
+      // Handled at Panel level via expandIds aggregation.
+      return null;
     case "layer-combo":
       return (
         <LayerCombo
@@ -345,15 +432,25 @@ export function Ribbon(props: Props) {
 
       {!collapsed && (
         <div className="cad-ribbon-body">
-          {active.panels.map((panel) => (
-            <Panel key={`${active.id}-${panel.title}`} title={panel.title}>
-              {panel.items.map((item, i) => (
-                <span key={i} className="cad-ribbon-item">
-                  {renderItem(item, handlers, { cad, revision })}
-                </span>
-              ))}
-            </Panel>
-          ))}
+          {active.panels.map((panel) => {
+            const expandIds = panel.items.flatMap((it) =>
+              it.type === "expand" ? it.ids : [],
+            );
+            return (
+              <Panel
+                key={`${active.id}-${panel.title}`}
+                title={panel.title}
+                expandIds={expandIds}
+                handlers={handlers}
+              >
+                {panel.items.map((item, i) => (
+                  <span key={i} className="cad-ribbon-item">
+                    {renderItem(item, handlers, { cad, revision })}
+                  </span>
+                ))}
+              </Panel>
+            );
+          })}
         </div>
       )}
     </div>

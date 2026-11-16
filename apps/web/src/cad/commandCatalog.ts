@@ -376,12 +376,43 @@ export const CATALOG: Record<string, CatalogTool> = {
     "Contrainte de tangence (pas encore dans le solveur)",
   ),
 
-  // ——— Geometry measure / 2D bool (mostly missing) ———
-  measure: soon("measure", "Mesurer", "📐", "Outil de mesure"),
-  area: soon("area", "Surface", "▭", "Calcul de surface / périmètre"),
+  // ——— Inquiry (ACA « Renseignements ») ———
+  measure: ui(
+    "measure",
+    "inquiry-dist",
+    "Distance",
+    "📐",
+    "Distance AABB de la sélection",
+  ),
+  area: ui(
+    "area",
+    "inquiry-area",
+    "Aire",
+    "▭",
+    "Aire / périmètre AABB de la sélection",
+  ),
+  list: ui(
+    "list",
+    "inquiry-list",
+    "Liste",
+    "☰",
+    "Lister les objets sélectionnés",
+  ),
+  idEnt: ui("idEnt", "inquiry-id", "ID", "ℹ", "Afficher les IDs sélectionnés"),
   union2d: soon("union2d", "Union 2D", "∪", "Union de régions 2D"),
   diff2d: soon("diff2d", "Diff. 2D", "∖", "Différence de régions 2D"),
   inter2d: soon("inter2d", "Inter. 2D", "∩", "Intersection de régions 2D"),
+
+  // ——— Drawing aids ———
+  ortho: ui("ortho", "toggle-ortho", "ORTHO", "⊥", "Basculer Ortho (F8)"),
+  osnap: ui("osnap", "toggle-osnap", "OSNAP", "⌖", "Basculer accrochage (F3)"),
+  selectClear: ui(
+    "selectClear",
+    "select-clear",
+    "Désél.",
+    "◌",
+    "Effacer la sélection",
+  ),
 
   // ——— 3D solids ———
   solidBox: solid("solidBox", "box", "Boîte", "▢", "Primitive box"),
@@ -456,10 +487,16 @@ export const CATALOG: Record<string, CatalogTool> = {
     "⊣",
     "Dériver élévation Y",
   ),
-  zoomExtents: soon("zoomExtents", "Étendue", "⛶", "Zoom étendu"),
-  zoomIn: soon("zoomIn", "Zoom +", "+", "Zoom avant (molette viewport)"),
-  zoomOut: soon("zoomOut", "Zoom −", "−", "Zoom arrière (molette viewport)"),
-  pan: soon("pan", "Pan", "✋", "Panoramique (molette / espace)"),
+  zoomExtents: ui(
+    "zoomExtents",
+    "view-extents",
+    "Étendue",
+    "⛶",
+    "Zoom étendu sur le dessin",
+  ),
+  zoomIn: ui("zoomIn", "view-zoom-in", "Zoom +", "+", "Zoom avant"),
+  zoomOut: ui("zoomOut", "view-zoom-out", "Zoom −", "−", "Zoom arrière"),
+  pan: soon("pan", "Pan", "✋", "Panoramique — maintenir Espace dans le viewport"),
   iso: soon("iso", "Isométrique", "◇", "Vue isométrique"),
   shade: soon("shade", "Ombré", "▓", "Mode d'affichage ombré"),
   wire: soon("wire", "Filaire", "☰", "Mode filaire"),

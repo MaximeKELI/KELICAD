@@ -13,6 +13,10 @@ import {
   snapshotToKelicadBytes,
 } from "./cad/kelicadFile";
 import { applyConstraint } from "./cad/constraintActions";
+import {
+  applyInquiry,
+  dispatchViewAction,
+} from "./cad/inquiryActions";
 import { loadCad } from "./cad/loadCad";
 import {
   loadAutosave,
@@ -515,13 +519,62 @@ export function App() {
           setDockTab("keli");
           setEchoes((p) => [...p, "Panneau KELI ouvert."]);
           break;
+        case "inquiry-dist":
+        case "inquiry-area":
+        case "inquiry-list":
+        case "inquiry-id": {
+          const kind = action.replace("inquiry-", "");
+          setEchoes((p) =>
+            [...p, ...applyInquiry(cad, kind)].slice(-40),
+          );
+          break;
+        }
+        case "view-extents":
+          dispatchViewAction("extents");
+          setEchoes((p) => [...p, "Zoom étendu"]);
+          break;
+        case "view-zoom-in":
+          dispatchViewAction("zoom-in");
+          break;
+        case "view-zoom-out":
+          dispatchViewAction("zoom-out");
+          break;
+        case "toggle-ortho":
+          cad.set_ortho(!cad.ortho());
+          bump();
+          setEchoes((p) => [
+            ...p,
+            `ORTHO ${cad.ortho() ? "ON" : "OFF"}`,
+          ]);
+          break;
+        case "toggle-osnap":
+          cad.set_osnap(!cad.osnap());
+          bump();
+          setEchoes((p) => [
+            ...p,
+            `OSNAP ${cad.osnap() ? "ON" : "OFF"}`,
+          ]);
+          break;
+        case "select-clear":
+          applyOutput(cad.select_clear(), cad);
+          break;
         case "noop":
           break;
         default:
           setEchoes((p) => [...p, `Action UI inconnue: ${action}`]);
       }
     },
-    [cad, exportDxf, exportPdf, exportSvg, importDxf, openKelicad, saveKelicad],
+    [
+      applyOutput,
+      bump,
+      cad,
+      exportDxf,
+      exportPdf,
+      exportSvg,
+      importDxf,
+      openKelicad,
+      saveKelicad,
+    ],
   );
 
   const onConstraint = useCallback(

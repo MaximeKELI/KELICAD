@@ -19,7 +19,11 @@ export type RibbonItem =
   | { type: "tool"; id: string; size?: "lg" | "md" | "sm" }
   | { type: "flyout"; main: string; items: string[]; size?: "lg" | "md" }
   | { type: "stack"; ids: string[] }
-  | { type: "layer-combo" };
+  /** AutoCAD-style 3-row icon columns (fills column-major). */
+  | { type: "rows"; ids: string[] }
+  | { type: "layer-combo" }
+  /** Overflow tools behind panel expand arrow. */
+  | { type: "expand"; ids: string[] };
 
 export type RibbonPanel = {
   title: string;
@@ -36,9 +40,11 @@ export const RIBBON_TABS: RibbonTab[] = [
   {
     id: "home",
     label: "Accueil",
+    // Structure aligned with ACA « Onglet Début » (Dessin / Modifier / Calques /
+    // Annotation / Renseignements / Coupe / Vue) — working tools only on Home.
     panels: [
       {
-        title: "Dessiner",
+        title: "Dessin",
         items: [
           { type: "tool", id: "line", size: "lg" },
           { type: "tool", id: "pline", size: "lg" },
@@ -50,36 +56,49 @@ export const RIBBON_TABS: RibbonTab[] = [
           {
             type: "flyout",
             main: "arc",
-            items: ["arc", "revcloud"],
+            items: ["arc", "revcloud", "section"],
           },
           {
-            type: "stack",
-            ids: ["rect", "polygon", "ellipse", "hatch"],
+            type: "rows",
+            ids: [
+              "rect",
+              "polygon",
+              "ellipse",
+              "hatch",
+              "spline",
+              "point",
+              "ray",
+              "xline",
+              "wipeout",
+            ],
           },
           {
-            type: "stack",
-            ids: ["spline", "point", "ray", "xline"],
-          },
-          {
-            type: "stack",
-            ids: ["star", "triangle", "capsule", "arrow"],
+            type: "expand",
+            ids: ["star", "triangle", "capsule", "arrow", "gridDraw"],
           },
         ],
       },
       {
         title: "Modifier",
         items: [
-          { type: "tool", id: "move", size: "md" },
-          { type: "tool", id: "copy", size: "md" },
-          { type: "tool", id: "stretch", size: "md" },
-          { type: "tool", id: "rotate", size: "md" },
-          { type: "tool", id: "mirror", size: "md" },
-          { type: "tool", id: "scale", size: "md" },
-          { type: "tool", id: "offset", size: "md" },
+          {
+            type: "rows",
+            ids: [
+              "move",
+              "copy",
+              "stretch",
+              "rotate",
+              "mirror",
+              "scale",
+              "offset",
+              "erase",
+              "explode",
+            ],
+          },
           {
             type: "flyout",
             main: "trim",
-            items: ["trim", "extend", "lengthen", "break"],
+            items: ["trim", "extend", "lengthen", "break", "join"],
           },
           {
             type: "flyout",
@@ -89,16 +108,23 @@ export const RIBBON_TABS: RibbonTab[] = [
           {
             type: "flyout",
             main: "arrayRect",
-            items: ["arrayRect", "arrayPolar"],
+            items: ["arrayRect", "arrayPolar", "align"],
           },
-          { type: "tool", id: "join", size: "sm" },
-          { type: "tool", id: "align", size: "sm" },
-          { type: "tool", id: "explode", size: "sm" },
-          { type: "tool", id: "erase", size: "md" },
         ],
       },
       {
-        title: "Annoter",
+        title: "Calques",
+        items: [
+          { type: "tool", id: "layerProps", size: "lg" },
+          { type: "layer-combo" },
+          {
+            type: "rows",
+            ids: ["layerNew", "layerSetSel", "ortho", "osnap", "selectClear"],
+          },
+        ],
+      },
+      {
+        title: "Annotation",
         items: [
           { type: "tool", id: "text", size: "lg" },
           {
@@ -114,19 +140,35 @@ export const RIBBON_TABS: RibbonTab[] = [
               "dimBaseline",
             ],
           },
-          { type: "tool", id: "hatch", size: "md" },
-          { type: "tool", id: "leader", size: "sm" },
+          {
+            type: "rows",
+            ids: [
+              "leader",
+              "table",
+              "hatch",
+              "centermark",
+              "centerline",
+              "revcloud",
+            ],
+          },
         ],
       },
       {
-        title: "Calques",
+        title: "Renseignements",
         items: [
-          { type: "tool", id: "layerProps", size: "lg" },
-          { type: "layer-combo" },
-          {
-            type: "stack",
-            ids: ["layerNew", "layerSetSel", "layerFreeze", "layerLock"],
-          },
+          { type: "tool", id: "measure", size: "lg" },
+          { type: "tool", id: "area", size: "md" },
+          { type: "tool", id: "list", size: "md" },
+          { type: "tool", id: "idEnt", size: "sm" },
+        ],
+      },
+      {
+        title: "Coupe",
+        items: [
+          { type: "tool", id: "section", size: "lg" },
+          { type: "tool", id: "viewPlan", size: "md" },
+          { type: "tool", id: "viewElevX", size: "sm" },
+          { type: "tool", id: "viewElevY", size: "sm" },
         ],
       },
       {
@@ -134,14 +176,25 @@ export const RIBBON_TABS: RibbonTab[] = [
         items: [
           { type: "tool", id: "insert", size: "lg" },
           { type: "tool", id: "block", size: "md" },
-          { type: "tool", id: "explode", size: "md" },
+          { type: "tool", id: "explode", size: "sm" },
         ],
       },
       {
-        title: "Propriétés",
+        title: "Vue",
         items: [
-          { type: "tool", id: "undo", size: "sm" },
-          { type: "tool", id: "redo", size: "sm" },
+          {
+            type: "rows",
+            ids: [
+              "zoomExtents",
+              "zoomIn",
+              "zoomOut",
+              "view2d",
+              "viewSplit",
+              "view3d",
+              "undo",
+              "redo",
+            ],
+          },
         ],
       },
     ],
@@ -316,10 +369,17 @@ export const RIBBON_TABS: RibbonTab[] = [
         ],
       },
       {
-        title: "Mesure / Bool 2D",
+        title: "Renseignements",
         items: [
-          { type: "tool", id: "measure", size: "md" },
+          { type: "tool", id: "measure", size: "lg" },
           { type: "tool", id: "area", size: "md" },
+          { type: "tool", id: "list", size: "md" },
+          { type: "tool", id: "idEnt", size: "md" },
+        ],
+      },
+      {
+        title: "Bool 2D",
+        items: [
           { type: "tool", id: "union2d", size: "md" },
           { type: "tool", id: "diff2d", size: "md" },
           { type: "tool", id: "inter2d", size: "md" },
@@ -387,9 +447,9 @@ export const RIBBON_TABS: RibbonTab[] = [
       {
         title: "Navigation",
         items: [
-          { type: "tool", id: "zoomExtents", size: "md" },
-          { type: "tool", id: "zoomIn", size: "sm" },
-          { type: "tool", id: "zoomOut", size: "sm" },
+          { type: "tool", id: "zoomExtents", size: "lg" },
+          { type: "tool", id: "zoomIn", size: "md" },
+          { type: "tool", id: "zoomOut", size: "md" },
           { type: "tool", id: "pan", size: "sm" },
           { type: "tool", id: "iso", size: "sm" },
         ],
@@ -533,4 +593,7 @@ export const QAT_IDS = [
   "exportPdf",
   "undo",
   "redo",
+  "zoomExtents",
+  "ortho",
+  "osnap",
 ] as const;

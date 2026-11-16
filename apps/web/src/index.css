@@ -133,17 +133,18 @@ body {
 .cad-ribbon-body {
   display: flex;
   gap: 0;
-  padding: 4px 6px 2px;
-  min-height: 92px;
+  padding: 3px 4px 1px;
+  min-height: 110px;
   overflow-x: auto;
   background: #222;
 }
 
 .cad-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--cad-border);
-  padding: 0 8px 2px;
+  padding: 0 6px 1px;
   min-width: fit-content;
 }
 
@@ -153,18 +154,126 @@ body {
 
 .cad-panel-body {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 2px;
+  align-items: stretch;
   align-content: flex-start;
   flex: 1;
+  min-height: 84px;
 }
 
 .cad-panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   text-align: center;
   font-size: 9px;
   color: var(--cad-muted);
-  margin-top: 2px;
+  margin-top: 1px;
   letter-spacing: 0.04em;
+  min-height: 16px;
+}
+
+.cad-panel-expand {
+  border: none;
+  background: transparent;
+  color: var(--cad-muted);
+  cursor: pointer;
+  font-size: 9px;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.cad-panel-expand:hover {
+  color: var(--cad-text);
+}
+
+.cad-panel-flyout {
+  position: absolute;
+  top: calc(100% - 2px);
+  left: 0;
+  z-index: 50;
+  min-width: 160px;
+  background: #2a2a2a;
+  border: 1px solid #4a4a4a;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  padding: 2px;
+}
+
+.cad-panel-flyout button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--cad-text);
+  text-align: left;
+  padding: 5px 8px;
+  cursor: pointer;
+  font-size: 11px;
+  border-radius: 2px;
+}
+
+.cad-panel-flyout button:hover {
+  background: #1a3a5c;
+}
+
+.cad-panel-flyout small {
+  display: block;
+  font-size: 9px;
+  color: var(--cad-muted);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+/* ACA-style 3-row packed icon grid (column-major via grid-auto-flow) */
+.cad-icon-rows {
+  display: grid;
+  grid-template-rows: repeat(3, 26px);
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(52px, auto);
+  gap: 1px 2px;
+  align-content: start;
+}
+
+.cad-icon-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--cad-text);
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 1px 3px;
+  min-width: 48px;
+  gap: 0;
+  line-height: 1;
+}
+
+.cad-icon-cell:hover {
+  background: #333;
+  border-color: #4a4a4a;
+}
+
+.cad-icon-cell.is-partial {
+  box-shadow: inset 0 -2px 0 #e6a23c;
+}
+
+.cad-icon-cell-glyph {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.cad-icon-cell-label {
+  font-size: 8px;
+  color: #c8c8c8;
+  max-width: 56px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Dense AutoCAD-like tool buttons */
@@ -236,18 +345,19 @@ body {
 }
 
 .cad-toolbtn-lg {
-  min-width: 56px;
-  height: 54px;
+  min-width: 58px;
+  height: 78px;
   padding: 4px 6px;
+  align-self: stretch;
 }
 
 .cad-toolbtn-lg .cad-toolbtn-glyph {
-  font-size: 22px;
+  font-size: 26px;
 }
 
 .cad-toolbtn-lg .cad-toolbtn-text {
   font-size: 10px;
-  max-width: 64px;
+  max-width: 68px;
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -255,22 +365,35 @@ body {
 }
 
 .cad-toolbtn-md {
-  min-width: 44px;
-  height: 40px;
-  padding: 2px 3px;
+  min-width: 46px;
+  height: 78px;
+  padding: 2px 4px;
+  align-self: stretch;
 }
 
 .cad-toolbtn-md .cad-toolbtn-glyph {
-  font-size: 15px;
+  font-size: 18px;
 }
 
 .cad-toolbtn-md .cad-toolbtn-text {
   font-size: 9px;
-  max-width: 52px;
+  max-width: 56px;
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cad-flyout {
+  align-self: stretch;
+}
+
+.cad-flyout-main {
+  height: 100%;
+}
+
+.cad-flyout-main .cad-toolbtn-md {
+  height: 100%;
 }
 
 .cad-toolbtn-sm {
@@ -445,9 +568,12 @@ body {
 
 .cad-layer-combo {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
   gap: 4px;
-  margin-bottom: 4px;
+  min-width: 120px;
+  align-self: stretch;
 }
 
 .cad-swatch {
