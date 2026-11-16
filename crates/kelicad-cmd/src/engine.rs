@@ -653,6 +653,22 @@ impl<G: IdGen> CommandEngine<G> {
                     CommandId::Midline => Active::Midline { first: None },
                     CommandId::TangentPc => Active::TangentPc { point: None },
                     CommandId::TangentCc => Active::TangentCc { first: None },
+                    CommandId::Star => Active::Star {
+                        tips: None,
+                        center: None,
+                    },
+                    CommandId::Donut => Active::Donut {
+                        center: None,
+                        outer: None,
+                    },
+                    CommandId::Capsule => Active::Capsule { a: None, b: None },
+                    CommandId::Arrow => Active::Arrow { from: None },
+                    CommandId::Grid => Active::Grid {
+                        cols: None,
+                        rows: None,
+                        origin: None,
+                    },
+                    CommandId::Triangle => Active::Triangle { a: None, b: None },
                     _ => unreachable!(),
                 };
                 self.active = Some((other, active));
