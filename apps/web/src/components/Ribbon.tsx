@@ -230,6 +230,60 @@ function IconRows({
   );
 }
 
+function PropsStack({ onEcho }: { onEcho: (lines: string[]) => void }) {
+  return (
+    <div className="cad-props-stack">
+      <label>
+        Couleur
+        <select
+          className="cad-select"
+          defaultValue="bylayer"
+          onChange={() => onEcho(["Couleur : DuCalque (par objet à venir)"])}
+        >
+          <option value="bylayer">DuCalque</option>
+          <option value="byblock">DuBloc</option>
+          <option value="red">Rouge</option>
+          <option value="yellow">Jaune</option>
+          <option value="green">Vert</option>
+          <option value="cyan">Cyan</option>
+          <option value="blue">Bleu</option>
+          <option value="magenta">Magenta</option>
+          <option value="white">Blanc</option>
+        </select>
+      </label>
+      <label>
+        Type de ligne
+        <select
+          className="cad-select"
+          defaultValue="bylayer"
+          onChange={() => onEcho(["Type de ligne : DuCalque"])}
+        >
+          <option value="bylayer">DuCalque</option>
+          <option value="continuous">Continuous</option>
+          <option value="dashed">Dashed</option>
+          <option value="center">Center</option>
+          <option value="hidden">Hidden</option>
+        </select>
+      </label>
+      <label>
+        Épaisseur
+        <select
+          className="cad-select"
+          defaultValue="bylayer"
+          onChange={() => onEcho(["Épaisseur : DuCalque"])}
+        >
+          <option value="bylayer">DuCalque</option>
+          <option value="0.00">0.00 mm</option>
+          <option value="0.25">0.25 mm</option>
+          <option value="0.50">0.50 mm</option>
+          <option value="0.70">0.70 mm</option>
+          <option value="1.00">1.00 mm</option>
+        </select>
+      </label>
+    </div>
+  );
+}
+
 function LayerCombo({
   cad,
   revision,
@@ -253,37 +307,76 @@ function LayerCombo({
 
   return (
     <div className="cad-layer-combo">
-      <span
-        className="cad-swatch"
-        style={{
-          background: current
-            ? `rgb(${current.color.join(",")})`
-            : "#888",
-        }}
-      />
-      <select
-        className="cad-select"
-        value={current?.id ?? ""}
-        onChange={(e) => {
-          try {
-            cad.set_current_layer(e.target.value);
-            onChanged();
-            const name =
-              layers.find((l) => l.id === e.target.value)?.name ?? "";
-            onEcho([`Calque : ${name}`]);
-          } catch (err) {
-            onEcho([String(err)]);
+      <div className="cad-layer-row">
+        <span
+          className="cad-swatch cad-swatch-lg"
+          style={{
+            background: current
+              ? `rgb(${current.color.join(",")})`
+              : "#888",
+          }}
+        />
+        <select
+          className="cad-select cad-select-layer"
+          value={current?.id ?? ""}
+          onChange={(e) => {
+            try {
+              cad.set_current_layer(e.target.value);
+              onChanged();
+              const name =
+                layers.find((l) => l.id === e.target.value)?.name ?? "";
+              onEcho([`Calque : ${name}`]);
+            } catch (err) {
+              onEcho([String(err)]);
+            }
+          }}
+        >
+          {layers.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="cad-layer-tools">
+        <button
+          type="button"
+          title="Allumer / éteindre (affichage — API set bientôt)"
+          onClick={() =>
+            onEcho([
+              current?.frozen
+                ? `Calque ${current.name} : gelé (lecture)`
+                : `Calque ${current?.name ?? "?"} : visible`,
+            ])
           }
-        }}
-      >
-        {layers.map((l) => (
-          <option key={l.id} value={l.id}>
-            {l.name}
-            {l.frozen ? " ❄" : ""}
-            {l.locked ? " 🔒" : ""}
-          </option>
-        ))}
-      </select>
+        >
+          💡
+        </button>
+        <button
+          type="button"
+          title="État verrouillage (lecture)"
+          onClick={() =>
+            onEcho([
+              current?.locked
+                ? `Calque ${current.name} : verrouillé`
+                : `Calque ${current?.name ?? "?"} : déverrouillé`,
+            ])
+          }
+        >
+          🔒
+        </button>
+        <button
+          type="button"
+          title="Geler (lecture)"
+          onClick={() =>
+            onEcho([
+              `Gel : ${current?.frozen ? "oui" : "non"} — set API à venir`,
+            ])
+          }
+        >
+          ❄
+        </button>
+      </div>
     </div>
   );
 }
@@ -356,6 +449,8 @@ function renderItem(
           onEcho={handlers.onEcho}
         />
       );
+    case "props-stack":
+      return <PropsStack key="props-stack" onEcho={handlers.onEcho} />;
   }
 }
 

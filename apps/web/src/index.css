@@ -30,56 +30,57 @@ body {
   overflow: hidden;
 }
 
-/* ——— Ribbon / QAT ——— */
+/* ——— Ribbon / QAT (AutoCAD-like density & sizing) ——— */
 .cad-ribbon {
-  background: linear-gradient(180deg, #252525 0%, #1c1c1c 100%);
-  border-bottom: 1px solid var(--cad-border);
+  background: linear-gradient(180deg, #2d2d2d 0%, #232323 55%, #1e1e1e 100%);
+  border-bottom: 1px solid #111;
   user-select: none;
+  box-shadow: 0 1px 0 #3a3a3a inset;
 }
 
 .cad-qat {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 2px 8px;
-  background: #141414;
-  border-bottom: 1px solid var(--cad-border);
-  min-height: 28px;
+  padding: 3px 10px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #111;
+  min-height: 32px;
 }
 
 .cad-brand {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   color: var(--cad-accent);
-  margin-right: 4px;
+  margin-right: 6px;
 }
 
 .cad-qat-btns {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
 }
 
 .cad-qat-btns button {
-  width: 26px;
-  height: 22px;
+  width: 30px;
+  height: 26px;
   border: none;
   background: transparent;
   color: var(--cad-text);
-  border-radius: 2px;
+  border-radius: 3px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1;
 }
 
 .cad-qat-btns button:hover {
-  background: #333;
+  background: #3a3a3a;
 }
 
 .cad-sep {
   width: 1px;
-  height: 14px;
+  height: 16px;
   background: var(--cad-border-soft);
   margin: 0 4px;
 }
@@ -87,9 +88,9 @@ body {
 .cad-docname {
   margin-left: 8px;
   font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 11px;
-  color: var(--cad-muted);
-  max-width: 280px;
+  font-size: 12px;
+  color: #c0c0c0;
+  max-width: 320px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -98,53 +99,57 @@ body {
 .cad-stats {
   margin-left: auto;
   font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--cad-muted);
 }
 
 .cad-tabs {
   display: flex;
   gap: 0;
-  padding: 0 6px;
-  background: #1a1a1a;
+  padding: 0 8px;
+  background: #252525;
+  min-height: 28px;
+  align-items: flex-end;
 }
 
 .cad-tab {
   border: none;
   background: transparent;
-  color: var(--cad-muted);
-  font-size: 12px;
-  padding: 4px 12px;
+  color: #b0b0b0;
+  font-size: 13px;
+  padding: 6px 14px 5px;
   cursor: pointer;
   border-bottom: 2px solid transparent;
+  border-radius: 3px 3px 0 0;
 }
 
 .cad-tab:hover {
-  color: var(--cad-text);
-  background: #2a2a2a;
+  color: #fff;
+  background: #333;
 }
 
 .cad-tab.is-active {
-  color: var(--cad-text);
+  color: #fff;
   border-bottom-color: var(--cad-accent);
-  background: #222;
+  background: #2b2b2b;
+  font-weight: 600;
 }
 
 .cad-ribbon-body {
   display: flex;
   gap: 0;
-  padding: 3px 4px 1px;
-  min-height: 110px;
+  padding: 6px 6px 2px;
+  min-height: 132px;
   overflow-x: auto;
-  background: #222;
+  background: #2b2b2b;
 }
 
 .cad-panel {
   position: relative;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--cad-border);
-  padding: 0 6px 1px;
+  border-right: 1px solid #3d3d3d;
+  padding: 0 10px 2px;
   min-width: fit-content;
 }
 
@@ -155,11 +160,11 @@ body {
 .cad-panel-body {
   display: flex;
   flex-wrap: nowrap;
-  gap: 2px;
+  gap: 4px;
   align-items: stretch;
   align-content: flex-start;
   flex: 1;
-  min-height: 84px;
+  min-height: 100px;
 }
 
 .cad-panel-title {
@@ -168,11 +173,11 @@ body {
   justify-content: center;
   gap: 4px;
   text-align: center;
-  font-size: 9px;
-  color: var(--cad-muted);
-  margin-top: 1px;
-  letter-spacing: 0.04em;
-  min-height: 16px;
+  font-size: 11px;
+  color: #9a9a9a;
+  margin-top: 2px;
+  letter-spacing: 0.02em;
+  min-height: 18px;
 }
 
 .cad-panel-expand {
@@ -227,35 +232,36 @@ body {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
 }
 
-/* ACA-style 3-row packed icon grid (column-major via grid-auto-flow) */
+/* AutoCAD Modification-style: 3 rows, icon left + label right */
 .cad-icon-rows {
   display: grid;
-  grid-template-rows: repeat(3, 26px);
+  grid-template-rows: repeat(3, 30px);
   grid-auto-flow: column;
-  grid-auto-columns: minmax(52px, auto);
-  gap: 1px 2px;
+  grid-auto-columns: minmax(88px, auto);
+  gap: 2px 4px;
   align-content: start;
+  padding-top: 2px;
 }
 
 .cad-icon-cell {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   border: 1px solid transparent;
   background: transparent;
   color: var(--cad-text);
-  border-radius: 2px;
+  border-radius: 3px;
   cursor: pointer;
-  padding: 1px 3px;
-  min-width: 48px;
-  gap: 0;
-  line-height: 1;
+  padding: 2px 6px 2px 4px;
+  min-width: 84px;
+  gap: 6px;
+  line-height: 1.1;
 }
 
 .cad-icon-cell:hover {
-  background: #333;
-  border-color: #4a4a4a;
+  background: #3a4550;
+  border-color: #4a6a8a;
 }
 
 .cad-icon-cell.is-partial {
@@ -263,17 +269,21 @@ body {
 }
 
 .cad-icon-cell-glyph {
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
 }
 
 .cad-icon-cell-label {
-  font-size: 8px;
-  color: #c8c8c8;
-  max-width: 56px;
+  font-size: 11px;
+  color: #e0e0e0;
+  max-width: 72px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: left;
 }
 
 /* Dense AutoCAD-like tool buttons */
@@ -345,19 +355,20 @@ body {
 }
 
 .cad-toolbtn-lg {
-  min-width: 58px;
-  height: 78px;
-  padding: 4px 6px;
+  min-width: 68px;
+  height: 96px;
+  padding: 8px 8px 6px;
   align-self: stretch;
+  gap: 6px;
 }
 
 .cad-toolbtn-lg .cad-toolbtn-glyph {
-  font-size: 26px;
+  font-size: 32px;
 }
 
 .cad-toolbtn-lg .cad-toolbtn-text {
-  font-size: 10px;
-  max-width: 68px;
+  font-size: 11px;
+  max-width: 76px;
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -365,23 +376,40 @@ body {
 }
 
 .cad-toolbtn-md {
-  min-width: 46px;
-  height: 78px;
-  padding: 2px 4px;
+  min-width: 56px;
+  height: 96px;
+  padding: 6px 6px;
   align-self: stretch;
+  gap: 4px;
 }
 
 .cad-toolbtn-md .cad-toolbtn-glyph {
-  font-size: 18px;
+  font-size: 22px;
 }
 
 .cad-toolbtn-md .cad-toolbtn-text {
-  font-size: 9px;
-  max-width: 56px;
+  font-size: 11px;
+  max-width: 64px;
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cad-toolbtn-sm {
+  flex-direction: row;
+  min-width: 36px;
+  height: 28px;
+  padding: 2px 6px;
+  gap: 4px;
+}
+
+.cad-toolbtn-sm .cad-toolbtn-glyph {
+  font-size: 14px;
+}
+
+.cad-toolbtn-sm .cad-toolbtn-text {
+  font-size: 10px;
 }
 
 .cad-flyout {
@@ -396,20 +424,10 @@ body {
   height: 100%;
 }
 
-.cad-toolbtn-sm {
-  flex-direction: row;
-  min-width: 28px;
-  height: 22px;
-  padding: 1px 4px;
-  gap: 3px;
-}
-
-.cad-toolbtn-sm .cad-toolbtn-glyph {
-  font-size: 12px;
-}
-
-.cad-toolbtn-sm .cad-toolbtn-text {
-  font-size: 9px;
+.cad-flyout-caret {
+  min-height: 100%;
+  width: 16px;
+  font-size: 10px;
 }
 
 .cad-toolbtn-glyph {

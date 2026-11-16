@@ -417,7 +417,7 @@ export const RIBBON_TABS: RibbonTab[] = [
   },
   {
     id: "view",
-    label: "Affichage",
+    label: "Vue",
     panels: [
       {
         title: "Viewport",
@@ -494,7 +494,7 @@ export const RIBBON_TABS: RibbonTab[] = [
   },
   {
     id: "extensions",
-    label: "Extensions",
+    label: "Compléments",
     panels: [
       {
         title: "Assistants",
