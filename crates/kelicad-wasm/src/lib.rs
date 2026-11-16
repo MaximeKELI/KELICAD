@@ -1306,6 +1306,91 @@ impl WasmCad {
         self.solids.len() as u32
     }
 
+    /// All solid meshes as JSON for the 3D viewport (positions xyz interleaved + indices).
+    pub fn solids_meshes_json(&self) -> String {
+        let meshes: Vec<_> = self
+            .solids
+            .iter()
+            .map(|b| {
+                let positions: Vec<f32> = b
+                    .mesh
+                    .positions
+                    .iter()
+                    .flat_map(|p| [p.x as f32, p.y as f32, p.z as f32])
+                    .collect();
+                serde_json::json!({
+                    "id": b.id.to_string(),
+                    "positions": positions,
+                    "indices": b.mesh.indices,
+                    "triangles": b.mesh.triangle_count(),
+                    "aabb": {
+                        "min": [b.aabb.min.x, b.aabb.min.y, b.aabb.min.z],
+                        "max": [b.aabb.max.x, b.aabb.max.y, b.aabb.max.z],
+                    },
+                })
+            })
+            .collect();
+        serde_json::to_string(&meshes).unwrap_or_else(|_| "[]".into())
+    }
+
+    /// Clear all solids (and linked BIM stubs created with them).
+    pub fn solids_clear(&mut self) {
+        self.solids.clear();
+        self.bim.clear();
+    }
+
+    /// Boolean on the last two solids: `union` | `difference` | `intersection`.
+    /// Replaces them with the result (keeps earlier solids).
+    pub fn solid_boolean(&mut self, op: &str) -> Result<String, JsValue> {
+        if self.solids.len() < 2 {
+            return Err(JsValue::from_str("need ≥2 solids for boolean"));
+        }
+        let b = self.solids.pop().unwrap();
+        let a = self.solids.pop().unwrap();
+        let k = BuiltinSolidKernel;
+        let body = match op.trim().to_ascii_lowercase().as_str() {
+            "union" | "u" | "+" => k.boolean_union(&a, &b),
+            "difference" | "diff" | "sub" | "-" => k.boolean_difference(&a, &b),
+            "intersection" | "intersect" | "i" | "*" => k.boolean_intersection(&a, &b),
+            other => {
+                self.solids.push(a);
+                self.solids.push(b);
+                return Err(JsValue::from_str(&format!(
+                    "unknown boolean op {other} (union|difference|intersection)"
+                )));
+            }
+        }
+        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        // Drop last two BIM entries if present (best-effort pairing).
+        if self.bim.len() >= 2 {
+            self.bim.truncate(self.bim.len() - 2);
+        }
+        self.push_solid(body, "BOOL", "op", op)
+    }
+
+    /// Create a demo box solid at origin (quick 3D smoke).
+    pub fn solid_box(
+        &mut self,
+        x: f64,
+        y: f64,
+        z: f64,
+        w: f64,
+        d: f64,
+        h: f64,
+    ) -> Result<String, JsValue> {
+        let k = BuiltinSolidKernel;
+        let profile = Profile2::rectangle(Vec2::new(x, y), w.max(1e-6), d.max(1e-6))
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let mut body = k
+            .extrude(&profile, h.max(1e-6))
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        if z.abs() > 1e-12 {
+            body.mesh = body.mesh.translated(kelicad_math::Vec3::new(0.0, 0.0, z));
+            body.aabb = body.mesh.aabb();
+        }
+        self.push_solid(body, "BOX", "size", &format!("{w}x{d}x{h}"))
+    }
+
     /// Handle an inbound wire message JSON (op/presence/comment/snapshot).
     pub fn sync_handle_wire(&mut self, text: &str) -> Result<String, JsValue> {
         let msg: WireMessage =
