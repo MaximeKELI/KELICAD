@@ -71,7 +71,7 @@ pub fn regular_polygon_side(a: Vec2, b: Vec2, sides: usize) -> Option<Polyline> 
     let mut dir = edge;
     for _ in 2..n {
         dir = dir.rotate(turn);
-        cur = cur + dir;
+        cur += dir;
         // Renormalize length drift.
         let prev = vertices[vertices.len() - 1];
         let d = cur - prev;

@@ -941,7 +941,17 @@ fn geometry_value(g: &Geometry) -> serde_json::Value {
             "dx":d.dim_line.x,"dy":d.dim_line.y,"text_override":d.text_override
         }),
         Geometry::Hatch(h) => serde_json::json!({
-            "type":"hatch","boundary": h.boundary.iter().map(|v| [v.x,v.y]).collect::<Vec<_>>()
+            "type":"hatch","boundary": h.boundary.iter().map(|v| [v.x,v.y]).collect::<Vec<_>>(),
+            "scale": h.scale, "angle": h.angle
+        }),
+        Geometry::Ellipse(e) => serde_json::json!({
+            "type":"ellipse","cx":e.center.x,"cy":e.center.y,
+            "mjx":e.major.x,"mjy":e.major.y,"ratio":e.ratio,
+            "start_angle":e.start_angle,"end_angle":e.end_angle
+        }),
+        Geometry::Spline(s) => serde_json::json!({
+            "type":"spline","degree":s.degree,"closed":s.closed,
+            "controls": s.control_points.iter().map(|v| [v.x,v.y]).collect::<Vec<_>>()
         }),
         Geometry::Insert(i) => serde_json::json!({
             "type":"insert","x":i.position.x,"y":i.position.y,"block_id":i.block_id.to_string()
@@ -1035,6 +1045,28 @@ fn append_geometry_lines(g: &Geometry, out: &mut Vec<f32>) {
                     seg[0].y as f32,
                     seg[1].x as f32,
                     seg[1].y as f32,
+                ]);
+            }
+        }
+        Geometry::Ellipse(e) => {
+            let poly = e.to_polyline(48);
+            for seg in poly.segments() {
+                out.extend_from_slice(&[
+                    seg.start.x as f32,
+                    seg.start.y as f32,
+                    seg.end.x as f32,
+                    seg.end.y as f32,
+                ]);
+            }
+        }
+        Geometry::Spline(s) => {
+            let poly = s.to_polyline(10);
+            for seg in poly.segments() {
+                out.extend_from_slice(&[
+                    seg.start.x as f32,
+                    seg.start.y as f32,
+                    seg.end.x as f32,
+                    seg.end.y as f32,
                 ]);
             }
         }

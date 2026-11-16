@@ -214,14 +214,14 @@ fn write_entity(
             .map_err(io_fmt)?;
         }
         Geometry::Ellipse(e) => {
-            let tip = e.center + e.major;
+            // DXF groups 11/21: major-axis endpoint relative to center.
             writeln!(
                 out,
                 "0\nELLIPSE\n8\n{layer}\n10\n{}\n20\n{}\n30\n0.0\n11\n{}\n21\n{}\n31\n0.0\n40\n{}\n41\n{}\n42\n{}",
                 e.center.x,
                 e.center.y,
-                tip.x,
-                tip.y,
+                e.major.x,
+                e.major.y,
                 e.ratio,
                 e.start_angle,
                 if e.is_full(kelicad_math::Tolerance::DEFAULT) {
@@ -460,10 +460,13 @@ fn read_entity(ty: &str, chunk: &[(i32, String)], report: &mut ImportReport) -> 
             let ratio = f(&m, 40, 0).unwrap_or(1.0);
             let a0 = f(&m, 41, 0).unwrap_or(0.0);
             let a1 = f(&m, 42, 0).unwrap_or(std::f64::consts::TAU);
-            let center = Vec2::new(cx, cy);
-            let tip = Vec2::new(mx, my);
-            // DXF stores major endpoint as absolute point (group 11/21).
-            let mut e = Ellipse::full(center, tip, ratio);
+            let mut e = Ellipse {
+                center: Vec2::new(cx, cy),
+                major: Vec2::new(mx, my),
+                ratio: ratio.clamp(1e-12, 1.0),
+                start_angle: 0.0,
+                end_angle: 0.0,
+            };
             if (a1 - a0).abs() < std::f64::consts::TAU - 1e-6 {
                 e.start_angle = a0;
                 e.end_angle = a1;

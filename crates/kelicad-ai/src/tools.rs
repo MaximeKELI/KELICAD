@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::f64::consts::PI;
 
 use kelicad_doc::{
-    BlockDef, DimKind, DimensionGeom, EntityId, EntityRecord, Geometry, HatchGeom, HatchPattern,
+    BlockDef, DimKind, DimensionGeom, EntityId, EntityRecord, Geometry, HatchGeom,
     InsertGeom, TextAlign, TextGeom,
 };
 use kelicad_geom::transform::offset_line;

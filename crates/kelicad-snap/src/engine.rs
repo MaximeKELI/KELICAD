@@ -153,10 +153,9 @@ impl SnapEngine {
                         Self::push(out, e.center + e.major, SnapKind::Endpoint, query.cursor);
                     }
                     if self.modes.nearest {
-                        for poly in [e.to_polyline(32)] {
-                            for seg in poly.segments() {
-                                self.line_snaps(seg, query, out);
-                            }
+                        let poly = e.to_polyline(32);
+                        for seg in poly.segments() {
+                            self.line_snaps(seg, query, out);
                         }
                     }
                 }

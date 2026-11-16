@@ -45,6 +45,18 @@ pub enum CommandId {
     Block,
     /// INSERT
     Insert,
+    /// POLYGON (regular, center+vertex)
+    Polygon,
+    /// ELLIPSE (center + major tip + ratio via second radius point)
+    Ellipse,
+    /// SPLINE (fit points)
+    Spline,
+    /// CIRCLE3P
+    Circle3p,
+    /// FILLET
+    Fillet,
+    /// CHAMFER
+    Chamfer,
 }
 
 impl CommandId {
@@ -72,6 +84,12 @@ impl CommandId {
             Self::Hatch => "HATCH",
             Self::Block => "BLOCK",
             Self::Insert => "INSERT",
+            Self::Polygon => "POLYGON",
+            Self::Ellipse => "ELLIPSE",
+            Self::Spline => "SPLINE",
+            Self::Circle3p => "CIRCLE3P",
+            Self::Fillet => "FILLET",
+            Self::Chamfer => "CHAMFER",
         }
     }
 
@@ -100,6 +118,12 @@ impl CommandId {
             "HATCH" | "H" => Self::Hatch,
             "BLOCK" | "B" => Self::Block,
             "INSERT" | "I" => Self::Insert,
+            "POLYGON" | "POL" | "PP" => Self::Polygon,
+            "ELLIPSE" | "EL" => Self::Ellipse,
+            "SPLINE" | "SPL" => Self::Spline,
+            "CIRCLE3P" | "C3" | "3P" => Self::Circle3p,
+            "FILLET" | "F" => Self::Fillet,
+            "CHAMFER" | "CHA" => Self::Chamfer,
             _ => return None,
         })
     }

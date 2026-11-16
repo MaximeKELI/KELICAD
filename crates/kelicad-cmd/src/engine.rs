@@ -1,12 +1,15 @@
 //! Command state machine driving a [`kelicad_ops::DocSession`].
 
 use kelicad_doc::{
-    BlockDef, BlockId, DimKind, DimensionGeom, EntityId, EntityRecord, Geometry, HatchGeom,
-    HatchPattern, InsertGeom, TextAlign, TextGeom,
+    BlockDef, BlockId, DimKind, DimensionGeom, EntityId, EntityKind, EntityRecord, Geometry,
+    HatchGeom, InsertGeom, TextAlign, TextGeom,
+};
+use kelicad_geom::construct::{
+    chamfer_lines, circle_from_3_points, fillet_lines, regular_polygon_center_vertex,
 };
 use kelicad_geom::transform::offset_line;
 use kelicad_geom::trim::{extend_line_to, trim_line_by_cut};
-use kelicad_geom::{Arc, Circle, Line, Polyline};
+use kelicad_geom::{Arc, Circle, Ellipse, Line, Polyline, Spline};
 use kelicad_math::{Tolerance, Vec2};
 use kelicad_ops::{DocSession, Operation};
 use kelicad_snap::{SnapEngine, SnapHit, SnapQuery};
@@ -119,6 +122,26 @@ enum Active {
     },
     Insert {
         name: Option<String>,
+    },
+    Polygon {
+        sides: Option<usize>,
+        center: Option<Vec2>,
+    },
+    Ellipse {
+        center: Option<Vec2>,
+        major_tip: Option<Vec2>,
+    },
+    Spline {
+        points: Vec<Vec2>,
+    },
+    Circle3p {
+        points: Vec<Vec2>,
+    },
+    Fillet {
+        radius: Option<f64>,
+    },
+    Chamfer {
+        distance: Option<f64>,
     },
 }
 
@@ -326,6 +349,21 @@ impl<G: IdGen> CommandEngine<G> {
                 self.last_command = Some(id);
                 out.prompt = self.current_prompt();
             }
+            CommandId::Fillet | CommandId::Chamfer => {
+                if self.selection.len() < 2 {
+                    out.echoes
+                        .push("Sélectionnez 2 lignes avant FILLET/CHAMFER.".into());
+                    return out;
+                }
+                let active = match id {
+                    CommandId::Fillet => Active::Fillet { radius: None },
+                    CommandId::Chamfer => Active::Chamfer { distance: None },
+                    _ => unreachable!(),
+                };
+                self.active = Some((id, active));
+                self.last_command = Some(id);
+                out.prompt = self.current_prompt();
+            }
             CommandId::Move
             | CommandId::Copy
             | CommandId::Rotate
@@ -366,6 +404,16 @@ impl<G: IdGen> CommandEngine<G> {
                         start: None,
                     },
                     CommandId::Rectang => Active::Rectang { first: None },
+                    CommandId::Polygon => Active::Polygon {
+                        sides: None,
+                        center: None,
+                    },
+                    CommandId::Ellipse => Active::Ellipse {
+                        center: None,
+                        major_tip: None,
+                    },
+                    CommandId::Spline => Active::Spline { points: vec![] },
+                    CommandId::Circle3p => Active::Circle3p { points: vec![] },
                     _ => unreachable!(),
                 };
                 self.active = Some((other, active));
@@ -470,6 +518,39 @@ impl<G: IdGen> CommandEngine<G> {
                 prompt("Nom du bloc à insérer", "Block name to insert")
             }
             (CommandId::Insert, _) => prompt("Point d'insertion", "Insertion point"),
+            (CommandId::Polygon, Active::Polygon { sides: None, .. }) => {
+                prompt("Nombre de côtés (≥3)", "Number of sides (≥3)")
+            }
+            (CommandId::Polygon, Active::Polygon { center: None, .. }) => {
+                prompt("Centre du polygone", "Polygon center")
+            }
+            (CommandId::Polygon, _) => prompt("Sommet du polygone", "Polygon vertex"),
+            (CommandId::Ellipse, Active::Ellipse { center: None, .. }) => {
+                prompt("Centre de l'ellipse", "Ellipse center")
+            }
+            (CommandId::Ellipse, Active::Ellipse { major_tip: None, .. }) => {
+                prompt("Extrémité du grand axe", "Major-axis endpoint")
+            }
+            (CommandId::Ellipse, _) => {
+                prompt("Point définissant le petit axe", "Point defining minor axis")
+            }
+            (CommandId::Spline, Active::Spline { points }) if points.is_empty() => {
+                prompt("Premier point d'ajustement", "First fit point")
+            }
+            (CommandId::Spline, _) => prompt(
+                "Point suivant ou Entrée pour terminer",
+                "Next point or Enter to finish",
+            ),
+            (CommandId::Circle3p, _) => prompt(
+                "Point sur le cercle (3 points)",
+                "Point on circle (3 points)",
+            ),
+            (CommandId::Fillet, Active::Fillet { radius: None }) => {
+                prompt("Rayon du congé", "Fillet radius")
+            }
+            (CommandId::Chamfer, Active::Chamfer { distance: None }) => {
+                prompt("Distance de chanfrein", "Chamfer distance")
+            }
             _ => prompt(id.name(), id.name()),
         })
     }
@@ -490,6 +571,41 @@ impl<G: IdGen> CommandEngine<G> {
             Active::CircleCenter { center: Some(c) } => {
                 let r = c.distance(cursor);
                 vec![Geometry::Circle(Circle::new(*c, r))]
+            }
+            Active::Ellipse {
+                center: Some(c),
+                major_tip: None,
+            } => vec![Geometry::Line(Line::new(*c, cursor))],
+            Active::Ellipse {
+                center: Some(c),
+                major_tip: Some(m),
+            } => {
+                let major_r = c.distance(*m);
+                let minor_r = ((cursor - *c).dot((*m - *c).perp().try_normalize(Tolerance::DEFAULT).unwrap_or(Vec2::Y))).abs();
+                let ratio = if major_r > 1e-12 {
+                    (minor_r / major_r).clamp(1e-6, 1.0)
+                } else {
+                    1.0
+                };
+                vec![Geometry::Ellipse(Ellipse::full(*c, *m, ratio))]
+            }
+            Active::Polygon {
+                sides: Some(n),
+                center: Some(c),
+            } => regular_polygon_center_vertex(*c, cursor, *n)
+                .map(|p| vec![Geometry::Polyline(p)])
+                .unwrap_or_default(),
+            Active::Spline { points } if !points.is_empty() => {
+                let mut pts = points.clone();
+                pts.push(cursor);
+                Spline::from_fit_points(pts, false)
+                    .map(|s| vec![Geometry::Spline(s)])
+                    .unwrap_or_default()
+            }
+            Active::Circle3p { points } if points.len() == 2 => {
+                circle_from_3_points(points[0], points[1], cursor, Tolerance::DEFAULT)
+                    .map(|c| vec![Geometry::Circle(c)])
+                    .unwrap_or_default()
             }
             Active::Rectang { first: Some(a) } => {
                 vec![Geometry::Polyline(Polyline::rectangle(*a, cursor))]
@@ -555,6 +671,16 @@ impl<G: IdGen> CommandEngine<G> {
                     out = self.commit_one(Geometry::Hatch(HatchGeom::solid(boundary)));
                 } else {
                     out.echoes.push("HATCH : au moins 3 points.".into());
+                }
+                self.active = None;
+            }
+            Active::Spline { points } => {
+                if points.len() >= 2 {
+                    if let Some(s) = Spline::from_fit_points(points, false) {
+                        out = self.commit_one(Geometry::Spline(s));
+                    }
+                } else {
+                    out.echoes.push("SPLINE : au moins 2 points.".into());
                 }
                 self.active = None;
             }
@@ -683,6 +809,25 @@ impl<G: IdGen> CommandEngine<G> {
             }
             (CommandId::Scale, Active::Scale { origin: Some(o) }) => {
                 out = self.transform_selection(|g| g.scaled(o, n));
+                self.active = None;
+            }
+            (CommandId::Polygon, Active::Polygon { sides: None, center }) => {
+                let sides = n.round().max(3.0) as usize;
+                self.active = Some((
+                    CommandId::Polygon,
+                    Active::Polygon {
+                        sides: Some(sides),
+                        center,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Fillet, Active::Fillet { radius: None }) => {
+                out = self.apply_fillet(n.abs());
+                self.active = None;
+            }
+            (CommandId::Chamfer, Active::Chamfer { distance: None }) => {
+                out = self.apply_chamfer(n.abs());
                 self.active = None;
             }
             _ => {
@@ -939,6 +1084,105 @@ impl<G: IdGen> CommandEngine<G> {
                 }
                 self.active = None;
             }
+            (
+                CommandId::Polygon,
+                Active::Polygon {
+                    sides: Some(n),
+                    center: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::Polygon,
+                    Active::Polygon {
+                        sides: Some(n),
+                        center: Some(p),
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Polygon,
+                Active::Polygon {
+                    sides: Some(n),
+                    center: Some(c),
+                },
+            ) => {
+                if let Some(poly) = regular_polygon_center_vertex(c, p, n) {
+                    out = self.commit_one(Geometry::Polyline(poly));
+                } else {
+                    out.echoes.push("POLYGON invalide.".into());
+                }
+                self.active = None;
+            }
+            (CommandId::Ellipse, Active::Ellipse { center: None, .. }) => {
+                self.active = Some((
+                    CommandId::Ellipse,
+                    Active::Ellipse {
+                        center: Some(p),
+                        major_tip: None,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Ellipse,
+                Active::Ellipse {
+                    center: Some(c),
+                    major_tip: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::Ellipse,
+                    Active::Ellipse {
+                        center: Some(c),
+                        major_tip: Some(p),
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Ellipse,
+                Active::Ellipse {
+                    center: Some(c),
+                    major_tip: Some(m),
+                },
+            ) => {
+                let major_r = c.distance(m);
+                let axis = (m - c)
+                    .try_normalize(Tolerance::DEFAULT)
+                    .unwrap_or(Vec2::X);
+                let minor_r = (p - c).dot(axis.perp()).abs();
+                let ratio = if major_r > 1e-12 {
+                    (minor_r / major_r).clamp(1e-6, 1.0)
+                } else {
+                    1.0
+                };
+                out = self.commit_one(Geometry::Ellipse(Ellipse::full(c, m, ratio)));
+                self.active = None;
+            }
+            (CommandId::Spline, Active::Spline { mut points }) => {
+                points.push(p);
+                self.active = Some((CommandId::Spline, Active::Spline { points }));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Circle3p, Active::Circle3p { mut points }) => {
+                points.push(p);
+                if points.len() >= 3 {
+                    match circle_from_3_points(
+                        points[0],
+                        points[1],
+                        points[2],
+                        Tolerance::DEFAULT,
+                    ) {
+                        Some(c) => out = self.commit_one(Geometry::Circle(c)),
+                        None => out.echoes.push("Points colinéaires.".into()),
+                    }
+                    self.active = None;
+                } else {
+                    self.active = Some((CommandId::Circle3p, Active::Circle3p { points }));
+                    out.prompt = self.current_prompt();
+                }
+            }
             _ => {}
         }
         out
@@ -985,6 +1229,95 @@ impl<G: IdGen> CommandEngine<G> {
             Err(e) => out.echoes.push(format!("Erreur: {e}")),
         }
         out
+    }
+
+    fn selected_two_lines(&self) -> Option<(EntityId, Line, EntityId, Line)> {
+        let ids = self.selection.to_vec();
+        if ids.len() < 2 {
+            return None;
+        }
+        let a = self.session.document.get_entity(ids[0])?;
+        let b = self.session.document.get_entity(ids[1])?;
+        let Geometry::Line(la) = a.geometry else {
+            return None;
+        };
+        let Geometry::Line(lb) = b.geometry else {
+            return None;
+        };
+        Some((a.id, la, b.id, lb))
+    }
+
+    fn apply_fillet(&mut self, radius: f64) -> CommandOutput {
+        let Some((id_a, la, id_b, lb)) = self.selected_two_lines() else {
+            return CommandOutput {
+                echoes: vec!["FILLET : 2 lignes requises.".into()],
+                ..Default::default()
+            };
+        };
+        let Some((ta, tb, arc)) = fillet_lines(la, lb, radius, Tolerance::DEFAULT) else {
+            return CommandOutput {
+                echoes: vec!["FILLET impossible (parallèles ou rayon trop grand).".into()],
+                ..Default::default()
+            };
+        };
+        let arc_id = self.ids.next();
+        let layer_id = self.session.document.current_layer;
+        let ops = vec![
+            Operation::SetGeometry {
+                id: id_a,
+                geometry: Geometry::Line(ta),
+            },
+            Operation::SetGeometry {
+                id: id_b,
+                geometry: Geometry::Line(tb),
+            },
+            Operation::CreateEntity {
+                record: EntityRecord {
+                    id: arc_id,
+                    kind: EntityKind::Arc,
+                    geometry: Geometry::Arc(arc),
+                    layer_id,
+                },
+            },
+        ];
+        self.apply_batch(ops, "Congé créé".into())
+    }
+
+    fn apply_chamfer(&mut self, distance: f64) -> CommandOutput {
+        let Some((id_a, la, id_b, lb)) = self.selected_two_lines() else {
+            return CommandOutput {
+                echoes: vec!["CHAMFER : 2 lignes requises.".into()],
+                ..Default::default()
+            };
+        };
+        let Some((ta, tb, ch)) = chamfer_lines(la, lb, distance, distance, Tolerance::DEFAULT)
+        else {
+            return CommandOutput {
+                echoes: vec!["CHAMFER impossible.".into()],
+                ..Default::default()
+            };
+        };
+        let ch_id = self.ids.next();
+        let layer_id = self.session.document.current_layer;
+        let ops = vec![
+            Operation::SetGeometry {
+                id: id_a,
+                geometry: Geometry::Line(ta),
+            },
+            Operation::SetGeometry {
+                id: id_b,
+                geometry: Geometry::Line(tb),
+            },
+            Operation::CreateEntity {
+                record: EntityRecord {
+                    id: ch_id,
+                    kind: EntityKind::Line,
+                    geometry: Geometry::Line(ch),
+                    layer_id,
+                },
+            },
+        ];
+        self.apply_batch(ops, "Chanfrein créé".into())
     }
 
     fn commit_polyline(&mut self, points: Vec<Vec2>, closed: bool) -> CommandOutput {
