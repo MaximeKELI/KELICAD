@@ -179,35 +179,3 @@ impl AuthConfig {
     }
 }
 
-impl<S> FromRequestParts<S> for AuthUser
-where
-    S: Send + Sync,
-{
-    type Rejection = StatusCode;
-
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        let cfg = parts
-            .extensions
-            .get::<AuthConfig>()
-            .cloned()
-            .unwrap_or_else(AuthConfig::from_env);
-
-        if cfg.mode == AuthMode::Off {
-            return Ok(AuthUser {
-                sub: "anonymous".into(),
-                org: "local".into(),
-                role: Role::Editor,
-            });
-        }
-
-        let auth = parts
-            .headers
-            .get(axum::http::header::AUTHORIZATION)
-            .and_then(|v| v.to_str().ok())
-            .ok_or(StatusCode::UNAUTHORIZED)?;
-        let token = auth
-            .strip_prefix("Bearer ")
-            .ok_or(StatusCode::UNAUTHORIZED)?;
-        cfg.decode_token(token)
-    }
-}

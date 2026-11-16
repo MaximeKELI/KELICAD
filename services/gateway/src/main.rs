@@ -66,27 +66,40 @@ struct GatewayUser(AuthUser);
 impl FromRequestParts<Arc<AppState>> for GatewayUser {
     type Rejection = StatusCode;
 
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &Arc<AppState>,
-    ) -> Result<Self, Self::Rejection> {
-        let cfg = &state.auth;
-        if cfg.mode == AuthMode::Off {
-            return Ok(GatewayUser(AuthUser {
-                sub: "anonymous".into(),
-                org: "local".into(),
-                role: Role::Editor,
-            }));
-        }
-        let auth = parts
-            .headers
-            .get(axum::http::header::AUTHORIZATION)
-            .and_then(|v| v.to_str().ok())
-            .ok_or(StatusCode::UNAUTHORIZED)?;
-        let token = auth
-            .strip_prefix("Bearer ")
-            .ok_or(StatusCode::UNAUTHORIZED)?;
-        Ok(GatewayUser(cfg.decode_token(token)?))
+    fn from_request_parts<'life0, 'life1, 'async_trait>(
+        parts: &'life0 mut Parts,
+        state: &'life1 Arc<AppState>,
+    ) -> core::pin::Pin<
+        Box<
+            dyn core::future::Future<Output = Result<Self, Self::Rejection>>
+                + Send
+                + 'async_trait,
+        >,
+    >
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        Self: 'async_trait,
+    {
+        Box::pin(async move {
+            let cfg = &state.auth;
+            if cfg.mode == AuthMode::Off {
+                return Ok(GatewayUser(AuthUser {
+                    sub: "anonymous".into(),
+                    org: "local".into(),
+                    role: Role::Editor,
+                }));
+            }
+            let auth = parts
+                .headers
+                .get(axum::http::header::AUTHORIZATION)
+                .and_then(|v| v.to_str().ok())
+                .ok_or(StatusCode::UNAUTHORIZED)?;
+            let token = auth
+                .strip_prefix("Bearer ")
+                .ok_or(StatusCode::UNAUTHORIZED)?;
+            Ok(GatewayUser(cfg.decode_token(token)?))
+        })
     }
 }
 
