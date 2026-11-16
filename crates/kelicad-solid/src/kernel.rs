@@ -4,6 +4,7 @@ use kelicad_doc::Geometry;
 use kelicad_math::{Vec2, Vec3};
 
 use crate::aabb3::Aabb3;
+use crate::advanced::{cone_mesh, loft_xy_profiles, sphere_mesh, sweep_xy_along_path, wedge_mesh};
 use crate::error::SolidError;
 use crate::mesh::{box_mesh, cylinder_mesh, extrude_xy_profile, revolve_xy_profile, Mesh};
 use crate::section::{section_segments, segments_to_geometries};
@@ -29,6 +30,39 @@ pub trait SolidKernel {
         radius: f64,
         height: f64,
         segments: usize,
+    ) -> Result<SolidBody, SolidError>;
+    /// UV sphere.
+    fn sphere(
+        &self,
+        center: Vec3,
+        radius: f64,
+        slices: usize,
+        stacks: usize,
+    ) -> Result<SolidBody, SolidError>;
+    /// Cone (base XY → apex along +Z).
+    fn cone(
+        &self,
+        center_xy: Vec2,
+        radius: f64,
+        height: f64,
+        segments: usize,
+    ) -> Result<SolidBody, SolidError>;
+    /// Right-angle wedge.
+    fn wedge(&self, origin: Vec3, size: Vec3) -> Result<SolidBody, SolidError>;
+    /// Sweep profile along XY path.
+    fn sweep(
+        &self,
+        profile: &Profile2,
+        path: &[Vec2],
+        thickness: f64,
+    ) -> Result<SolidBody, SolidError>;
+    /// Loft between two profiles.
+    fn loft(
+        &self,
+        a: &Profile2,
+        b: &Profile2,
+        height: f64,
+        sections: usize,
     ) -> Result<SolidBody, SolidError>;
     /// Mesh union (append + union AABB).
     fn boolean_union(&self, a: &SolidBody, b: &SolidBody) -> Result<SolidBody, SolidError>;
