@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 
 import {
   CATALOG,
+  TONE_CSS,
   getTool,
   type CatalogTool,
 } from "../cad/commandCatalog";
@@ -68,6 +69,7 @@ function ToolButton({
   handlers: RibbonHandlers;
 }) {
   const disabled = tool.status === "unavailable";
+  const tone = TONE_CSS[tool.tone] ?? TONE_CSS.muted;
   return (
     <button
       type="button"
@@ -78,7 +80,9 @@ function ToolButton({
       disabled={disabled}
       onClick={() => invokeTool(tool, handlers)}
     >
-      <span className="cad-toolbtn-glyph">{tool.glyph}</span>
+      <span className="cad-toolbtn-glyph" style={{ color: tone }}>
+        {tool.glyph}
+      </span>
       <span className="cad-toolbtn-text">{tool.label}</span>
     </button>
   );
@@ -130,7 +134,9 @@ function Flyout({
                 setOpen(false);
               }}
             >
-              <span>{it.glyph}</span>
+              <span style={{ color: TONE_CSS[it.tone] ?? TONE_CSS.muted }}>
+                {it.glyph}
+              </span>
               <span>
                 {it.label}
                 {it.kind.type === "cad" && <small>{it.kind.cmd}</small>}
@@ -190,7 +196,9 @@ function Panel({
                 setOpen(false);
               }}
             >
-              <span>{t.glyph}</span>
+              <span style={{ color: TONE_CSS[t.tone] ?? TONE_CSS.muted }}>
+                {t.glyph}
+              </span>
               <span>
                 {t.label}
                 {t.kind.type === "cad" && <small>{t.kind.cmd}</small>}
@@ -223,7 +231,12 @@ function IconRows({
           title={tool.tip}
           onClick={() => invokeTool(tool, handlers)}
         >
-          <span className="cad-icon-cell-glyph">{tool.glyph}</span>
+          <span
+            className="cad-icon-cell-glyph"
+            style={{ color: TONE_CSS[tool.tone] ?? TONE_CSS.muted }}
+          >
+            {tool.glyph}
+          </span>
           <span className="cad-icon-cell-label">{tool.label}</span>
         </button>
       ))}
@@ -489,6 +502,7 @@ export function Ribbon(props: Props) {
               type="button"
               title={tool.tip}
               disabled={tool.status === "unavailable"}
+              style={{ color: TONE_CSS[tool.tone] ?? TONE_CSS.file }}
               onClick={() => invokeTool(tool, handlers)}
             >
               {tool.glyph}

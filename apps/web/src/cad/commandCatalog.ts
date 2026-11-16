@@ -16,6 +16,30 @@ export type ToolKind =
   | { type: "constraint"; action: string }
   | { type: "layer"; action: string };
 
+/** AutoCAD-like icon accent colors. */
+export type ToolTone =
+  | "draw"
+  | "modify"
+  | "annotate"
+  | "layer"
+  | "block"
+  | "inquire"
+  | "view"
+  | "file"
+  | "muted";
+
+export const TONE_CSS: Record<ToolTone, string> = {
+  draw: "#6cb6ff",
+  modify: "#9ad1ff",
+  annotate: "#f2f2f2",
+  layer: "#f0c000",
+  block: "#8fd19e",
+  inquire: "#f5d76e",
+  view: "#b8c4d0",
+  file: "#d0d0d0",
+  muted: "#a0a0a0",
+};
+
 export type CatalogTool = {
   id: string;
   label: string;
@@ -23,6 +47,7 @@ export type CatalogTool = {
   tip: string;
   status: ToolStatus;
   kind: ToolKind;
+  tone: ToolTone;
   /** Tokens that light up the tool rail when active (aliases). */
   aliases?: string[];
 };
@@ -35,6 +60,7 @@ function cad(
   tip: string,
   aliases: string[] = [],
   status: ToolStatus = "working",
+  tone: ToolTone = "draw",
 ): CatalogTool {
   return {
     id,
@@ -42,6 +68,7 @@ function cad(
     glyph,
     tip: `${tip} (${cmd})`,
     status,
+    tone,
     kind: { type: "cad", cmd },
     aliases: [cmd, ...aliases],
   };
@@ -54,8 +81,9 @@ function ui(
   glyph: string,
   tip: string,
   status: ToolStatus = "working",
+  tone: ToolTone = "view",
 ): CatalogTool {
-  return { id, label, glyph, tip, status, kind: { type: "ui", action } };
+  return { id, label, glyph, tip, status, tone, kind: { type: "ui", action } };
 }
 
 function solid(
@@ -65,8 +93,17 @@ function solid(
   glyph: string,
   tip: string,
   status: ToolStatus = "working",
+  tone: ToolTone = "block",
 ): CatalogTool {
-  return { id, label, glyph, tip, status, kind: { type: "solid", action } };
+  return {
+    id,
+    label,
+    glyph,
+    tip,
+    status,
+    tone,
+    kind: { type: "solid", action },
+  };
 }
 
 function constraint(
@@ -83,6 +120,7 @@ function constraint(
     glyph,
     tip,
     status,
+    tone: "annotate",
     kind: { type: "constraint", action },
   };
 }
@@ -95,7 +133,15 @@ function layer(
   tip: string,
   status: ToolStatus = "working",
 ): CatalogTool {
-  return { id, label, glyph, tip, status, kind: { type: "layer", action } };
+  return {
+    id,
+    label,
+    glyph,
+    tip,
+    status,
+    tone: "layer",
+    kind: { type: "layer", action },
+  };
 }
 
 function soon(
@@ -103,6 +149,7 @@ function soon(
   label: string,
   glyph: string,
   tip: string,
+  tone: ToolTone = "muted",
 ): CatalogTool {
   return {
     id,
@@ -110,6 +157,7 @@ function soon(
     glyph,
     tip: `${tip} — non disponible`,
     status: "unavailable",
+    tone,
     kind: { type: "ui", action: "noop" },
   };
 }
@@ -154,7 +202,7 @@ export const CATALOG: Record<string, CatalogTool> = {
   revcloud: cad("revcloud", "RC", "Nuage", "☁", "Nuage de révision", [
     "REVCLOUD",
     "CLOUD",
-  ]),
+  ], "working", "annotate"),
   wipeout: cad("wipeout", "WO", "Wipe", "▣", "Masque wipeout", [
     "WIPEOUT",
     "WIPE",
@@ -164,32 +212,32 @@ export const CATALOG: Record<string, CatalogTool> = {
   ]),
 
   // ——— Modify ———
-  move: cad("move", "M", "Déplacer", "⇔", "Déplacer", ["MOVE"]),
-  copy: cad("copy", "CO", "Copier", "⧉", "Copier", ["COPY", "CP"]),
-  stretch: cad("stretch", "S", "Étirer", "⇄", "Étirer", ["STRETCH"]),
-  rotate: cad("rotate", "RO", "Rotation", "↻", "Rotation", ["ROTATE"]),
-  mirror: cad("mirror", "MI", "Miroir", "||-||", "Miroir", ["MIRROR"]),
-  scale: cad("scale", "SC", "Échelle", "⤢", "Échelle", ["SCALE"]),
-  offset: cad("offset", "O", "Décaler", "⇉", "Décalage", ["OFFSET"]),
-  trim: cad("trim", "TR", "Ajuster", "✂", "Ajuster (trim)", ["TRIM"]),
-  extend: cad("extend", "EX", "Prolonger", "↦", "Prolonger", ["EXTEND"]),
-  lengthen: cad("lengthen", "LEN", "Allonger", "⟷", "Allonger", ["LENGTHEN"]),
-  break: cad("break", "BR", "Coupure", "⊥", "Coupure", ["BREAK"]),
-  join: cad("join", "J", "Joindre", "⋈", "Joindre", ["JOIN"]),
-  fillet: cad("fillet", "F", "Congé", "⌒", "Congé", ["FILLET"]),
-  chamfer: cad("chamfer", "CHA", "Chanfrein", "⌐", "Chanfrein", ["CHAMFER"]),
+  move: cad("move", "M", "Déplacer", "⇔", "Déplacer", ["MOVE"], "working", "modify"),
+  copy: cad("copy", "CO", "Copier", "⧉", "Copier", ["COPY", "CP"], "working", "modify"),
+  stretch: cad("stretch", "S", "Étirer", "⇄", "Étirer", ["STRETCH"], "working", "modify"),
+  rotate: cad("rotate", "RO", "Rotation", "↻", "Rotation", ["ROTATE"], "working", "modify"),
+  mirror: cad("mirror", "MI", "Miroir", "||-||", "Miroir", ["MIRROR"], "working", "modify"),
+  scale: cad("scale", "SC", "Échelle", "⤢", "Échelle", ["SCALE"], "working", "modify"),
+  offset: cad("offset", "O", "Décaler", "⇉", "Décalage", ["OFFSET"], "working", "modify"),
+  trim: cad("trim", "TR", "Ajuster", "✂", "Ajuster (trim)", ["TRIM"], "working", "modify"),
+  extend: cad("extend", "EX", "Prolonger", "↦", "Prolonger", ["EXTEND"], "working", "modify"),
+  lengthen: cad("lengthen", "LEN", "Allonger", "⟷", "Allonger", ["LENGTHEN"], "working", "modify"),
+  break: cad("break", "BR", "Coupure", "⊥", "Coupure", ["BREAK"], "working", "modify"),
+  join: cad("join", "J", "Joindre", "⋈", "Joindre", ["JOIN"], "working", "modify"),
+  fillet: cad("fillet", "F", "Congé", "⌒", "Congé", ["FILLET"], "working", "modify"),
+  chamfer: cad("chamfer", "CHA", "Chanfrein", "⌐", "Chanfrein", ["CHAMFER"], "working", "modify"),
   arrayRect: cad("arrayRect", "AR", "Réseau", "▦", "Réseau rectangulaire", [
     "ARRAYRECT",
     "ARRAY",
-  ]),
+  ], "working", "modify"),
   arrayPolar: cad("arrayPolar", "APOLAR", "Polaire", "◎", "Réseau polaire", [
     "ARRAYPOLAR",
-  ]),
-  align: cad("align", "AL", "Aligner", "⇔", "Aligner", ["ALIGN"]),
-  erase: cad("erase", "E", "Effacer", "✕", "Effacer", ["ERASE", "DELETE"]),
-  explode: cad("explode", "X", "Exploser", "✸", "Exploser", ["EXPLODE"]),
-  undo: cad("undo", "U", "Annuler", "↶", "Annuler", ["UNDO"]),
-  redo: cad("redo", "REDO", "Rétablir", "↷", "Rétablir", []),
+  ], "working", "modify"),
+  align: cad("align", "AL", "Aligner", "⇔", "Aligner", ["ALIGN"], "working", "modify"),
+  erase: cad("erase", "E", "Effacer", "✕", "Effacer", ["ERASE", "DELETE"], "working", "modify"),
+  explode: cad("explode", "X", "Exploser", "✸", "Exploser", ["EXPLODE"], "working", "modify"),
+  undo: cad("undo", "U", "Annuler", "↶", "Annuler", ["UNDO"], "working", "file"),
+  redo: cad("redo", "REDO", "Rétablir", "↷", "Rétablir", [], "working", "file"),
 
   // ——— Construction / geometry helpers ———
   parallel: cad("parallel", "PAR", "Parallèle", "∥", "Parallèle par un point", [
@@ -207,59 +255,59 @@ export const CATALOG: Record<string, CatalogTool> = {
   section: cad("section", "SEC", "Coupe", "⌖", "Marque de coupe", [
     "SECTION",
     "COUPE",
-  ]),
+  ], "working", "annotate"),
   centermark: cad("centermark", "CM", "Centre", "⌖", "Marque de centre", [
     "CENTERMARK",
     "CMARK",
-  ]),
+  ], "working", "annotate"),
   centerline: cad("centerline", "CL", "Axe", "┼", "Ligne d'axe", [
     "CENTERLINE",
     "CLINE",
-  ]),
+  ], "working", "annotate"),
 
   // ——— Annotate ———
-  text: cad("text", "DT", "Texte", "A", "Texte simple", ["TEXT"]),
+  text: cad("text", "DT", "Texte", "A", "Texte simple", ["TEXT"], "working", "annotate"),
   mtext: soon("mtext", "MTexte", "T", "Texte multiligne (modèle prêt)"),
   dimLinear: cad("dimLinear", "DLI", "Linéaire", "↔", "Cote linéaire", [
     "DIMLINEAR",
     "DIMLIN",
-  ]),
+  ], "working", "annotate"),
   dimAligned: cad("dimAligned", "DAL", "Alignée", "⤢", "Cote alignée", [
     "DIMALIGNED",
     "DIMALI",
-  ]),
+  ], "working", "annotate"),
   dimRadius: cad("dimRadius", "DRA", "Rayon", "R", "Cote rayon", [
     "DIMRADIUS",
     "DIMRAD",
-  ]),
+  ], "working", "annotate"),
   dimDiameter: cad("dimDiameter", "DDI", "Diamètre", "⌀", "Cote diamètre", [
     "DIMDIAMETER",
     "DIMDIA",
-  ]),
+  ], "working", "annotate"),
   dimAngular: cad("dimAngular", "DAN", "Angle", "∠", "Cote angulaire", [
     "DIMANGULAR",
     "DIMANG",
-  ]),
+  ], "working", "annotate"),
   dimContinue: cad("dimContinue", "DCO", "Continue", "↕", "Cote continue", [
     "DIMCONTINUE",
     "DIMCONT",
-  ]),
+  ], "working", "annotate"),
   dimBaseline: cad("dimBaseline", "DBA", "Base", "≡", "Cote baseline", [
     "DIMBASELINE",
     "DIMBASE",
-  ]),
+  ], "working", "annotate"),
   leader: cad("leader", "LEAD", "Repère", "→", "Repère / ligne de rappel", [
     "LEADER",
     "MLD",
-  ]),
-  table: cad("table", "TBL", "Tableau", "▦", "Tableau", ["TABLE"]),
+  ], "working", "annotate"),
+  table: cad("table", "TBL", "Tableau", "▦", "Tableau", ["TABLE"], "working", "annotate"),
   textStyle: soon("textStyle", "Style txt", "Aa", "Styles de texte"),
   dimStyle: soon("dimStyle", "Style cote", "⌀+", "Styles de cotation"),
 
   // ——— Insert / blocks ———
-  insert: cad("insert", "I", "Insérer", "⬇", "Insérer un bloc", ["INSERT"]),
-  block: cad("block", "B", "Créer", "▢", "Définir un bloc", ["BLOCK"]),
-  xref: cad("xref", "XR", "XREF", "⛓", "Référence externe", ["XREF"], "partial"),
+  insert: cad("insert", "I", "Insérer", "⬇", "Insérer un bloc", ["INSERT"], "working", "block"),
+  block: cad("block", "B", "Créer", "▢", "Définir un bloc", ["BLOCK"], "working", "block"),
+  xref: cad("xref", "XR", "XREF", "⛓", "Référence externe", ["XREF"], "partial", "block"),
   pdfAttach: cad(
     "pdfAttach",
     "PDFATTACH",
@@ -268,6 +316,7 @@ export const CATALOG: Record<string, CatalogTool> = {
     "Sous-couche PDF",
     ["PDF"],
     "partial",
+    "block",
   ),
   wblock: soon("wblock", "WBLOCK", "▭", "Écrire bloc sur disque"),
   image: soon("image", "Image", "🖼", "Insérer une image raster"),
@@ -277,6 +326,8 @@ export const CATALOG: Record<string, CatalogTool> = {
     "DXF ↓",
     "⇩",
     "Importer un fichier DXF",
+    "working",
+    "file",
   ),
   importDwg: soon("importDwg", "DWG ↓", "⇩", "Importer DWG"),
   importSvg: soon("importSvg", "SVG ↓", "⇩", "Importer SVG"),
@@ -383,6 +434,8 @@ export const CATALOG: Record<string, CatalogTool> = {
     "Distance",
     "📐",
     "Distance AABB de la sélection",
+    "working",
+    "inquire",
   ),
   area: ui(
     "area",
@@ -390,6 +443,8 @@ export const CATALOG: Record<string, CatalogTool> = {
     "Aire",
     "▭",
     "Aire / périmètre AABB de la sélection",
+    "working",
+    "inquire",
   ),
   list: ui(
     "list",
@@ -397,21 +452,33 @@ export const CATALOG: Record<string, CatalogTool> = {
     "Liste",
     "☰",
     "Lister les objets sélectionnés",
+    "working",
+    "inquire",
   ),
-  idEnt: ui("idEnt", "inquiry-id", "ID", "ℹ", "Afficher les IDs sélectionnés"),
+  idEnt: ui(
+    "idEnt",
+    "inquiry-id",
+    "ID",
+    "ℹ",
+    "Afficher les IDs sélectionnés",
+    "working",
+    "inquire",
+  ),
   union2d: soon("union2d", "Union 2D", "∪", "Union de régions 2D"),
   diff2d: soon("diff2d", "Diff. 2D", "∖", "Différence de régions 2D"),
   inter2d: soon("inter2d", "Inter. 2D", "∩", "Intersection de régions 2D"),
 
   // ——— Drawing aids ———
-  ortho: ui("ortho", "toggle-ortho", "ORTHO", "⊥", "Basculer Ortho (F8)"),
-  osnap: ui("osnap", "toggle-osnap", "OSNAP", "⌖", "Basculer accrochage (F3)"),
+  ortho: ui("ortho", "toggle-ortho", "ORTHO", "⊥", "Basculer Ortho (F8)", "working", "view"),
+  osnap: ui("osnap", "toggle-osnap", "OSNAP", "⌖", "Basculer accrochage (F3)", "working", "view"),
   selectClear: ui(
     "selectClear",
     "select-clear",
     "Désél.",
     "◌",
     "Effacer la sélection",
+    "working",
+    "view",
   ),
 
   // ——— 3D solids ———
@@ -469,9 +536,9 @@ export const CATALOG: Record<string, CatalogTool> = {
   solidClear: solid("solidClear", "clear", "Vider", "🗑", "Effacer les solides"),
 
   // ——— View ———
-  view2d: ui("view2d", "view-2d", "2D", "▢", "Viewport 2D"),
-  viewSplit: ui("viewSplit", "view-split", "Split", "⊞", "Vue partagée 2D+3D"),
-  view3d: ui("view3d", "view-3d", "3D", "▣", "Viewport 3D"),
+  view2d: ui("view2d", "view-2d", "2D", "▢", "Viewport 2D", "working", "view"),
+  viewSplit: ui("viewSplit", "view-split", "Split", "⊞", "Vue partagée 2D+3D", "working", "view"),
+  view3d: ui("view3d", "view-3d", "3D", "▣", "Viewport 3D", "working", "view"),
   viewPlan: solid("viewPlan", "view-plan", "Plan", "⊤", "Dériver vue plan"),
   viewElevX: solid(
     "viewElevX",
@@ -493,9 +560,11 @@ export const CATALOG: Record<string, CatalogTool> = {
     "Étendue",
     "⛶",
     "Zoom étendu sur le dessin",
+    "working",
+    "view",
   ),
-  zoomIn: ui("zoomIn", "view-zoom-in", "Zoom +", "+", "Zoom avant"),
-  zoomOut: ui("zoomOut", "view-zoom-out", "Zoom −", "−", "Zoom arrière"),
+  zoomIn: ui("zoomIn", "view-zoom-in", "Zoom +", "+", "Zoom avant", "working", "view"),
+  zoomOut: ui("zoomOut", "view-zoom-out", "Zoom −", "−", "Zoom arrière", "working", "view"),
   pan: soon("pan", "Pan", "✋", "Panoramique — maintenir Espace dans le viewport"),
   iso: soon("iso", "Isométrique", "◇", "Vue isométrique"),
   shade: soon("shade", "Ombré", "▓", "Mode d'affichage ombré"),
@@ -508,12 +577,12 @@ export const CATALOG: Record<string, CatalogTool> = {
   tplMech: solid("tplMech", "tpl-mech", "MECH", "▭", "Gabarit mécanique"),
 
   // ——— Output ———
-  fileNew: ui("fileNew", "new", "Nouveau", "⎚", "Nouveau dessin"),
-  fileOpen: ui("fileOpen", "open", "Ouvrir", "📂", "Ouvrir .kelicad"),
-  fileSave: ui("fileSave", "save", "Sauver", "💾", "Enregistrer"),
-  exportPdf: ui("exportPdf", "pdf", "PDF", "⎙", "Exporter PDF"),
-  exportDxf: ui("exportDxf", "export-dxf", "DXF ↑", "⇧", "Exporter DXF"),
-  exportSvg: ui("exportSvg", "export-svg", "SVG ↑", "🖼", "Exporter SVG"),
+  fileNew: ui("fileNew", "new", "Nouveau", "⎚", "Nouveau dessin", "working", "file"),
+  fileOpen: ui("fileOpen", "open", "Ouvrir", "📂", "Ouvrir .kelicad", "working", "file"),
+  fileSave: ui("fileSave", "save", "Sauver", "💾", "Enregistrer", "working", "file"),
+  exportPdf: ui("exportPdf", "pdf", "PDF", "⎙", "Exporter PDF", "working", "file"),
+  exportDxf: ui("exportDxf", "export-dxf", "DXF ↑", "⇧", "Exporter DXF", "working", "file"),
+  exportSvg: ui("exportSvg", "export-svg", "SVG ↑", "🖼", "Exporter SVG", "working", "file"),
   exportIfc: solid("exportIfc", "ifc", "IFC", "🏗", "Exporter IFC (BIM)"),
   exportSched: solid(
     "exportSched",
@@ -526,7 +595,7 @@ export const CATALOG: Record<string, CatalogTool> = {
   print: soon("print", "Imprimer", "🖨", "Impression système"),
 
   // ——— Extensions ———
-  keli: ui("keli", "focus-keli", "KELI", "✦", "Panneau assistant KELI"),
+  keli: ui("keli", "focus-keli", "KELI", "✦", "Panneau assistant KELI", "working", "file"),
   collab: soon("collab", "Collab", "👥", "Voir barre collaboration"),
   plugins: soon("plugins", "Plugins", "🧩", "Hôte de plugins"),
   macros: soon("macros", "Macros", "⏺", "Enregistrement macro (API)"),

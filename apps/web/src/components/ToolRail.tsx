@@ -1,4 +1,8 @@
-import { getTool, toolMatchesActive } from "../cad/commandCatalog";
+import {
+  TONE_CSS,
+  getTool,
+  toolMatchesActive,
+} from "../cad/commandCatalog";
 import { TOOL_RAIL_GROUPS } from "../cad/ribbonLayout";
 
 type Props = {
@@ -28,7 +32,12 @@ export function ToolRail({ activeCmd, onCommand }: Props) {
                 className={`cad-tool ${active ? "is-active" : ""}`}
                 onClick={() => onCommand(cmd)}
               >
-                <span className="text-[13px] leading-none">{tool.glyph}</span>
+                <span
+                className="text-[13px] leading-none"
+                style={{ color: TONE_CSS[tool.tone] ?? TONE_CSS.muted }}
+              >
+                {tool.glyph}
+              </span>
               </button>
             );
           })}
