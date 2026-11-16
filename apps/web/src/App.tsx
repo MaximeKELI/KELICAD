@@ -48,7 +48,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [echoes, setEchoes] = useState<string[]>([
-    "KELICAD local — calques · F3/F8 · autosave · PDF. Palette à gauche, KELI à droite.",
+    "KELICAD P1 — gabarits A3/A4 · NEW · Undo · sélection jaune · blocs persistés · CLI doc.",
   ]);
   const [revision, setRevision] = useState(0);
   const [entityCount, setEntityCount] = useState(0);
@@ -305,6 +305,19 @@ export function App() {
           <button
             type="button"
             className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={() => {
+              cad.new_drawing();
+              setProjectName("dessin.kelicad");
+              setRevision((n) => n + 1);
+              setEntityCount(0);
+              setEchoes((prev) => [...prev, "Nouveau dessin."]);
+            }}
+          >
+            NEW
+          </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
             onClick={() => void openKelicad()}
           >
             OPEN
@@ -315,6 +328,20 @@ export function App() {
             onClick={() => void saveKelicad()}
           >
             SAVE
+          </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={() => applyOutput(cad.undo(), cad)}
+          >
+            UNDO
+          </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={() => applyOutput(cad.redo(), cad)}
+          >
+            REDO
           </button>
           <button
             type="button"

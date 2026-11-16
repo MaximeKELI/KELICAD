@@ -6,9 +6,10 @@ use kelicad_doc::{
     XrefId, XrefInsertGeom, XrefKind,
 };
 use kelicad_geom::construct::{
-    arrow, capsule, center_mark, chamfer_lines, circle_from_2_points, circle_from_3_points,
-    fillet_lines, grid_lines, isosceles_triangle, regular_polygon_center_vertex, revision_cloud,
-    star_polygon, tangents_circle_circle, tangents_point_circle,
+    arrow, capsule, center_mark, centerline, chamfer_lines, circle_from_2_points,
+    circle_from_3_points, fillet_lines, grid_lines, isosceles_triangle,
+    regular_polygon_center_vertex, revision_cloud, star_polygon, table_grid,
+    tangents_circle_circle, tangents_point_circle, wipeout_rect,
 };
 use kelicad_geom::fillet_poly::{chamfer_polyline, fillet_polyline, midline, parallel_through};
 use kelicad_geom::offset::offset_polyline;
@@ -252,6 +253,17 @@ enum Active {
         points: Vec<Vec2>,
     },
     Centermark,
+    Centerline {
+        first: Option<Vec2>,
+    },
+    Table {
+        cols: Option<usize>,
+        rows: Option<usize>,
+        origin: Option<Vec2>,
+    },
+    Wipeout {
+        first: Option<Vec2>,
+    },
 }
 
 /// Central command engine.
@@ -698,6 +710,13 @@ impl<G: IdGen> CommandEngine<G> {
                     CommandId::Point => Active::Point,
                     CommandId::Revcloud => Active::Revcloud { points: vec![] },
                     CommandId::Centermark => Active::Centermark,
+                    CommandId::Centerline => Active::Centerline { first: None },
+                    CommandId::Table => Active::Table {
+                        cols: None,
+                        rows: None,
+                        origin: None,
+                    },
+                    CommandId::Wipeout => Active::Wipeout { first: None },
                     _ => unreachable!(),
                 };
                 self.active = Some((other, active));
@@ -1006,6 +1025,24 @@ impl<G: IdGen> CommandEngine<G> {
             (CommandId::Centermark, _) => {
                 prompt("Sélectionnez un cercle", "Select a circle")
             }
+            (CommandId::Centerline, Active::Centerline { first: None }) => {
+                prompt("Premier point d'axe", "First centerline point")
+            }
+            (CommandId::Centerline, _) => prompt("Second point d'axe", "Second centerline point"),
+            (CommandId::Table, Active::Table { cols: None, .. }) => {
+                prompt("Colonnes (≥1)", "Columns (≥1)")
+            }
+            (CommandId::Table, Active::Table { rows: None, .. }) => {
+                prompt("Lignes (≥1)", "Rows (≥1)")
+            }
+            (CommandId::Table, Active::Table { origin: None, .. }) => {
+                prompt("Origine du tableau", "Table origin")
+            }
+            (CommandId::Table, _) => prompt("Coin d'une cellule", "Cell corner"),
+            (CommandId::Wipeout, Active::Wipeout { first: None }) => {
+                prompt("Premier coin", "First corner")
+            }
+            (CommandId::Wipeout, _) => prompt("Coin opposé", "Opposite corner"),
             _ => prompt(id.name(), id.name()),
         })
     }
@@ -1158,6 +1195,24 @@ impl<G: IdGen> CommandEngine<G> {
                         Vec2::new(cursor.x, cursor.y + s),
                     )),
                 ]
+            }
+            Active::Centerline { first: Some(a) } => centerline(*a, cursor, a.distance(cursor) * 0.05)
+                .map(|ls| ls.into_iter().map(Geometry::Line).collect())
+                .unwrap_or_default(),
+            Active::Table {
+                cols: Some(c),
+                rows: Some(r),
+                origin: Some(o),
+            } => {
+                let dx = (cursor.x - o.x).abs().max(1e-6);
+                let dy = (cursor.y - o.y).abs().max(1e-6);
+                table_grid(*o, *c, *r, dx, dy)
+                    .into_iter()
+                    .map(Geometry::Line)
+                    .collect()
+            }
+            Active::Wipeout { first: Some(a) } => {
+                vec![Geometry::Polyline(wipeout_rect(*a, cursor))]
             }
             Active::Arc {
                 center: Some(c),
@@ -1470,6 +1525,35 @@ impl<G: IdGen> CommandEngine<G> {
                 self.active = Some((
                     CommandId::Grid,
                     Active::Grid {
+                        cols: Some(c),
+                        rows: Some(n.round().max(1.0) as usize),
+                        origin,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Table, Active::Table { cols: None, rows, origin }) => {
+                self.active = Some((
+                    CommandId::Table,
+                    Active::Table {
+                        cols: Some(n.round().max(1.0) as usize),
+                        rows,
+                        origin,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Table,
+                Active::Table {
+                    cols: Some(c),
+                    rows: None,
+                    origin,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::Table,
+                    Active::Table {
                         cols: Some(c),
                         rows: Some(n.round().max(1.0) as usize),
                         origin,
@@ -2244,6 +2328,85 @@ impl<G: IdGen> CommandEngine<G> {
                         }
                     }
                 }
+                self.active = None;
+            }
+            (CommandId::Centerline, Active::Centerline { first: None }) => {
+                self.active = Some((CommandId::Centerline, Active::Centerline { first: Some(p) }));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Centerline, Active::Centerline { first: Some(a) }) => {
+                let tick = a.distance(p) * 0.05;
+                if let Some(lines) = centerline(a, p, tick) {
+                    let layer_id = self.session.document.current_layer;
+                    let mut ops = Vec::new();
+                    for line in lines {
+                        let id = self.ids.next();
+                        ops.push(Operation::CreateEntity {
+                            record: EntityRecord {
+                                id,
+                                kind: EntityKind::Line,
+                                geometry: Geometry::Line(line),
+                                layer_id,
+                            },
+                        });
+                    }
+                    out = self.apply_batch(ops, "CENTERLINE".into());
+                } else {
+                    out.echoes.push("CENTERLINE invalide.".into());
+                }
+                self.active = None;
+            }
+            (
+                CommandId::Table,
+                Active::Table {
+                    cols: Some(c),
+                    rows: Some(r),
+                    origin: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::Table,
+                    Active::Table {
+                        cols: Some(c),
+                        rows: Some(r),
+                        origin: Some(p),
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Table,
+                Active::Table {
+                    cols: Some(c),
+                    rows: Some(r),
+                    origin: Some(o),
+                },
+            ) => {
+                let dx = (p.x - o.x).abs().max(1e-6);
+                let dy = (p.y - o.y).abs().max(1e-6);
+                let layer_id = self.session.document.current_layer;
+                let mut ops = Vec::new();
+                for line in table_grid(o, c, r, dx, dy) {
+                    let id = self.ids.next();
+                    ops.push(Operation::CreateEntity {
+                        record: EntityRecord {
+                            id,
+                            kind: EntityKind::Line,
+                            geometry: Geometry::Line(line),
+                            layer_id,
+                        },
+                    });
+                }
+                out = self.apply_batch(ops, format!("TABLE {c}×{r}"));
+                self.active = None;
+            }
+            (CommandId::Wipeout, Active::Wipeout { first: None }) => {
+                self.active = Some((CommandId::Wipeout, Active::Wipeout { first: Some(p) }));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Wipeout, Active::Wipeout { first: Some(a) }) => {
+                let poly = wipeout_rect(a, p);
+                out = self.commit_one(Geometry::Hatch(HatchGeom::solid(poly.vertices)));
                 self.active = None;
             }
             (CommandId::TangentPc, Active::TangentPc { point: None }) => {
@@ -3177,17 +3340,28 @@ impl<G: IdGen> CommandEngine<G> {
     ) -> CommandOutput {
         let xref_id = XrefId::from_uuid(Uuid::now_v7());
         let def = XrefDef::new(xref_id, name, path, kind);
-        self.session.document.upsert_xref(def);
-        // Note: xref def upsert is not yet an Operation — document mutation outside journal.
-        // For undo integrity, also create entity via ops; def persists on document.
-        self.commit_one(Geometry::Xref(XrefInsertGeom {
+        let layer_id = self.session.document.current_layer;
+        let ent_id = self.ids.next();
+        let geom = Geometry::Xref(XrefInsertGeom {
             xref_id,
             position,
             scale: Vec2::new(1.0, 1.0),
             rotation: 0.0,
             clip: None,
             fade: 1.0,
-        }))
+        });
+        let ops = vec![
+            Operation::UpsertXref { def },
+            Operation::CreateEntity {
+                record: EntityRecord {
+                    id: ent_id,
+                    kind: geom.kind(),
+                    geometry: geom,
+                    layer_id,
+                },
+            },
+        ];
+        self.apply_batch(ops, format!("XREF « {name} »"))
     }
 
     fn erase_selection(&mut self) -> CommandOutput {

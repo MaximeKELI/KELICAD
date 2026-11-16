@@ -119,6 +119,12 @@ pub enum CommandId {
     Revcloud,
     /// CENTERMARK on a circle
     Centermark,
+    /// CENTERLINE axis with ticks
+    Centerline,
+    /// TABLE grid
+    Table,
+    /// WIPEOUT mask rectangle
+    Wipeout,
 }
 
 impl CommandId {
@@ -183,6 +189,9 @@ impl CommandId {
             Self::Point => "POINT",
             Self::Revcloud => "REVCLOUD",
             Self::Centermark => "CENTERMARK",
+            Self::Centerline => "CENTERLINE",
+            Self::Table => "TABLE",
+            Self::Wipeout => "WIPEOUT",
         }
     }
 
@@ -248,6 +257,9 @@ impl CommandId {
             "POINT" | "PO" => Self::Point,
             "REVCLOUD" | "CLOUD" | "RC" => Self::Revcloud,
             "CENTERMARK" | "CMARK" | "CM" => Self::Centermark,
+            "CENTERLINE" | "CLINE" | "CL" => Self::Centerline,
+            "TABLE" | "TBL" => Self::Table,
+            "WIPEOUT" | "WIPE" | "WO" => Self::Wipeout,
             _ => return None,
         })
     }
@@ -258,7 +270,7 @@ impl CommandId {
     }
 }
 
-const ALL_COMMANDS: [CommandId; 58] = [
+const ALL_COMMANDS: [CommandId; 61] = [
     CommandId::Line,
     CommandId::Pline,
     CommandId::Circle,
@@ -317,4 +329,7 @@ const ALL_COMMANDS: [CommandId; 58] = [
     CommandId::Point,
     CommandId::Revcloud,
     CommandId::Centermark,
+    CommandId::Centerline,
+    CommandId::Table,
+    CommandId::Wipeout,
 ];

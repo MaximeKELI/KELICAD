@@ -31,6 +31,18 @@ const SHAPES: { title: string; items: ShapeBtn[] }[] = [
       { cmd: "PO", label: "Point", hint: "clics multiples" },
       { cmd: "RC", label: "Nuage", hint: "revcloud + Entrée" },
       { cmd: "CM", label: "Centre", hint: "center mark cercle" },
+      { cmd: "CLINE", label: "Axe", hint: "centerline" },
+      { cmd: "TBL", label: "Tableau", hint: "cols×rows" },
+      { cmd: "WO", label: "Wipeout", hint: "masque rect" },
+    ],
+  },
+  {
+    title: "Gabarits",
+    items: [
+      { cmd: "__TPL_A3__", label: "A3", hint: "cadre + cartouche" },
+      { cmd: "__TPL_A4__", label: "A4", hint: "portrait" },
+      { cmd: "__TPL_MECH__", label: "Méca", hint: "A4 paysage" },
+      { cmd: "__TPL_BLANK__", label: "Vide", hint: "nouveau dessin" },
     ],
   },
   {
@@ -49,6 +61,8 @@ const SHAPES: { title: string; items: ShapeBtn[] }[] = [
 
 type CadLike = {
   start_command(name: string): string;
+  apply_template(name: string): number;
+  new_drawing(): void;
   solid_extrude_selected(height: number): string;
   solid_cylinder(cx: number, cy: number, radius: number, height: number): string;
   solid_sphere(cx: number, cy: number, cz: number, radius: number): string;
@@ -70,6 +84,21 @@ type Props = {
 export function ShapePalette({ cad, onCommand, onEcho, onChanged }: Props) {
   const run = (cmd: string) => {
     try {
+      if (cmd === "__TPL_BLANK__") {
+        cad.new_drawing();
+        onEcho(["Nouveau dessin vide."]);
+        onChanged();
+        return;
+      }
+      if (cmd === "__TPL_A3__" || cmd === "__TPL_A4__" || cmd === "__TPL_MECH__") {
+        const name =
+          cmd === "__TPL_A3__" ? "a3" : cmd === "__TPL_A4__" ? "a4" : "mech";
+        cad.new_drawing();
+        const n = cad.apply_template(name);
+        onEcho([`Gabarit ${name} : ${n} entité(s)`]);
+        onChanged();
+        return;
+      }
       if (cmd === "__EXTRUDE__") {
         const summary = cad.solid_extrude_selected(2.5);
         const n = cad.view_derive_apply("plan");

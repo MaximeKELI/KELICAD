@@ -1,11 +1,10 @@
 //! Seed templates (A3/A4 frames + title block) — LibreCAD/QCAD–style project start.
 
+use kelicad_geom::{Line, Polyline};
 use kelicad_math::Vec2;
 
 use crate::annotation::{TextAlign, TextGeom};
 use crate::geometry::Geometry;
-use crate::polyline::Polyline;
-use kelicad_geom::Polyline as GeomPoly;
 
 /// One entity to place when applying a template.
 #[derive(Debug, Clone)]
@@ -66,7 +65,7 @@ pub fn template_entities(kind: TemplateKind) -> Vec<TemplateEntity> {
 
 fn sheet_with_title(w: f64, h: f64, label: &str) -> Vec<TemplateEntity> {
     let margin = 10.0;
-    let frame = GeomPoly {
+    let frame = Polyline {
         vertices: vec![
             Vec2::new(margin, margin),
             Vec2::new(w - margin, margin),
@@ -79,7 +78,7 @@ fn sheet_with_title(w: f64, h: f64, label: &str) -> Vec<TemplateEntity> {
     let th = 40.0;
     let tx0 = w - margin - tw;
     let ty0 = margin;
-    let title = GeomPoly {
+    let title = Polyline {
         vertices: vec![
             Vec2::new(tx0, ty0),
             Vec2::new(tx0 + tw, ty0),
@@ -88,29 +87,23 @@ fn sheet_with_title(w: f64, h: f64, label: &str) -> Vec<TemplateEntity> {
         ],
         closed: true,
     };
-    // Inner divider in cartouche.
     let mid_y = ty0 + th * 0.45;
-    let mut out = vec![
+    let fold_x = w * 0.5;
+    vec![
         TemplateEntity {
             layer: "Cadre",
             layer_color: [220, 220, 220],
-            geometry: Geometry::Polyline(Polyline {
-                vertices: frame.vertices.clone(),
-                closed: true,
-            }),
+            geometry: Geometry::Polyline(frame),
         },
         TemplateEntity {
             layer: "Cartouche",
             layer_color: [255, 200, 80],
-            geometry: Geometry::Polyline(Polyline {
-                vertices: title.vertices.clone(),
-                closed: true,
-            }),
+            geometry: Geometry::Polyline(title),
         },
         TemplateEntity {
             layer: "Cartouche",
             layer_color: [255, 200, 80],
-            geometry: Geometry::Line(kelicad_geom::Line::new(
+            geometry: Geometry::Line(Line::new(
                 Vec2::new(tx0, mid_y),
                 Vec2::new(tx0 + tw, mid_y),
             )),
@@ -141,18 +134,15 @@ fn sheet_with_title(w: f64, h: f64, label: &str) -> Vec<TemplateEntity> {
                 annotative: false,
             }),
         },
-    ];
-    // Fold marks (cheat from ISO folding).
-    let fold_x = w * 0.5;
-    out.push(TemplateEntity {
-        layer: "Construction",
-        layer_color: [100, 140, 100],
-        geometry: Geometry::Line(kelicad_geom::Line::new(
-            Vec2::new(fold_x, margin - 2.0),
-            Vec2::new(fold_x, margin + 2.0),
-        )),
-    });
-    out
+        TemplateEntity {
+            layer: "Construction",
+            layer_color: [100, 140, 100],
+            geometry: Geometry::Line(Line::new(
+                Vec2::new(fold_x, margin - 2.0),
+                Vec2::new(fold_x, margin + 2.0),
+            )),
+        },
+    ]
 }
 
 #[cfg(test)]

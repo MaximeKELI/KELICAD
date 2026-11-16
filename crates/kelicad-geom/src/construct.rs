@@ -414,6 +414,33 @@ pub fn revision_cloud(path: &[Vec2], bulge: f64, closed: bool) -> Option<Polylin
     })
 }
 
+/// Centerline between two points with end ticks (ISO-ish).
+pub fn centerline(a: Vec2, b: Vec2, tick: f64) -> Option<Vec<Line>> {
+    let delta = b - a;
+    let len = delta.length();
+    if len < 1e-12 {
+        return None;
+    }
+    let dir = delta / len;
+    let nrm = dir.perp();
+    let t = tick.abs().max(1e-6);
+    Some(vec![
+        Line::new(a, b),
+        Line::new(a - nrm * t, a + nrm * t),
+        Line::new(b - nrm * t, b + nrm * t),
+    ])
+}
+
+/// Table grid as lines (cols×rows cells from origin with cell size).
+pub fn table_grid(origin: Vec2, cols: usize, rows: usize, cell_w: f64, cell_h: f64) -> Vec<Line> {
+    grid_lines(origin, cols.max(1), rows.max(1), cell_w.abs().max(1e-6), cell_h.abs().max(1e-6))
+}
+
+/// Rectangular wipeout boundary (closed polyline).
+pub fn wipeout_rect(a: Vec2, b: Vec2) -> Polyline {
+    Polyline::rectangle(a, b)
+}
+
 /// Center mark cross for a circle (axes ± radius * factor).
 pub fn center_mark(center: Vec2, radius: f64, factor: f64) -> Vec<Line> {
     let r = radius.abs().max(1e-9);

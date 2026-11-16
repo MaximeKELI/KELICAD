@@ -317,6 +317,8 @@ pub enum DocError {
     BlockExists(String),
     /// Layout missing.
     UnknownLayout(LayoutId),
+    /// XREF definition missing.
+    UnknownXref(crate::xref::XrefId),
 }
 
 impl std::fmt::Display for DocError {
@@ -328,6 +330,7 @@ impl std::fmt::Display for DocError {
             Self::UnknownBlock(id) => write!(f, "unknown block {id}"),
             Self::BlockExists(name) => write!(f, "block exists: {name}"),
             Self::UnknownLayout(id) => write!(f, "unknown layout {id}"),
+            Self::UnknownXref(id) => write!(f, "unknown xref {id}"),
         }
     }
 }

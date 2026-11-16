@@ -87,6 +87,9 @@ export type CadSession = {
   import_dxf(text: string): string;
   export_svg(width: number, height: number): string;
   export_pdf(): Uint8Array | number[];
+  new_drawing(): void;
+  apply_template(name: string): number;
+  blocks_json(): string;
   scene_line_vertices(): Float32Array | number[];
   scene_batches_json(): string;
   ghost_line_vertices(x: number, y: number): Float32Array | number[];

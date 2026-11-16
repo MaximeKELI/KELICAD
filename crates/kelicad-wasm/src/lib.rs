@@ -8,7 +8,10 @@ use kelicad_ai::{
 use kelicad_bim::{export_ifc, schedule_csv, BimElement};
 use kelicad_cmd::{CommandEngine, CommandEvent, CommandId, UuidV7Gen};
 use kelicad_constraints::{solve, Constraint, ConstraintSystem};
-use kelicad_doc::{EntityId, EntityRecord, Geometry, Layer, LayerId};
+use kelicad_doc::{
+    template_entities, BlockDef, BlockId, EntityId, EntityRecord, Geometry, Layer, LayerId,
+    TemplateKind,
+};
 use kelicad_geom::{Arc, Circle, Line, Polyline};
 use kelicad_math::Vec2;
 use kelicad_ops::{DocSession, Operation};
@@ -62,11 +65,21 @@ struct SceneBatchDto {
 }
 
 #[derive(Serialize)]
+struct BlockDto {
+    id: String,
+    name: String,
+    origin: [f64; 2],
+    entities: Vec<serde_json::Value>,
+}
+
+#[derive(Serialize)]
 struct SnapshotDto {
     schema_version: u32,
     current_layer: String,
     layers: Vec<LayerDto>,
     entities: Vec<EntityDto>,
+    #[serde(default)]
+    blocks: Vec<BlockDto>,
 }
 
 /// Interactive CAD session for the web UI.
@@ -182,6 +195,8 @@ impl WasmCad {
             current_layer: String,
             layers: Vec<InLayer>,
             entities: Vec<InEntity>,
+            #[serde(default)]
+            blocks: Vec<InBlock>,
         }
         #[derive(Deserialize)]
         struct InLayer {
@@ -194,6 +209,13 @@ impl WasmCad {
             id: String,
             layer_id: String,
             geometry: serde_json::Value,
+        }
+        #[derive(Deserialize)]
+        struct InBlock {
+            id: String,
+            name: String,
+            origin: [f64; 2],
+            entities: Vec<serde_json::Value>,
         }
 
         let snap: InSnap =
@@ -215,6 +237,25 @@ impl WasmCad {
                     .document
                     .upsert_layer(Layer::new(id, layer.name.clone(), layer.color));
             }
+        }
+        for blk in &snap.blocks {
+            let id = BlockId::from_uuid(
+                Uuid::parse_str(&blk.id).map_err(|e| JsValue::from_str(&e.to_string()))?,
+            );
+            let mut ents = Vec::new();
+            for g in &blk.entities {
+                ents.push(geometry_from_value(g).map_err(|e| JsValue::from_str(&e))?);
+            }
+            let def = BlockDef {
+                id,
+                name: blk.name.clone(),
+                origin: Vec2::new(blk.origin[0], blk.origin[1]),
+                entities: ents,
+                attributes: vec![],
+            };
+            session
+                .apply(Operation::UpsertBlock { def })
+                .map_err(|e| JsValue::from_str(&e.to_string()))?;
         }
         for ent in &snap.entities {
             let id = EntityId::from_uuid(
@@ -301,11 +342,21 @@ impl WasmCad {
                 geometry: geometry_value(&e.geometry),
             })
             .collect();
+        let blocks = doc
+            .blocks()
+            .map(|b| BlockDto {
+                id: b.id.to_string(),
+                name: b.name.clone(),
+                origin: [b.origin.x, b.origin.y],
+                entities: b.entities.iter().map(geometry_value).collect(),
+            })
+            .collect();
         let snap = SnapshotDto {
             schema_version: 0,
             current_layer: doc.current_layer.to_string(),
             layers,
             entities,
+            blocks,
         };
         serde_json::to_string(&snap).map_err(|e| JsValue::from_str(&e.to_string()))
     }
@@ -421,25 +472,31 @@ impl WasmCad {
     }
 
     /// Colored scene batches JSON for multi-pass GPU draw (layer colors).
+    /// Selected entities get a highlight batch (yellow) — AutoCAD/QCAD style.
     pub fn scene_batches_json(&self) -> String {
-        use std::collections::BTreeMap;
+        use std::collections::{BTreeMap, HashSet};
         let doc = &self.engine.session.document;
+        let selected: HashSet<_> = self.engine.selection.iter().collect();
         let mut map: BTreeMap<[u8; 3], Vec<f32>> = BTreeMap::new();
+        let mut sel_verts = Vec::new();
         for ent in doc.entities() {
+            if let Some(layer) = doc.get_layer(ent.layer_id) {
+                if layer.flags.frozen {
+                    continue;
+                }
+            }
+            if selected.contains(&ent.id) {
+                append_geometry_lines(&ent.geometry, &mut sel_verts);
+                continue;
+            }
             let color = doc
                 .get_layer(ent.layer_id)
-                .map(|l| {
-                    if l.flags.frozen {
-                        return None;
-                    }
-                    Some(l.color)
-                })
-                .flatten()
+                .map(|l| l.color)
                 .unwrap_or([140, 200, 255]);
             let bucket = map.entry(color).or_default();
             append_geometry_lines(&ent.geometry, bucket);
         }
-        let batches: Vec<SceneBatchDto> = map
+        let mut batches: Vec<SceneBatchDto> = map
             .into_iter()
             .map(|(c, verts)| SceneBatchDto {
                 r: c[0] as f32 / 255.0,
@@ -448,7 +505,92 @@ impl WasmCad {
                 verts,
             })
             .collect();
+        if !sel_verts.is_empty() {
+            batches.push(SceneBatchDto {
+                r: 1.0,
+                g: 0.92,
+                b: 0.2,
+                verts: sel_verts,
+            });
+        }
         serde_json::to_string(&batches).unwrap_or_else(|_| "[]".into())
+    }
+
+    /// Reset to a new empty drawing (keeps collab identity).
+    pub fn new_drawing(&mut self) {
+        let ortho = self.engine.ortho;
+        let osnap = self.engine.osnap_enabled;
+        self.engine = CommandEngine::new(DocSession::new(), UuidV7Gen);
+        self.engine.ortho = ortho;
+        self.engine.osnap_enabled = osnap;
+        self.last_prompt_fr.clear();
+        self.solids.clear();
+        self.bim.clear();
+        self.constraints = ConstraintSystem::new();
+    }
+
+    /// Apply a paper template (`blank`/`a3`/`a4`/`mech`). Returns entity count added.
+    pub fn apply_template(&mut self, name: &str) -> Result<u32, JsValue> {
+        let kind = TemplateKind::parse(name)
+            .ok_or_else(|| JsValue::from_str("unknown template (blank|a3|a4|mech)"))?;
+        if matches!(kind, TemplateKind::Blank) {
+            self.new_drawing();
+            return Ok(0);
+        }
+        let seeds = template_entities(kind);
+        let mut layer_ids: std::collections::HashMap<String, LayerId> =
+            std::collections::HashMap::new();
+        // Keep existing layer 0; map by name.
+        for l in self.engine.session.document.layers() {
+            layer_ids.insert(l.name.clone(), l.id);
+        }
+        let mut ops = Vec::new();
+        let mut n = 0u32;
+        for seed in seeds {
+            let layer_id = if let Some(id) = layer_ids.get(seed.layer) {
+                *id
+            } else {
+                let id = LayerId::from_uuid(Uuid::now_v7());
+                layer_ids.insert(seed.layer.to_string(), id);
+                ops.push(Operation::CreateLayer {
+                    layer: Layer::new(id, seed.layer, seed.layer_color),
+                });
+                id
+            };
+            let eid = EntityId::from_uuid(Uuid::now_v7());
+            ops.push(Operation::CreateEntity {
+                record: EntityRecord {
+                    id: eid,
+                    kind: seed.geometry.kind(),
+                    geometry: seed.geometry,
+                    layer_id,
+                },
+            });
+            n += 1;
+        }
+        self.engine
+            .session
+            .apply(Operation::Batch { ops })
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        Ok(n)
+    }
+
+    /// List block names as JSON.
+    pub fn blocks_json(&self) -> String {
+        let blocks: Vec<_> = self
+            .engine
+            .session
+            .document
+            .blocks()
+            .map(|b| {
+                serde_json::json!({
+                    "id": b.id.to_string(),
+                    "name": b.name,
+                    "entity_count": b.entities.len(),
+                })
+            })
+            .collect();
+        serde_json::to_string(&blocks).unwrap_or_else(|_| "[]".into())
     }
 
     /// Ghost preview line vertices at world hover position.

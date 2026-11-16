@@ -15,6 +15,12 @@ type Snapshot = {
     layer_id: string;
     geometry: Record<string, unknown>;
   }[];
+  blocks?: {
+    id: string;
+    name: string;
+    origin: [number, number];
+    entities: Record<string, unknown>[];
+  }[];
 };
 
 function uuidToBytes(id: string): Uint8Array {
@@ -63,6 +69,12 @@ export async function snapshotToKelicadBytes(snapshotJson: string): Promise<Uint
     snap.current_layer,
   ]);
   db.run("INSERT INTO meta(key,value) VALUES(?,?)", ["tolerance_abs", "1e-9"]);
+  if (snap.blocks?.length) {
+    db.run("INSERT INTO meta(key,value) VALUES(?,?)", [
+      "blocks_json",
+      JSON.stringify(snap.blocks),
+    ]);
+  }
 
   for (const layer of snap.layers) {
     db.run(
@@ -147,11 +159,22 @@ export async function kelicadBytesToSnapshotJson(data: Uint8Array): Promise<stri
       layer_id: bytesToUuid(row[2] as Uint8Array),
       geometry: JSON.parse(String(row[3])) as Record<string, unknown>,
     })) ?? [];
+  let blocks: Snapshot["blocks"] = [];
+  try {
+    const bj = db.exec("SELECT value FROM meta WHERE key='blocks_json'")[0]
+      ?.values[0]?.[0] as string | undefined;
+    if (bj) {
+      blocks = JSON.parse(bj) as Snapshot["blocks"];
+    }
+  } catch {
+    blocks = [];
+  }
   db.close();
   return JSON.stringify({
     schema_version: 0,
     current_layer: current,
     layers,
     entities,
+    blocks,
   });
 }

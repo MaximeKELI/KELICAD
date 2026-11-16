@@ -14,6 +14,7 @@ pub mod linetype;
 pub mod mtext;
 pub mod ray;
 pub mod styles;
+pub mod templates;
 pub mod xref;
 
 pub use annotation::{
@@ -29,4 +30,5 @@ pub use linetype::{resolve_linetype, Linetype};
 pub use mtext::{parse_mtext, MTextAlign, MTextRun};
 pub use ray::{RayGeom, XLineGeom};
 pub use styles::{DimArrowKind, DimStyle, DimStyleId, TextStyle, TextStyleId};
+pub use templates::{template_entities, TemplateEntity, TemplateKind};
 pub use xref::{XrefDef, XrefId, XrefInsertGeom, XrefKind};

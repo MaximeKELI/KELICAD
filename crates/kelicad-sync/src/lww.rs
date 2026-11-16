@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use kelicad_doc::{BlockId, EntityId, LayerId, LayoutId};
+use kelicad_doc::{BlockId, EntityId, LayerId, LayoutId, XrefId};
 use kelicad_ops::Operation;
 use serde::{Deserialize, Serialize};
 
@@ -22,6 +22,8 @@ pub enum TargetKey {
     Block(BlockId),
     /// Paper layout.
     Layout(LayoutId),
+    /// External reference definition.
+    Xref(XrefId),
 }
 
 /// Extract LWW targets touched by an operation.
@@ -39,6 +41,8 @@ pub fn targets_of(op: &Operation) -> Vec<TargetKey> {
         Operation::DeleteBlock { id } => vec![TargetKey::Block(*id)],
         Operation::UpsertLayout { layout } => vec![TargetKey::Layout(layout.id)],
         Operation::DeleteLayout { id } => vec![TargetKey::Layout(*id)],
+        Operation::UpsertXref { def } => vec![TargetKey::Xref(def.id)],
+        Operation::DeleteXref { id } => vec![TargetKey::Xref(*id)],
         Operation::Batch { ops } => {
             let mut keys = Vec::new();
             for child in ops {

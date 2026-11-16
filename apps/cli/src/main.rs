@@ -7,10 +7,12 @@ use clap::{Parser, Subcommand};
 use kelicad_bim::{
     export_ifc, import_ifc, schedule_csv, slab_from_rect, wall_from_baseline, BimElement,
 };
-use kelicad_doc::{EntityId, EntityRecord};
+use kelicad_doc::{
+    template_entities, EntityId, EntityRecord, Layer, LayerId, TemplateKind,
+};
 use kelicad_dwg::{export_dwg, import_dwg, MockDwgBridge};
 use kelicad_geom::{builtin_patterns, generate_hatch, load_pat_file, resolve_pattern};
-use kelicad_io::{export_dxf, import_dxf, import_shp};
+use kelicad_io::{export_dxf, import_dxf, import_shp, load_document, save_document};
 use kelicad_math::{Vec2, Vec3};
 use kelicad_ops::{DocSession, Operation};
 use kelicad_plugin::{
@@ -101,6 +103,45 @@ enum Commands {
     Hatch {
         #[command(subcommand)]
         cmd: HatchCmd,
+    },
+    /// Native `.kelicad` document ops (open / save / new / template).
+    Doc {
+        #[command(subcommand)]
+        cmd: DocCmd,
+    },
+}
+
+#[derive(Subcommand)]
+enum DocCmd {
+    /// Create a new empty `.kelicad` (optional template).
+    New {
+        /// Output path.
+        #[arg(short, long)]
+        output: PathBuf,
+        /// Template: blank|a3|a4|mech.
+        #[arg(long, default_value = "blank")]
+        template: String,
+    },
+    /// Open a `.kelicad` and print summary.
+    Open {
+        /// Input `.kelicad`.
+        input: PathBuf,
+    },
+    /// Save a DXF into `.kelicad` (or copy/round-trip `.kelicad`).
+    Save {
+        /// Input `.kelicad` or `.dxf`.
+        input: PathBuf,
+        /// Output `.kelicad`.
+        #[arg(short, long)]
+        output: PathBuf,
+    },
+    /// Apply a template onto an existing `.kelicad` (or create).
+    Template {
+        /// Template name.
+        name: String,
+        /// Output path.
+        #[arg(short, long)]
+        output: PathBuf,
     },
 }
 
@@ -428,6 +469,65 @@ fn run(cli: Cli) -> Result<(), String> {
                 );
                 let mac = record_macro(&host.session);
                 eprintln!("{}", macro_to_json(&mac).unwrap_or_default());
+                Ok(())
+            }
+        },
+        Commands::Doc { cmd } => match cmd {
+            DocCmd::New { output, template } => {
+                let mut session = DocSession::new();
+                if let Some(kind) = TemplateKind::parse(&template) {
+                    apply_template_to_session(&mut session, kind)?;
+                }
+                save_document(&output, &session).map_err(|e| e.to_string())?;
+                println!(
+                    "new ok: {} entities={} template={template}",
+                    output.display(),
+                    session.document.entity_count()
+                );
+                Ok(())
+            }
+            DocCmd::Open { input } => {
+                let session = load_document(&input).map_err(|e| e.to_string())?;
+                println!(
+                    "open ok: entities={} layers={} blocks={}",
+                    session.document.entity_count(),
+                    session.document.layers().count(),
+                    session.document.blocks().count()
+                );
+                Ok(())
+            }
+            DocCmd::Save { input, output } => {
+                let session = if input
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .map(|e| e.eq_ignore_ascii_case("dxf"))
+                    .unwrap_or(false)
+                {
+                    let text = fs::read_to_string(&input).map_err(|e| e.to_string())?;
+                    import_dxf(&text).map_err(|e| e.to_string())?.0
+                } else {
+                    load_document(&input).map_err(|e| e.to_string())?
+                };
+                save_document(&output, &session).map_err(|e| e.to_string())?;
+                println!(
+                    "save ok: {} → {} (entities={})",
+                    input.display(),
+                    output.display(),
+                    session.document.entity_count()
+                );
+                Ok(())
+            }
+            DocCmd::Template { name, output } => {
+                let kind = TemplateKind::parse(&name)
+                    .ok_or_else(|| "unknown template (blank|a3|a4|mech)".to_string())?;
+                let mut session = DocSession::new();
+                apply_template_to_session(&mut session, kind)?;
+                save_document(&output, &session).map_err(|e| e.to_string())?;
+                println!(
+                    "template ok: {name} → {} entities={}",
+                    output.display(),
+                    session.document.entity_count()
+                );
                 Ok(())
             }
         },
@@ -791,6 +891,49 @@ fn run(cli: Cli) -> Result<(), String> {
             }
         },
     }
+}
+
+fn apply_template_to_session(
+    session: &mut DocSession,
+    kind: TemplateKind,
+) -> Result<(), String> {
+    if matches!(kind, TemplateKind::Blank) {
+        return Ok(());
+    }
+    let seeds = template_entities(kind);
+    let mut layer_ids: std::collections::HashMap<String, LayerId> =
+        std::collections::HashMap::new();
+    for l in session.document.layers() {
+        layer_ids.insert(l.name.clone(), l.id);
+    }
+    let mut ops = Vec::new();
+    for seed in seeds {
+        let layer_id = if let Some(id) = layer_ids.get(seed.layer) {
+            *id
+        } else {
+            let id = LayerId::from_uuid(Uuid::now_v7());
+            layer_ids.insert(seed.layer.to_string(), id);
+            ops.push(Operation::CreateLayer {
+                layer: Layer::new(id, seed.layer, seed.layer_color),
+            });
+            id
+        };
+        let eid = EntityId::from_uuid(Uuid::now_v7());
+        ops.push(Operation::CreateEntity {
+            record: EntityRecord {
+                id: eid,
+                kind: seed.geometry.kind(),
+                geometry: seed.geometry,
+                layer_id,
+            },
+        });
+    }
+    if !ops.is_empty() {
+        session
+            .apply(Operation::Batch { ops })
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 fn copy_dir_recursive(src: PathBuf, dst: PathBuf) -> std::io::Result<()> {

@@ -2,7 +2,7 @@
 
 use kelicad_doc::{
     BlockDef, BlockId, DocError, Document, EntityId, EntityRecord, Geometry, Layer, LayerId,
-    Layout, LayoutId,
+    Layout, LayoutId, XrefDef, XrefId,
 };
 
 /// Errors while applying an operation.
@@ -89,6 +89,16 @@ pub enum Operation {
     DeleteLayout {
         /// Layout id.
         id: LayoutId,
+    },
+    /// Create or replace an XREF / underlay definition (journaled).
+    UpsertXref {
+        /// Definition.
+        def: XrefDef,
+    },
+    /// Delete an XREF definition.
+    DeleteXref {
+        /// XREF id.
+        id: XrefId,
     },
 }
 
@@ -199,6 +209,20 @@ impl Operation {
                     return Err(OpError::Doc(DocError::UnknownLayout(*id)));
                 };
                 Ok(Operation::UpsertLayout { layout })
+            }
+            Self::UpsertXref { def } => {
+                let prev = doc.get_xref(def.id).cloned();
+                doc.upsert_xref(def.clone());
+                Ok(match prev {
+                    Some(old) => Operation::UpsertXref { def: old },
+                    None => Operation::DeleteXref { id: def.id },
+                })
+            }
+            Self::DeleteXref { id } => {
+                let Some(def) = doc.remove_xref(*id) else {
+                    return Err(OpError::Doc(DocError::UnknownXref(*id)));
+                };
+                Ok(Operation::UpsertXref { def })
             }
         }
     }
