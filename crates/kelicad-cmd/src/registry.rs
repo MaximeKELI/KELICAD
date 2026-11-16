@@ -314,4 +314,7 @@ const ALL_COMMANDS: [CommandId; 58] = [
     CommandId::Arrow,
     CommandId::Grid,
     CommandId::Triangle,
+    CommandId::Point,
+    CommandId::Revcloud,
+    CommandId::Centermark,
 ];

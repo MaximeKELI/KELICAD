@@ -6,9 +6,9 @@ use kelicad_doc::{
     XrefId, XrefInsertGeom, XrefKind,
 };
 use kelicad_geom::construct::{
-    arrow, capsule, chamfer_lines, circle_from_2_points, circle_from_3_points, fillet_lines,
-    grid_lines, isosceles_triangle, regular_polygon_center_vertex, star_polygon,
-    tangents_circle_circle, tangents_point_circle,
+    arrow, capsule, center_mark, chamfer_lines, circle_from_2_points, circle_from_3_points,
+    fillet_lines, grid_lines, isosceles_triangle, regular_polygon_center_vertex, revision_cloud,
+    star_polygon, tangents_circle_circle, tangents_point_circle,
 };
 use kelicad_geom::fillet_poly::{chamfer_polyline, fillet_polyline, midline, parallel_through};
 use kelicad_geom::offset::offset_polyline;
@@ -247,6 +247,11 @@ enum Active {
         a: Option<Vec2>,
         b: Option<Vec2>,
     },
+    Point,
+    Revcloud {
+        points: Vec<Vec2>,
+    },
+    Centermark,
 }
 
 /// Central command engine.
@@ -690,6 +695,9 @@ impl<G: IdGen> CommandEngine<G> {
                         origin: None,
                     },
                     CommandId::Triangle => Active::Triangle { a: None, b: None },
+                    CommandId::Point => Active::Point,
+                    CommandId::Revcloud => Active::Revcloud { points: vec![] },
+                    CommandId::Centermark => Active::Centermark,
                     _ => unreachable!(),
                 };
                 self.active = Some((other, active));
@@ -988,6 +996,16 @@ impl<G: IdGen> CommandEngine<G> {
                 prompt("Second coin de la base", "Second base corner")
             }
             (CommandId::Triangle, _) => prompt("Sommet (hauteur)", "Apex (height)"),
+            (CommandId::Point, _) => prompt("Position du point", "Point location"),
+            (CommandId::Revcloud, Active::Revcloud { points }) if points.is_empty() => {
+                prompt("Premier point du nuage", "First cloud point")
+            }
+            (CommandId::Revcloud, _) => {
+                prompt("Point suivant (Entrée pour fermer)", "Next point (Enter to close)")
+            }
+            (CommandId::Centermark, _) => {
+                prompt("Sélectionnez un cercle", "Select a circle")
+            }
             _ => prompt(id.name(), id.name()),
         })
     }
@@ -1118,6 +1136,29 @@ impl<G: IdGen> CommandEngine<G> {
                 a: Some(a),
                 b: None,
             } => vec![Geometry::Line(Line::new(*a, cursor))],
+            Active::Revcloud { points } if !points.is_empty() => {
+                let mut pts = points.clone();
+                pts.push(cursor);
+                revision_cloud(&pts, 0.35, false)
+                    .map(|p| vec![Geometry::Polyline(p)])
+                    .unwrap_or_else(|| {
+                        let last = *points.last().unwrap();
+                        vec![Geometry::Line(Line::new(last, cursor))]
+                    })
+            }
+            Active::Point => {
+                let s = 0.15;
+                vec![
+                    Geometry::Line(Line::new(
+                        Vec2::new(cursor.x - s, cursor.y),
+                        Vec2::new(cursor.x + s, cursor.y),
+                    )),
+                    Geometry::Line(Line::new(
+                        Vec2::new(cursor.x, cursor.y - s),
+                        Vec2::new(cursor.x, cursor.y + s),
+                    )),
+                ]
+            }
             Active::Arc {
                 center: Some(c),
                 start: Some(s),
@@ -1162,6 +1203,22 @@ impl<G: IdGen> CommandEngine<G> {
                 if points.len() >= 2 {
                     out = self.commit_polyline(points, false);
                 }
+                self.active = None;
+            }
+            Active::Revcloud { points } => {
+                if points.len() >= 2 {
+                    if let Some(poly) = revision_cloud(&points, 0.35, true) {
+                        out = self.commit_one(Geometry::Polyline(poly));
+                    } else {
+                        out.echoes.push("REVCLOUD invalide.".into());
+                    }
+                } else {
+                    out.echoes.push("REVCLOUD : au moins 2 points.".into());
+                }
+                self.active = None;
+            }
+            Active::Point => {
+                out.echoes.push("POINT terminé.".into());
                 self.active = None;
             }
             Active::Erase => {
@@ -2150,6 +2207,42 @@ impl<G: IdGen> CommandEngine<G> {
                     out = self.commit_one(Geometry::Polyline(poly));
                 } else {
                     out.echoes.push("TRIANGLE invalide.".into());
+                }
+                self.active = None;
+            }
+            (CommandId::Point, Active::Point) => {
+                out = self.commit_one(Geometry::Point(p));
+                // Keep POINT active for multi-click (LibreCAD style).
+                self.active = Some((CommandId::Point, Active::Point));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Revcloud, Active::Revcloud { mut points }) => {
+                points.push(p);
+                self.active = Some((CommandId::Revcloud, Active::Revcloud { points }));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Centermark, Active::Centermark) => {
+                if let Some(eid) = self.pick_entity(p) {
+                    if let Some(ent) = self.session.document.get_entity(eid) {
+                        if let Geometry::Circle(c) = ent.geometry {
+                            let layer_id = self.session.document.current_layer;
+                            let mut ops = Vec::new();
+                            for line in center_mark(c.center, c.radius, 1.15) {
+                                let id = self.ids.next();
+                                ops.push(Operation::CreateEntity {
+                                    record: EntityRecord {
+                                        id,
+                                        kind: EntityKind::Line,
+                                        geometry: Geometry::Line(line),
+                                        layer_id,
+                                    },
+                                });
+                            }
+                            out = self.apply_batch(ops, "Center mark".into());
+                        } else {
+                            out.echoes.push("Sélectionnez un cercle.".into());
+                        }
+                    }
                 }
                 self.active = None;
             }
