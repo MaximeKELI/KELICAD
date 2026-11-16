@@ -318,24 +318,9 @@ export function App() {
     input.click();
   }, [cad]);
 
-  if (error) {
-    return (
-      <div className="flex h-full items-center justify-center p-8 text-red-300">
-        Échec chargement WASM : {error}
-      </div>
-    );
-  }
-
-  if (!cad || !collab) {
-    return (
-      <div className="flex h-full items-center justify-center font-mono text-ink-500">
-        Chargement du cœur KELICAD…
-      </div>
-    );
-  }
-
   const runCmd = useCallback(
     (cmd: string) => {
+      if (!cad) return;
       setActiveCmd(cmd);
       applyOutput(cad.start_command(cmd), cad);
     },
@@ -343,6 +328,7 @@ export function App() {
   );
 
   const bump = useCallback(() => {
+    if (!cad) return;
     setRevision((n) => n + 1);
     setEntityCount(cad.entity_count());
     setSolidCount(cad.solid_count());
@@ -350,6 +336,7 @@ export function App() {
 
   const onSolidAction = useCallback(
     (action: string) => {
+      if (!cad) return;
       try {
         switch (action) {
           case "box": {
@@ -444,6 +431,22 @@ export function App() {
     },
     [bump, cad],
   );
+
+  if (error) {
+    return (
+      <div className="flex h-full items-center justify-center p-8 text-red-300">
+        Échec chargement WASM : {error}
+      </div>
+    );
+  }
+
+  if (!cad || !collab) {
+    return (
+      <div className="flex h-full items-center justify-center font-mono text-[#9aa4b2]">
+        Chargement du cœur KELICAD…
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col bg-[#0e0e0e] text-[#e6e6e6]">
