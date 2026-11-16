@@ -86,7 +86,6 @@ export const RIBBON_TABS: RibbonTab[] = [
               "gridDraw",
               "boundary",
               "ddptype",
-              "region",
             ],
           },
         ],
