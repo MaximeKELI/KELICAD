@@ -251,6 +251,145 @@ fn point_along_away(line: Line, corner: Vec2, dist: f64, tol: Tolerance) -> Opti
     Some(corner + dir * dist)
 }
 
+/// Star polygon (center + outer vertex, `points` tips, `inner_ratio` ∈ (0,1)).
+pub fn star_polygon(
+    center: Vec2,
+    outer_vertex: Vec2,
+    points: usize,
+    inner_ratio: f64,
+) -> Option<Polyline> {
+    let n = points.max(3);
+    let r_out = outer_vertex.distance(center);
+    if r_out < 1e-12 {
+        return None;
+    }
+    let r_in = r_out * inner_ratio.clamp(0.05, 0.95);
+    let a0 = (outer_vertex - center).angle();
+    let mut vertices = Vec::with_capacity(n * 2);
+    for i in 0..(n * 2) {
+        let a = a0 + std::f64::consts::PI * (i as f64) / (n as f64);
+        let r = if i % 2 == 0 { r_out } else { r_in };
+        vertices.push(center + Vec2::new(a.cos(), a.sin()) * r);
+    }
+    Some(Polyline {
+        vertices,
+        closed: true,
+    })
+}
+
+/// Capsule / stadium: segment `a`→`b` thickened by `radius` (polyline approx).
+pub fn capsule(a: Vec2, b: Vec2, radius: f64, segments_per_cap: usize) -> Option<Polyline> {
+    if radius < 1e-12 {
+        return None;
+    }
+    let delta = b - a;
+    let len = delta.length();
+    if len < 1e-12 {
+        // Degenerate → circle approx.
+        return regular_polygon_center_vertex(a, a + Vec2::new(radius, 0.0), segments_per_cap.max(8) * 2);
+    }
+    let dir = delta / len;
+    let nrm = dir.perp();
+    let segs = segments_per_cap.max(4);
+    let mut vertices = Vec::with_capacity(segs * 2 + 2);
+    // Right side a→b
+    vertices.push(a + nrm * radius);
+    vertices.push(b + nrm * radius);
+    // Cap at b (π semicircle)
+    let base_b = (nrm).angle();
+    for i in 1..=segs {
+        let t = (i as f64) / (segs as f64);
+        let ang = base_b + std::f64::consts::PI * t;
+        vertices.push(b + Vec2::new(ang.cos(), ang.sin()) * radius);
+    }
+    // Left side b→a already covered by last cap point ≈ a - nrm*r via next
+    vertices.push(a - nrm * radius);
+    // Cap at a
+    let base_a = (-nrm).angle();
+    for i in 1..segs {
+        let t = (i as f64) / (segs as f64);
+        let ang = base_a + std::f64::consts::PI * t;
+        vertices.push(a + Vec2::new(ang.cos(), ang.sin()) * radius);
+    }
+    Some(Polyline {
+        vertices,
+        closed: true,
+    })
+}
+
+/// Arrow from `from` to `tip` with triangular head sized by `head_size`.
+pub fn arrow(from: Vec2, tip: Vec2, head_size: f64) -> Option<Polyline> {
+    let delta = tip - from;
+    let len = delta.length();
+    if len < 1e-12 {
+        return None;
+    }
+    let dir = delta / len;
+    let nrm = dir.perp();
+    let hs = if head_size > 1e-12 {
+        head_size.min(len * 0.45)
+    } else {
+        (len * 0.25).max(1e-3)
+    };
+    let base = tip - dir * hs;
+    // Open polyline: shaft + chevron head outline as single stroke path.
+    Some(Polyline {
+        vertices: vec![
+            from,
+            base,
+            base + nrm * (hs * 0.5),
+            tip,
+            base - nrm * (hs * 0.5),
+            base,
+        ],
+        closed: false,
+    })
+}
+
+/// Construction grid as axis-aligned lines covering `cols×rows` cells.
+pub fn grid_lines(origin: Vec2, cols: usize, rows: usize, dx: f64, dy: f64) -> Vec<Line> {
+    let cols = cols.max(1);
+    let rows = rows.max(1);
+    if dx.abs() < 1e-12 || dy.abs() < 1e-12 {
+        return vec![];
+    }
+    let w = dx * cols as f64;
+    let h = dy * rows as f64;
+    let mut lines = Vec::with_capacity((cols + 1) + (rows + 1));
+    for i in 0..=cols {
+        let x = origin.x + dx * i as f64;
+        lines.push(Line::new(
+            Vec2::new(x, origin.y),
+            Vec2::new(x, origin.y + h),
+        ));
+    }
+    for j in 0..=rows {
+        let y = origin.y + dy * j as f64;
+        lines.push(Line::new(
+            Vec2::new(origin.x, y),
+            Vec2::new(origin.x + w, y),
+        ));
+    }
+    let _ = w;
+    lines
+}
+
+/// Isosceles triangle given base corners `a`,`b` and apex height (signed via `height`).
+pub fn isosceles_triangle(a: Vec2, b: Vec2, height: f64) -> Option<Polyline> {
+    let mid = a.lerp(b, 0.5);
+    let base = b - a;
+    let len = base.length();
+    if len < 1e-12 {
+        return None;
+    }
+    let nrm = base.perp() / len;
+    let apex = mid + nrm * height;
+    Some(Polyline {
+        vertices: vec![a, b, apex],
+        closed: true,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -297,5 +436,31 @@ mod tests {
         let b = Line::new(Vec2::new(0.0, 0.0), Vec2::new(0.0, 10.0));
         let (_ta, _tb, ch) = chamfer_lines(a, b, 1.0, 1.0, Tolerance::DEFAULT).unwrap();
         assert!((ch.length() - std::f64::consts::SQRT_2).abs() < 1e-3);
+    }
+
+    #[test]
+    fn star_has_ten_vertices() {
+        let s = star_polygon(Vec2::ZERO, Vec2::new(2.0, 0.0), 5, 0.4).unwrap();
+        assert_eq!(s.vertices.len(), 10);
+        assert!(s.closed);
+    }
+
+    #[test]
+    fn capsule_closed() {
+        let c = capsule(Vec2::ZERO, Vec2::new(4.0, 0.0), 0.5, 8).unwrap();
+        assert!(c.closed);
+        assert!(c.vertices.len() >= 8);
+    }
+
+    #[test]
+    fn arrow_points_to_tip() {
+        let a = arrow(Vec2::ZERO, Vec2::new(10.0, 0.0), 2.0).unwrap();
+        assert!(a.vertices.iter().any(|p| p.nearly_eq(Vec2::new(10.0, 0.0), Tolerance::COARSE)));
+    }
+
+    #[test]
+    fn grid_3x2() {
+        let g = grid_lines(Vec2::ZERO, 3, 2, 1.0, 1.0);
+        assert_eq!(g.len(), 4 + 3); // 4 vertical + 3 horizontal
     }
 }
