@@ -961,6 +961,19 @@ fn geometry_value(g: &Geometry) -> serde_json::Value {
         Geometry::Insert(i) => serde_json::json!({
             "type":"insert","x":i.position.x,"y":i.position.y,"block_id":i.block_id.to_string()
         }),
+        Geometry::Leader(l) => serde_json::json!({
+            "type":"leader","vertices": l.vertices.iter().map(|v| [v.x,v.y]).collect::<Vec<_>>(),
+            "text": l.text, "text_height": l.text_height
+        }),
+        Geometry::Ray(r) => serde_json::json!({
+            "type":"ray","ox":r.origin.x,"oy":r.origin.y,"dx":r.direction.x,"dy":r.direction.y
+        }),
+        Geometry::XLine(x) => serde_json::json!({
+            "type":"xline","x":x.point.x,"y":x.point.y,"dx":x.direction.x,"dy":x.direction.y
+        }),
+        Geometry::Xref(x) => serde_json::json!({
+            "type":"xref","x":x.position.x,"y":x.position.y,"xref_id":x.xref_id.to_string()
+        }),
     }
 }
 
@@ -1089,6 +1102,33 @@ fn append_geometry_lines(g: &Geometry, out: &mut Vec<f32>) {
                 (p.y + s) as f32,
             ]);
         }
+
+        Geometry::Leader(l) => {
+            for w in l.vertices.windows(2) {
+                out.extend_from_slice(&[
+                    w[0].x as f32, w[0].y as f32, w[1].x as f32, w[1].y as f32,
+                ]);
+            }
+        }
+        Geometry::Ray(r) => {
+            let tip = r.point_at(1000.0);
+            out.extend_from_slice(&[
+                r.origin.x as f32, r.origin.y as f32, tip.x as f32, tip.y as f32,
+            ]);
+        }
+        Geometry::XLine(x) => {
+            let a = x.point - x.direction * 1000.0;
+            let b = x.point + x.direction * 1000.0;
+            out.extend_from_slice(&[a.x as f32, a.y as f32, b.x as f32, b.y as f32]);
+        }
+        Geometry::Xref(x) => {
+            let s = 0.25f64;
+            let p = x.position;
+            out.extend_from_slice(&[
+                (p.x - s) as f32, p.y as f32, (p.x + s) as f32, p.y as f32,
+            ]);
+        }
+
     }
 }
 

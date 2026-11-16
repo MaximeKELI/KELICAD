@@ -11,6 +11,9 @@ use crate::types::{Constraint, ConstraintId};
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct ConstraintSystem {
     constraints: HashMap<ConstraintId, Constraint>,
+    /// Named parameters for [`Constraint::FormulaDistance`] (e.g. `W` → 10.0).
+    #[serde(default)]
+    params: HashMap<String, f64>,
 }
 
 impl ConstraintSystem {
@@ -83,13 +86,45 @@ impl ConstraintSystem {
         ids
     }
 
+    /// Set / overwrite a named parameter.
+    pub fn set_param(&mut self, name: impl Into<String>, value: f64) -> Result<(), ConstraintError> {
+        if !value.is_finite() {
+            return Err(ConstraintError::Invalid("param must be finite".into()));
+        }
+        self.params.insert(name.into(), value);
+        Ok(())
+    }
+
+    /// Read a parameter.
+    pub fn get_param(&self, name: &str) -> Option<f64> {
+        self.params.get(name).copied()
+    }
+
+    /// All parameters.
+    pub fn params(&self) -> &HashMap<String, f64> {
+        &self.params
+    }
+
     fn validate(&self, c: &Constraint) -> Result<(), ConstraintError> {
-        if let Constraint::Distance { value, .. } = c {
-            if !value.is_finite() || *value <= 0.0 {
-                return Err(ConstraintError::Invalid(
-                    "distance value must be finite and > 0".into(),
-                ));
+        match c {
+            Constraint::Distance { value, .. } => {
+                if !value.is_finite() || *value <= 0.0 {
+                    return Err(ConstraintError::Invalid(
+                        "distance value must be finite and > 0".into(),
+                    ));
+                }
             }
+            Constraint::Angle { degrees, .. } => {
+                if !degrees.is_finite() {
+                    return Err(ConstraintError::Invalid("angle must be finite".into()));
+                }
+            }
+            Constraint::FormulaDistance { formula, .. } => {
+                if formula.trim().is_empty() {
+                    return Err(ConstraintError::Invalid("empty formula".into()));
+                }
+            }
+            _ => {}
         }
         Ok(())
     }

@@ -60,8 +60,9 @@ pub fn solve(system: &ConstraintSystem, doc: &Document) -> Result<SolveResult, C
     }
 
     let constraints: Vec<_> = system.constraints().into_iter().map(|(_, c)| c).collect();
+    let params = system.params().clone();
     let tol = Tolerance::COARSE;
-    let initial_residual = max_residual(&constraints, &lines);
+    let initial_residual = max_residual(&constraints, &lines, &params);
 
     // Detect hard inconsistency: two Distance on same entity with different values.
     if conflicting_distances(&constraints, tol) {
@@ -82,13 +83,13 @@ pub fn solve(system: &ConstraintSystem, doc: &Document) -> Result<SolveResult, C
 
     let mut residual;
     for _ in 0..MAX_ITERS {
-        residual = max_residual(&constraints, &lines);
+        residual = max_residual(&constraints, &lines, &params);
         if residual < tol.abs {
             break;
         }
         let mut deltas: HashMap<EntityId, (Vec2, Vec2)> = HashMap::new();
         for c in &constraints {
-            apply_projection(c, &lines, &mut deltas, DAMP);
+            apply_projection(c, &lines, &mut deltas, DAMP, &params);
         }
         if deltas.is_empty() {
             break;
@@ -108,7 +109,7 @@ pub fn solve(system: &ConstraintSystem, doc: &Document) -> Result<SolveResult, C
         }
     }
 
-    residual = max_residual(&constraints, &lines);
+    residual = max_residual(&constraints, &lines, &params);
     if residual > tol.abs * 50.0 {
         return Ok(SolveResult {
             status: SolveStatus::Inconsistent,
@@ -212,8 +213,10 @@ fn dof_hint(constraints: &[Constraint], n_lines: usize) -> i32 {
             | Constraint::Vertical { .. }
             | Constraint::Parallel { .. }
             | Constraint::Perpendicular { .. }
-            | Constraint::EqualLength { .. }
-            | Constraint::Distance { .. } => 1,
+            |             Constraint::EqualLength { .. }
+            | Constraint::Distance { .. }
+            | Constraint::Angle { .. }
+            | Constraint::FormulaDistance { .. } => 1,
         };
     }
     vars - eqs
@@ -226,17 +229,25 @@ fn endpoint(line: Line, end: Endpoint) -> Vec2 {
     }
 }
 
-fn max_residual(constraints: &[Constraint], lines: &HashMap<EntityId, Line>) -> f64 {
+fn max_residual(
+    constraints: &[Constraint],
+    lines: &HashMap<EntityId, Line>,
+    params: &HashMap<String, f64>,
+) -> f64 {
     let mut m = 0.0f64;
     for c in constraints {
-        for r in residuals(c, lines) {
+        for r in residuals(c, lines, params) {
             m = m.max(r.abs());
         }
     }
     m
 }
 
-fn residuals(c: &Constraint, lines: &HashMap<EntityId, Line>) -> Vec<f64> {
+fn residuals(
+    c: &Constraint,
+    lines: &HashMap<EntityId, Line>,
+    params: &HashMap<String, f64>,
+) -> Vec<f64> {
     match c {
         Constraint::Coincident { a, a_end, b, b_end } => {
             let pa = endpoint(*lines.get(a).expect("line"), *a_end);
@@ -274,6 +285,24 @@ fn residuals(c: &Constraint, lines: &HashMap<EntityId, Line>) -> Vec<f64> {
             let l = lines.get(entity).expect("line");
             vec![l.length() - value]
         }
+        Constraint::Angle { entity, degrees } => {
+            let l = lines.get(entity).expect("line");
+            let cur = l.delta().angle().to_degrees();
+            // Wrap residual to (−180, 180]
+            let mut d = cur - degrees;
+            while d > 180.0 {
+                d -= 360.0;
+            }
+            while d <= -180.0 {
+                d += 360.0;
+            }
+            vec![d]
+        }
+        Constraint::FormulaDistance { entity, formula } => {
+            let l = lines.get(entity).expect("line");
+            let target = crate::expr::eval_formula(formula, params).unwrap_or(l.length());
+            vec![l.length() - target]
+        }
     }
 }
 
@@ -282,6 +311,7 @@ fn apply_projection(
     lines: &HashMap<EntityId, Line>,
     deltas: &mut HashMap<EntityId, (Vec2, Vec2)>,
     damp: f64,
+    params: &HashMap<String, f64>,
 ) {
     match c {
         Constraint::Coincident { a, a_end, b, b_end } => {
@@ -366,6 +396,29 @@ fn apply_projection(
         Constraint::Distance { entity, value } => {
             let l = *lines.get(entity).expect("line");
             scale_line_to(deltas, *entity, l, *value, damp);
+        }
+        Constraint::Angle { entity, degrees } => {
+            let l = *lines.get(entity).expect("line");
+            let len = l.length();
+            if len < 1e-12 {
+                return;
+            }
+            let target = degrees.to_radians();
+            let dir = Vec2::new(target.cos(), target.sin());
+            let mid = l.point_at(0.5);
+            let half = len * 0.5;
+            let ns = mid - dir * half;
+            let ne = mid + dir * half;
+            add_endpoint_delta(deltas, *entity, Endpoint::Start, (ns - l.start) * damp);
+            add_endpoint_delta(deltas, *entity, Endpoint::End, (ne - l.end) * damp);
+        }
+        Constraint::FormulaDistance { entity, formula } => {
+            let l = *lines.get(entity).expect("line");
+            if let Ok(target) = crate::expr::eval_formula(formula, params) {
+                if target > 0.0 {
+                    scale_line_to(deltas, *entity, l, target, damp);
+                }
+            }
         }
     }
 }

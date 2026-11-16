@@ -199,6 +199,10 @@ fn kind_str(kind: kelicad_doc::EntityKind) -> &'static str {
         kelicad_doc::EntityKind::Dimension => "dimension",
         kelicad_doc::EntityKind::Hatch => "hatch",
         kelicad_doc::EntityKind::Insert => "insert",
+        kelicad_doc::EntityKind::Leader => "leader",
+        kelicad_doc::EntityKind::Ray => "ray",
+        kelicad_doc::EntityKind::XLine => "xline",
+        kelicad_doc::EntityKind::Xref => "xref",
     }
 }
 

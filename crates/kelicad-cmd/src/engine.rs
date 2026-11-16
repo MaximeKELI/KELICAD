@@ -2868,4 +2868,93 @@ mod tests {
         eng.handle(CommandEvent::Start(CommandId::Undo));
         assert_eq!(eng.session.document.entity_count(), 1);
     }
+
+    #[test]
+    fn array_rect_copies() {
+        let mut eng = engine();
+        eng.handle(CommandEvent::Start(CommandId::Line));
+        eng.handle(CommandEvent::Pick(Vec2::ZERO));
+        eng.handle(CommandEvent::Pick(Vec2::X));
+        eng.handle(CommandEvent::Enter);
+        let id = eng.session.document.entities().next().unwrap().id;
+        eng.selection.set_single(id);
+        eng.handle(CommandEvent::Start(CommandId::ArrayRect));
+        eng.handle(CommandEvent::Text("2".into()));
+        eng.handle(CommandEvent::Text("2".into()));
+        eng.handle(CommandEvent::Text("5".into()));
+        eng.handle(CommandEvent::Text("5".into()));
+        // original + 3 copies
+        assert_eq!(eng.session.document.entity_count(), 4);
+    }
+
+    #[test]
+    fn break_line_mid() {
+        let mut eng = engine();
+        eng.handle(CommandEvent::Start(CommandId::Line));
+        eng.handle(CommandEvent::Pick(Vec2::ZERO));
+        eng.handle(CommandEvent::Pick(Vec2::new(10.0, 0.0)));
+        eng.handle(CommandEvent::Enter);
+        eng.handle(CommandEvent::Start(CommandId::Break));
+        eng.handle(CommandEvent::Pick(Vec2::new(5.0, 0.0)));
+        assert_eq!(eng.session.document.entity_count(), 2);
+    }
+
+    #[test]
+    fn join_collinear_lines() {
+        let mut eng = engine();
+        eng.handle(CommandEvent::Start(CommandId::Line));
+        eng.handle(CommandEvent::Pick(Vec2::ZERO));
+        eng.handle(CommandEvent::Pick(Vec2::new(5.0, 0.0)));
+        eng.handle(CommandEvent::Enter);
+        eng.handle(CommandEvent::Start(CommandId::Line));
+        eng.handle(CommandEvent::Pick(Vec2::new(5.0, 0.0)));
+        eng.handle(CommandEvent::Pick(Vec2::new(10.0, 0.0)));
+        eng.handle(CommandEvent::Enter);
+        let ids: Vec<_> = eng.session.document.entities().map(|e| e.id).collect();
+        eng.selection.clear();
+        for id in ids {
+            eng.selection.add(id);
+        }
+        eng.handle(CommandEvent::Start(CommandId::Join));
+        assert_eq!(eng.session.document.entity_count(), 1);
+    }
+
+    #[test]
+    fn explode_polyline() {
+        let mut eng = engine();
+        eng.handle(CommandEvent::Start(CommandId::Rectang));
+        eng.handle(CommandEvent::Pick(Vec2::ZERO));
+        eng.handle(CommandEvent::Pick(Vec2::new(2.0, 2.0)));
+        let id = eng.session.document.entities().next().unwrap().id;
+        eng.selection.set_single(id);
+        eng.handle(CommandEvent::Start(CommandId::Explode));
+        assert_eq!(eng.session.document.entity_count(), 4);
+    }
+
+    #[test]
+    fn dim_aligned_and_leader() {
+        let mut eng = engine();
+        eng.handle(CommandEvent::Start(CommandId::DimAligned));
+        eng.handle(CommandEvent::Pick(Vec2::ZERO));
+        eng.handle(CommandEvent::Pick(Vec2::new(10.0, 0.0)));
+        eng.handle(CommandEvent::Pick(Vec2::new(5.0, 2.0)));
+        assert_eq!(eng.session.document.entity_count(), 1);
+        eng.handle(CommandEvent::Start(CommandId::Leader));
+        eng.handle(CommandEvent::Pick(Vec2::new(1.0, 1.0)));
+        eng.handle(CommandEvent::Pick(Vec2::new(3.0, 3.0)));
+        eng.handle(CommandEvent::Enter);
+        assert_eq!(eng.session.document.entity_count(), 2);
+    }
+
+    #[test]
+    fn ray_and_xline() {
+        let mut eng = engine();
+        eng.handle(CommandEvent::Start(CommandId::Ray));
+        eng.handle(CommandEvent::Pick(Vec2::ZERO));
+        eng.handle(CommandEvent::Pick(Vec2::X));
+        eng.handle(CommandEvent::Start(CommandId::Xline));
+        eng.handle(CommandEvent::Pick(Vec2::ZERO));
+        eng.handle(CommandEvent::Pick(Vec2::Y));
+        assert_eq!(eng.session.document.entity_count(), 2);
+    }
 }

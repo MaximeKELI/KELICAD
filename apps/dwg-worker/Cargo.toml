@@ -1,0 +1,14 @@
+[package]
+name = "kelicad-dwg-worker"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "ODA-ready DWG↔DXF worker (proxy fallback without ODA)"
+publish = false
+
+[[bin]]
+name = "kelicad-dwg-worker"
+path = "src/main.rs"
+
+[dependencies]
+kelicad-dwg = { path = "../../crates/kelicad-dwg" }

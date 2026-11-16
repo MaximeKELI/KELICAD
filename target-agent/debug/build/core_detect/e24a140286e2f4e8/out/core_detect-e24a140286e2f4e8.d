@@ -1,0 +1,11 @@
+/home/admin20/KELICAD/target-agent/debug/build/core_detect/e24a140286e2f4e8/out/core_detect-e24a140286e2f4e8.d: /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/lib.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/macros.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/arch/x86.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/os/x86.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/cache.rs
+
+/home/admin20/KELICAD/target-agent/debug/build/core_detect/e24a140286e2f4e8/out/libcore_detect-e24a140286e2f4e8.rlib: /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/lib.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/macros.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/arch/x86.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/os/x86.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/cache.rs
+
+/home/admin20/KELICAD/target-agent/debug/build/core_detect/e24a140286e2f4e8/out/libcore_detect-e24a140286e2f4e8.rmeta: /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/lib.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/macros.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/arch/x86.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/os/x86.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/cache.rs
+
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/lib.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/macros.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/arch/x86.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/os/x86.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/core_detect-1.0.0/src/cache.rs:

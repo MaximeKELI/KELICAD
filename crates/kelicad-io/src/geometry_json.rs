@@ -2,8 +2,8 @@
 
 use kelicad_doc::{BlockId, EntityId};
 use kelicad_doc::{
-    DimKind, DimensionGeom, Geometry, HatchGeom, HatchPattern, InsertGeom, MTextGeom, TextAlign,
-    TextGeom,
+    DimKind, DimensionGeom, Geometry, HatchGeom, HatchPattern, InsertGeom, LeaderGeom, MTextGeom,
+    RayGeom, TextAlign, TextGeom, XLineGeom, XrefId, XrefInsertGeom,
 };
 use kelicad_geom::{Arc, Circle, Ellipse, Line, Polyline, Spline};
 use kelicad_math::Vec2;
@@ -97,6 +97,33 @@ enum GeomDto {
         sx: f64,
         sy: f64,
         rotation: f64,
+    },
+    Leader {
+        vertices: Vec<[f64; 2]>,
+        text: String,
+        text_height: f64,
+        has_arrow: bool,
+    },
+    Ray {
+        ox: f64,
+        oy: f64,
+        dx: f64,
+        dy: f64,
+    },
+    Xline {
+        x: f64,
+        y: f64,
+        dx: f64,
+        dy: f64,
+    },
+    Xref {
+        xref_id: String,
+        x: f64,
+        y: f64,
+        sx: f64,
+        sy: f64,
+        rotation: f64,
+        fade: f64,
     },
 }
 
@@ -197,6 +224,33 @@ pub fn geometry_to_json(g: &Geometry) -> Result<String, IoError> {
             sx: i.scale.x,
             sy: i.scale.y,
             rotation: i.rotation,
+        },
+        Geometry::Leader(l) => GeomDto::Leader {
+            vertices: l.vertices.iter().map(|v| [v.x, v.y]).collect(),
+            text: l.text.clone(),
+            text_height: l.text_height,
+            has_arrow: l.has_arrow,
+        },
+        Geometry::Ray(r) => GeomDto::Ray {
+            ox: r.origin.x,
+            oy: r.origin.y,
+            dx: r.direction.x,
+            dy: r.direction.y,
+        },
+        Geometry::XLine(x) => GeomDto::Xline {
+            x: x.point.x,
+            y: x.point.y,
+            dx: x.direction.x,
+            dy: x.direction.y,
+        },
+        Geometry::Xref(x) => GeomDto::Xref {
+            xref_id: x.xref_id.to_string(),
+            x: x.position.x,
+            y: x.position.y,
+            sx: x.scale.x,
+            sy: x.scale.y,
+            rotation: x.rotation,
+            fade: x.fade,
         },
     };
     Ok(serde_json::to_string(&dto)?)
@@ -364,6 +418,44 @@ pub fn geometry_from_json(s: &str) -> Result<Geometry, IoError> {
             scale: Vec2::new(sx, sy),
             rotation,
             attribs: Default::default(),
+        }),
+        GeomDto::Leader {
+            vertices,
+            text,
+            text_height,
+            has_arrow,
+        } => Geometry::Leader(LeaderGeom {
+            vertices: vertices.iter().map(|v| Vec2::new(v[0], v[1])).collect(),
+            text,
+            text_height,
+            has_arrow,
+            style_id: None,
+        }),
+        GeomDto::Ray { ox, oy, dx, dy } => Geometry::Ray(RayGeom {
+            origin: Vec2::new(ox, oy),
+            direction: Vec2::new(dx, dy),
+        }),
+        GeomDto::Xline { x, y, dx, dy } => Geometry::XLine(XLineGeom {
+            point: Vec2::new(x, y),
+            direction: Vec2::new(dx, dy),
+        }),
+        GeomDto::Xref {
+            xref_id,
+            x,
+            y,
+            sx,
+            sy,
+            rotation,
+            fade,
+        } => Geometry::Xref(XrefInsertGeom {
+            xref_id: XrefId::from_uuid(
+                Uuid::parse_str(&xref_id).map_err(|e| IoError::Format(e.to_string()))?,
+            ),
+            position: Vec2::new(x, y),
+            scale: Vec2::new(sx, sy),
+            rotation,
+            clip: None,
+            fade,
         }),
     })
 }

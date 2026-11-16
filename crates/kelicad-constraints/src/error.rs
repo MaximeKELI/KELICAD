@@ -14,4 +14,7 @@ pub enum ConstraintError {
     /// Invalid argument.
     #[error("{0}")]
     Invalid(String),
+    /// Formula parse / eval error.
+    #[error("formula: {0}")]
+    Formula(String),
 }

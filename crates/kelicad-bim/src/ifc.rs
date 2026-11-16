@@ -85,6 +85,14 @@ pub fn import_ifc(text: &str) -> Result<(Vec<BimElement>, Vec<SolidBody>), BimEr
             Some(BimKind::Window)
         } else if upper.contains("=IFCSTAIR") {
             Some(BimKind::Stair)
+        } else if upper.contains("=IFCCOLUMN") {
+            Some(BimKind::Column)
+        } else if upper.contains("=IFCBEAM") {
+            Some(BimKind::Beam)
+        } else if upper.contains("=IFCROOF") {
+            Some(BimKind::Roof)
+        } else if upper.contains("=IFCSPACE") {
+            Some(BimKind::Space)
         } else {
             None
         };

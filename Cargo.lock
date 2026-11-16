@@ -1292,6 +1292,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "kelicad-dwg-worker"
+version = "0.1.0"
+dependencies = [
+ "kelicad-dwg",
+]
+
+[[package]]
 name = "kelicad-gateway"
 version = "0.1.0"
 dependencies = [

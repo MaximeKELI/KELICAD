@@ -34,6 +34,8 @@ pub trait SolidKernel {
     fn boolean_union(&self, a: &SolidBody, b: &SolidBody) -> Result<SolidBody, SolidError>;
     /// Difference A − B (triangle filter by B AABB; reliable for wall/opening).
     fn boolean_difference(&self, a: &SolidBody, b: &SolidBody) -> Result<SolidBody, SolidError>;
+    /// Intersection A ∩ B (keep triangles of A whose centroid is in B AABB).
+    fn boolean_intersection(&self, a: &SolidBody, b: &SolidBody) -> Result<SolidBody, SolidError>;
     /// Section plane → 2D geometries.
     fn section(&self, body: &SolidBody, plane: Plane) -> Vec<Geometry>;
     /// Cached AABB.
@@ -105,58 +107,16 @@ impl SolidKernel for BuiltinSolidKernel {
     }
 
     fn boolean_difference(&self, a: &SolidBody, b: &SolidBody) -> Result<SolidBody, SolidError> {
-        let cut = b.aabb;
-        let mut positions = Vec::new();
-        let mut indices = Vec::new();
-        let src = &a.mesh;
-        let mut i = 0;
-        while i + 2 < src.indices.len() {
-            let ia = src.indices[i] as usize;
-            let ib = src.indices[i + 1] as usize;
-            let ic = src.indices[i + 2] as usize;
-            i += 3;
-            let pa = src.positions[ia];
-            let pb = src.positions[ib];
-            let pc = src.positions[ic];
-            let centroid = Vec3::new(
-                (pa.x + pb.x + pc.x) / 3.0,
-                (pa.y + pb.y + pc.y) / 3.0,
-                (pa.z + pb.z + pc.z) / 3.0,
-            );
-            if point_in_aabb(centroid, cut) {
-                continue;
-            }
-            let base = positions.len() as u32;
-            positions.push(pa);
-            positions.push(pb);
-            positions.push(pc);
-            indices.extend_from_slice(&[base, base + 1, base + 2]);
-        }
-        if indices.is_empty() {
-            return Err(SolidError::Boolean(
-                "difference removed all triangles".into(),
-            ));
-        }
-        let mesh = Mesh { positions, indices };
-        let mut body = SolidBody::from_mesh(SolidId::new(), mesh);
-        // Tighten AABB against cutter when cutter clips the exterior.
-        if cut.overlaps_volume(a.aabb) {
-            body.aabb = shrink_aabb_against_cutter(a.aabb, cut);
-            // Keep mesh AABB intersection as well.
-            let mesh_aabb = body.mesh.aabb();
-            body.aabb = Aabb3 {
-                min: Vec3::new(
-                    body.aabb.min.x.max(mesh_aabb.min.x),
-                    body.aabb.min.y.max(mesh_aabb.min.y),
-                    body.aabb.min.z.max(mesh_aabb.min.z),
-                ),
-                max: Vec3::new(
-                    body.aabb.max.x.min(mesh_aabb.max.x),
-                    body.aabb.max.y.min(mesh_aabb.max.y),
-                    body.aabb.max.z.min(mesh_aabb.max.z),
-                ),
-            };
-        }
+        filter_triangles(a, b.aabb, false)
+    }
+
+    fn boolean_intersection(&self, a: &SolidBody, b: &SolidBody) -> Result<SolidBody, SolidError> {
+        // Intersect AABB first; empty → error.
+        let inter = aabb_intersection(a.aabb, b.aabb).ok_or_else(|| {
+            SolidError::Boolean("intersection is empty (AABBs disjoint)".into())
+        })?;
+        let mut body = filter_triangles(a, inter, true)?;
+        body.aabb = inter;
         Ok(body)
     }
 
@@ -177,6 +137,80 @@ fn point_in_aabb(p: Vec3, b: Aabb3) -> bool {
         && p.y <= b.max.y
         && p.z >= b.min.z
         && p.z <= b.max.z
+}
+
+fn aabb_intersection(a: Aabb3, b: Aabb3) -> Option<Aabb3> {
+    let min = Vec3::new(a.min.x.max(b.min.x), a.min.y.max(b.min.y), a.min.z.max(b.min.z));
+    let max = Vec3::new(a.max.x.min(b.max.x), a.max.y.min(b.max.y), a.max.z.min(b.max.z));
+    if max.x <= min.x || max.y <= min.y || max.z <= min.z {
+        None
+    } else {
+        Some(Aabb3 { min, max })
+    }
+}
+
+/// Keep (`keep_inside=true`) or discard (`false`) triangles by centroid vs `region`.
+fn filter_triangles(
+    a: &SolidBody,
+    region: Aabb3,
+    keep_inside: bool,
+) -> Result<SolidBody, SolidError> {
+    let mut positions = Vec::new();
+    let mut indices = Vec::new();
+    let src = &a.mesh;
+    let mut i = 0;
+    while i + 2 < src.indices.len() {
+        let ia = src.indices[i] as usize;
+        let ib = src.indices[i + 1] as usize;
+        let ic = src.indices[i + 2] as usize;
+        i += 3;
+        let pa = src.positions[ia];
+        let pb = src.positions[ib];
+        let pc = src.positions[ic];
+        let centroid = Vec3::new(
+            (pa.x + pb.x + pc.x) / 3.0,
+            (pa.y + pb.y + pc.y) / 3.0,
+            (pa.z + pb.z + pc.z) / 3.0,
+        );
+        // Majority-of-vertices vote for more stable CSG on thin features.
+        let votes = [pa, pb, pc]
+            .iter()
+            .filter(|p| point_in_aabb(**p, region))
+            .count();
+        let inside = votes >= 2 || (votes == 1 && point_in_aabb(centroid, region));
+        if inside != keep_inside {
+            continue;
+        }
+        let base = positions.len() as u32;
+        positions.push(pa);
+        positions.push(pb);
+        positions.push(pc);
+        indices.extend_from_slice(&[base, base + 1, base + 2]);
+    }
+    if indices.is_empty() {
+        return Err(SolidError::Boolean(
+            "boolean filter removed all triangles".into(),
+        ));
+    }
+    let mesh = Mesh { positions, indices };
+    let mut body = SolidBody::from_mesh(SolidId::new(), mesh);
+    if !keep_inside && region.overlaps_volume(a.aabb) {
+        body.aabb = shrink_aabb_against_cutter(a.aabb, region);
+        let mesh_aabb = body.mesh.aabb();
+        body.aabb = Aabb3 {
+            min: Vec3::new(
+                body.aabb.min.x.max(mesh_aabb.min.x),
+                body.aabb.min.y.max(mesh_aabb.min.y),
+                body.aabb.min.z.max(mesh_aabb.min.z),
+            ),
+            max: Vec3::new(
+                body.aabb.max.x.min(mesh_aabb.max.x),
+                body.aabb.max.y.min(mesh_aabb.max.y),
+                body.aabb.max.z.min(mesh_aabb.max.z),
+            ),
+        };
+    }
+    Ok(body)
 }
 
 /// If cutter overlaps an exterior face, pull that face inward (simple AABB CSG).

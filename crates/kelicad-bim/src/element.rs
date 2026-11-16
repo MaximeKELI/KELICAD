@@ -43,6 +43,14 @@ pub enum BimKind {
     Window,
     /// IfcStair.
     Stair,
+    /// IfcColumn.
+    Column,
+    /// IfcBeam.
+    Beam,
+    /// IfcRoof.
+    Roof,
+    /// IfcSpace.
+    Space,
 }
 
 impl BimKind {
@@ -54,6 +62,10 @@ impl BimKind {
             Self::Door => "IFCDOOR",
             Self::Window => "IFCWINDOW",
             Self::Stair => "IFCSTAIR",
+            Self::Column => "IFCCOLUMN",
+            Self::Beam => "IFCBEAM",
+            Self::Roof => "IFCROOF",
+            Self::Space => "IFCSPACE",
         }
     }
 
@@ -65,6 +77,10 @@ impl BimKind {
             "IFCDOOR" => Some(Self::Door),
             "IFCWINDOW" => Some(Self::Window),
             "IFCSTAIR" => Some(Self::Stair),
+            "IFCCOLUMN" => Some(Self::Column),
+            "IFCBEAM" => Some(Self::Beam),
+            "IFCROOF" => Some(Self::Roof),
+            "IFCSPACE" => Some(Self::Space),
             _ => None,
         }
     }

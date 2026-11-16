@@ -90,6 +90,20 @@ pub enum Constraint {
         /// Required length (must be > 0).
         value: f64,
     },
+    /// Absolute angle of a line vs +X, in degrees.
+    Angle {
+        /// Target line.
+        entity: EntityId,
+        /// Required angle degrees.
+        degrees: f64,
+    },
+    /// Distance driven by a named formula (e.g. `2*W+1`), resolved via system params.
+    FormulaDistance {
+        /// Target line.
+        entity: EntityId,
+        /// Expression over parameters (`+ - * / ( )` and names).
+        formula: String,
+    },
 }
 
 impl Constraint {
@@ -99,7 +113,9 @@ impl Constraint {
             Self::Coincident { a, b, .. } => vec![*a, *b],
             Self::Horizontal { entity }
             | Self::Vertical { entity }
-            | Self::Distance { entity, .. } => {
+            | Self::Distance { entity, .. }
+            | Self::Angle { entity, .. }
+            | Self::FormulaDistance { entity, .. } => {
                 vec![*entity]
             }
             Self::Parallel { a, b } | Self::Perpendicular { a, b } | Self::EqualLength { a, b } => {

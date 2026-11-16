@@ -20,6 +20,7 @@ members = [
     "crates/kelicad-wasm",
     "services/gateway",
     "apps/cli",
+    "apps/dwg-worker",
     "sdk/rust",
 ]
 default-members = [
