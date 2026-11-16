@@ -247,16 +247,12 @@ export const RIBBON_TABS: RibbonTab[] = [
         items: [
           { type: "tool", id: "xref", size: "lg" },
           { type: "tool", id: "pdfAttach", size: "lg" },
-          { type: "tool", id: "image", size: "md" },
         ],
       },
       {
         title: "Import",
         items: [
           { type: "tool", id: "importDxf", size: "lg" },
-          { type: "tool", id: "importDwg", size: "md" },
-          { type: "tool", id: "importSvg", size: "md" },
-          { type: "tool", id: "vectorize", size: "md" },
         ],
       },
     ],
@@ -272,7 +268,6 @@ export const RIBBON_TABS: RibbonTab[] = [
           { type: "tool", id: "mtext", size: "md" },
           { type: "tool", id: "table", size: "md" },
           { type: "tool", id: "leader", size: "md" },
-          { type: "tool", id: "textStyle", size: "sm" },
         ],
       },
       {
@@ -285,7 +280,6 @@ export const RIBBON_TABS: RibbonTab[] = [
           { type: "tool", id: "dimAngular", size: "md" },
           { type: "tool", id: "dimContinue", size: "sm" },
           { type: "tool", id: "dimBaseline", size: "sm" },
-          { type: "tool", id: "dimStyle", size: "sm" },
         ],
       },
       {
@@ -312,7 +306,6 @@ export const RIBBON_TABS: RibbonTab[] = [
           { type: "tool", id: "cPerp", size: "md" },
           { type: "tool", id: "cCoincident", size: "md" },
           { type: "tool", id: "cEqual", size: "md" },
-          { type: "tool", id: "cTangent", size: "md" },
         ],
       },
       {
@@ -336,7 +329,7 @@ export const RIBBON_TABS: RibbonTab[] = [
           { type: "layer-combo" },
           { type: "tool", id: "layerNew", size: "md" },
           { type: "tool", id: "layerSetSel", size: "md" },
-          { type: "tool", id: "layerDelete", size: "md" },
+          { type: "tool", id: "laycur", size: "md" },
         ],
       },
       {
@@ -346,16 +339,14 @@ export const RIBBON_TABS: RibbonTab[] = [
           { type: "tool", id: "layoff", size: "md" },
           { type: "tool", id: "laylck", size: "md" },
           { type: "tool", id: "layiso", size: "md" },
-          { type: "tool", id: "laylck", size: "md" },
-          { type: "tool", id: "laycur", size: "md" },
         ],
       },
       {
         title: "Propriétés",
         items: [
           { type: "tool", id: "setvar", size: "md" },
-          { type: "tool", id: "layerLtype", size: "md" },
-          { type: "tool", id: "layerWeight", size: "md" },
+          { type: "tool", id: "getvar", size: "md" },
+          { type: "tool", id: "matchprop", size: "md" },
         ],
       },
     ],
@@ -412,11 +403,11 @@ export const RIBBON_TABS: RibbonTab[] = [
         ],
       },
       {
-        title: "Bool 2D",
+        title: "Précision",
         items: [
-          { type: "tool", id: "union2d", size: "md" },
-          { type: "tool", id: "diff2d", size: "md" },
-          { type: "tool", id: "inter2d", size: "md" },
+          { type: "tool", id: "osnap", size: "lg" },
+          { type: "tool", id: "ortho", size: "md" },
+          { type: "tool", id: "ddptype", size: "md" },
         ],
       },
     ],
@@ -484,15 +475,13 @@ export const RIBBON_TABS: RibbonTab[] = [
           { type: "tool", id: "zoomExtents", size: "lg" },
           { type: "tool", id: "zoomIn", size: "md" },
           { type: "tool", id: "zoomOut", size: "md" },
-          { type: "tool", id: "pan", size: "sm" },
-          { type: "tool", id: "iso", size: "sm" },
         ],
       },
       {
-        title: "Style",
+        title: "Précision",
         items: [
-          { type: "tool", id: "wire", size: "sm" },
-          { type: "tool", id: "shade", size: "sm" },
+          { type: "tool", id: "osnap", size: "lg" },
+          { type: "tool", id: "ortho", size: "md" },
         ],
       },
       {
@@ -526,13 +515,6 @@ export const RIBBON_TABS: RibbonTab[] = [
           { type: "tool", id: "exportSched", size: "md" },
         ],
       },
-      {
-        title: "Présentation",
-        items: [
-          { type: "tool", id: "plotLayout", size: "md" },
-          { type: "tool", id: "print", size: "md" },
-        ],
-      },
     ],
   },
   {
@@ -543,14 +525,6 @@ export const RIBBON_TABS: RibbonTab[] = [
         title: "Assistants",
         items: [
           { type: "tool", id: "keli", size: "lg" },
-          { type: "tool", id: "collab", size: "md" },
-        ],
-      },
-      {
-        title: "SDK",
-        items: [
-          { type: "tool", id: "plugins", size: "md" },
-          { type: "tool", id: "macros", size: "md" },
         ],
       },
     ],

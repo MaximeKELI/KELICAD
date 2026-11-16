@@ -93,4 +93,21 @@ describe("ribbon layout", () => {
     }
     expect(broken).toEqual([]);
   });
+
+  it("dense P1 tabs exclude unavailable tools", () => {
+    const dense = new Set(["home", "layers", "geometry", "view"]);
+    const bad: string[] = [];
+    for (const tab of RIBBON_TABS) {
+      if (!dense.has(tab.id)) continue;
+      for (const panel of tab.panels) {
+        for (const id of collectIds(panel.items)) {
+          const t = getTool(id);
+          if (!t || t.status === "unavailable") {
+            bad.push(`${tab.id}:${id}`);
+          }
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
 });
