@@ -8,10 +8,12 @@ pub mod arc;
 pub mod circle;
 pub mod construct;
 pub mod ellipse;
+pub mod fillet_poly;
 pub mod intersect;
 pub mod line;
 pub mod linetype;
 pub mod modify;
+pub mod offset;
 pub mod pat;
 pub mod polyline;
 pub mod spline;
@@ -28,6 +30,13 @@ pub use construct::{
     angle_bisector, chamfer_lines, circle_from_2_points, circle_from_3_points, fillet_lines,
     regular_polygon_center_vertex, regular_polygon_side, tangents_circle_circle,
     tangents_point_circle,
+};
+pub use fillet_poly::{
+    chamfer_polyline, fillet_polyline, midline, parallel_through,
+};
+pub use offset::{offset_polyline, offset_polyline_segments};
+pub use trim::{
+    extend_line_to, extend_polyline_to, trim_arc_by_line, trim_line_by_cut, trim_polyline_by_cut,
 };
 pub use ellipse::Ellipse;
 pub use intersect::{

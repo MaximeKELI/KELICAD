@@ -56,11 +56,9 @@ pub fn cone_mesh(
             base_z,
         ));
     }
-    let apex = Vec3::new(center_xy.x, center_xy.y, base_z + height);
     let apex_i = positions.len() as u32;
-    positions.push(apex);
+    positions.push(Vec3::new(center_xy.x, center_xy.y, base_z + height));
     let mut indices = Vec::new();
-    // Base (normal -Z if height > 0).
     for tri in triangulate_polygon(&positions[..segs]) {
         indices.extend_from_slice(&[tri[0], tri[2], tri[1]]);
     }
@@ -87,18 +85,19 @@ pub fn wedge_mesh(origin: Vec3, size: Vec3) -> Mesh {
     m
 }
 
-/// Sweep an XY profile along a 2D path (extruded as successive frames in XY, Z=0).
+/// Sweep a local XY profile along a 2D path.
 ///
-/// Each path vertex becomes a copy of the profile centered on that point (relative
-/// to the first path vertex). Caps are added at both ends.
-pub fn sweep_xy_along_path(profile: &[Vec2], path: &[Vec2]) -> Mesh {
+/// At each path vertex the profile is rotated so +X follows the path tangent,
+/// then extruded with a small Z thickness for a solid ribbon (2.5D).
+pub fn sweep_xy_along_path(profile: &[Vec2], path: &[Vec2], thickness: f64) -> Mesh {
     if profile.len() < 3 || path.len() < 2 {
         return Mesh::empty();
     }
     let n = profile.len();
     let m = path.len();
-    let origin = path[0];
-    // Local profile relative to centroid for cleaner sweeps.
+    let thick = thickness.abs().max(1e-4);
+
+    // Center profile on its centroid.
     let cx = profile.iter().map(|p| p.x).sum::<f64>() / n as f64;
     let cy = profile.iter().map(|p| p.y).sum::<f64>() / n as f64;
     let local: Vec<Vec2> = profile
@@ -106,133 +105,101 @@ pub fn sweep_xy_along_path(profile: &[Vec2], path: &[Vec2]) -> Mesh {
         .map(|p| Vec2::new(p.x - cx, p.y - cy))
         .collect();
 
-    let mut positions = Vec::with_capacity(n * m);
+    // For each path node: bottom ring (z=0) then top ring (z=thick).
+    let mut positions = Vec::with_capacity(n * m * 2);
     for k in 0..m {
-        let tang = if k + 1 < m {
-            path[k + 1] - path[k]
-        } else {
-            path[k] - path[k - 1]
-        };
-        let len = tang.length().max(1e-12);
-        let tx = tang.x / len;
-        let ty = tang.y / len;
-        // Rotate local XY so +X aligns with tangent.
-        for p in &local {
-            let rx = p.x * tx - p.y * ty;
-            let ry = p.x * ty + p.y * tx;
-            positions.push(Vec3::new(
-                path[k].x + rx - (origin.x - cx - path[0].x + path[0].x),
-                path[k].y + ry,
-                0.0,
-            ));
-            // Simpler placement: profile in plane perpendicular isn't full 3D;
-            // keep flat sweep in XY then extrude thin Z for volume:
-        }
-    }
-    // Rebuild properly: place profile copies in XY at each path point (2.5D ribbon),
-    // then give them a small Z thickness via dual rings.
-    positions.clear();
-    let half_h = 0.05_f64.max(
-        local
-            .iter()
-            .map(|p| p.length())
-            .fold(0.0_f64, f64::max)
-            * 0.02,
-    );
-    for k in 0..m {
-        let tang = if k + 1 < m {
-            path[k + 1] - path[k]
-        } else if k > 0 {
-            path[k] - path[k - 1]
-        } else {
-            Vec2::X
-        };
-        let len = tang.length().max(1e-12);
-        let tx = tang.x / len;
-        let ty = tang.y / len;
-        for z in [0.0_f64, half_h * 2.0] {
+        let tang = path_tangent(path, k);
+        let ang = tang.angle();
+        let (s, c) = ang.sin_cos();
+        for &z in &[0.0, thick] {
             for p in &local {
-                let rx = p.x * tx - p.y * (-ty); // rotate
-                let ry = p.x * ty + p.y * tx;
-                // Actually: rotate (p.x, p.y) by angle of tangent from +X
-                let ang = tang.angle();
-                let (s, c) = ang.sin_cos();
-                let rx = p.x * c - p.y * s;
-                let ry = p.x * s + p.y * c;
-                let _ = (tx, ty, rx, ry);
                 let rx = p.x * c - p.y * s;
                 let ry = p.x * s + p.y * c;
                 positions.push(Vec3::new(path[k].x + rx, path[k].y + ry, z));
             }
         }
     }
-    // Layout: for each path node k, bottom ring then top ring (2*n verts per node).
+
     let mut indices = Vec::new();
     let ring = n as u32;
+    let station = 2 * ring;
+
+    // Start caps
+    cap_fan(&positions[..n], 0, true, &mut indices);
+    cap_fan(&positions[n..2 * n], ring, false, &mut indices);
+
     for k in 0..m {
-        let base = (k as u32) * 2 * ring;
-        // Caps at ends
-        if k == 0 {
-            let bottom: Vec<Vec3> = positions[..n].to_vec();
-            for tri in triangulate_polygon(&bottom) {
-                indices.extend_from_slice(&[tri[0], tri[2], tri[1]]);
-            }
-            let top: Vec<Vec3> = positions[n..2 * n].to_vec();
-            for tri in triangulate_polygon(&top) {
-                indices.extend_from_slice(&[
-                    ring + tri[0],
-                    ring + tri[1],
-                    ring + tri[2],
-                ]);
-            }
-        }
-        if k + 1 < m {
-            let a = base;
-            let b = base + 2 * ring;
-            // Connect bottom rings and top rings + sides between bottom-top already in node
-            for i in 0..n {
-                let j = (i + 1) % n;
-                let i = i as u32;
-                let j = j as u32;
-                // bottom strip
-                indices.extend_from_slice(&[a + i, a + j, b + j, a + i, b + j, b + i]);
-                // top strip
-                let at = a + ring;
-                let bt = b + ring;
-                indices.extend_from_slice(&[at + i, bt + i, bt + j, at + i, bt + j, at + j]);
-            }
-        }
-        // vertical sides at this station
+        let base = (k as u32) * station;
         let bot = base;
         let top = base + ring;
+        // Vertical sides at station
         for i in 0..n {
             let j = ((i + 1) % n) as u32;
             let i = i as u32;
             indices.extend_from_slice(&[bot + i, bot + j, top + j, bot + i, top + j, top + i]);
         }
-    }
-    // End cap at last station
-    if m >= 2 {
-        let base = ((m - 1) as u32) * 2 * ring;
-        let bottom: Vec<Vec3> = positions[(m - 1) * 2 * n..(m - 1) * 2 * n + n].to_vec();
-        for tri in triangulate_polygon(&bottom) {
-            indices.extend_from_slice(&[base + tri[0], base + tri[1], base + tri[2]]);
+        if k + 1 < m {
+            let next = base + station;
+            for i in 0..n {
+                let j = ((i + 1) % n) as u32;
+                let i = i as u32;
+                // Bottom strip
+                indices.extend_from_slice(&[
+                    bot + i,
+                    bot + j,
+                    next + j,
+                    bot + i,
+                    next + j,
+                    next + i,
+                ]);
+                // Top strip
+                let t0 = top;
+                let t1 = next + ring;
+                indices.extend_from_slice(&[t0 + i, t1 + i, t1 + j, t0 + i, t1 + j, t0 + j]);
+            }
         }
-        let top_base = base + ring;
-        let top: Vec<Vec3> = positions[(m - 1) * 2 * n + n..(m - 1) * 2 * n + 2 * n].to_vec();
-        for tri in triangulate_polygon(&top) {
-            indices.extend_from_slice(&[
-                top_base + tri[0],
-                top_base + tri[2],
-                top_base + tri[1],
-            ]);
-        }
     }
-    let _ = half_h;
+
+    // End caps
+    let last = ((m - 1) as u32) * station;
+    let last_bot = (m - 1) * 2 * n;
+    cap_fan(
+        &positions[last_bot..last_bot + n],
+        last,
+        false,
+        &mut indices,
+    );
+    cap_fan(
+        &positions[last_bot + n..last_bot + 2 * n],
+        last + ring,
+        true,
+        &mut indices,
+    );
+
     Mesh { positions, indices }
 }
 
-/// Loft between two XY profiles (same vertex count preferred; resampled if not).
+fn path_tangent(path: &[Vec2], k: usize) -> Vec2 {
+    if k + 1 < path.len() {
+        path[k + 1] - path[k]
+    } else if k > 0 {
+        path[k] - path[k - 1]
+    } else {
+        Vec2::X
+    }
+}
+
+fn cap_fan(ring: &[Vec3], base: u32, flip: bool, indices: &mut Vec<u32>) {
+    for tri in triangulate_polygon(ring) {
+        if flip {
+            indices.extend_from_slice(&[base + tri[0], base + tri[2], base + tri[1]]);
+        } else {
+            indices.extend_from_slice(&[base + tri[0], base + tri[1], base + tri[2]]);
+        }
+    }
+}
+
+/// Loft between two XY profiles over `height` with `sections` intermediate steps.
 pub fn loft_xy_profiles(a: &[Vec2], b: &[Vec2], height: f64, sections: usize) -> Mesh {
     if a.len() < 3 || b.len() < 3 || height.abs() < 1e-12 {
         return Mesh::empty();
@@ -251,16 +218,9 @@ pub fn loft_xy_profiles(a: &[Vec2], b: &[Vec2], height: f64, sections: usize) ->
         }
     }
     let mut indices = Vec::new();
-    // Bottom / top caps
-    let bottom: Vec<Vec3> = positions[..n].to_vec();
-    for tri in triangulate_polygon(&bottom) {
-        indices.extend_from_slice(&[tri[0], tri[2], tri[1]]);
-    }
+    cap_fan(&positions[..n], 0, true, &mut indices);
     let top_base = (sections * n) as u32;
-    let top: Vec<Vec3> = positions[sections * n..].to_vec();
-    for tri in triangulate_polygon(&top) {
-        indices.extend_from_slice(&[top_base + tri[0], top_base + tri[1], top_base + tri[2]]);
-    }
+    cap_fan(&positions[sections * n..], top_base, false, &mut indices);
     for s in 0..sections {
         let a0 = (s * n) as u32;
         let b0 = ((s + 1) * n) as u32;
@@ -277,7 +237,6 @@ fn resample_closed(poly: &[Vec2], count: usize) -> Vec<Vec2> {
     if poly.len() == count {
         return poly.to_vec();
     }
-    // Cumulative length parameterization.
     let mut pts = poly.to_vec();
     if pts.first() != pts.last() {
         pts.push(pts[0]);
@@ -347,7 +306,7 @@ mod tests {
             Vec2::new(-0.2, 0.2),
         ];
         let path = [Vec2::ZERO, Vec2::new(5.0, 0.0), Vec2::new(5.0, 3.0)];
-        let m = sweep_xy_along_path(&profile, &path);
+        let m = sweep_xy_along_path(&profile, &path, 0.1);
         assert!(m.triangle_count() > 0);
     }
 }
