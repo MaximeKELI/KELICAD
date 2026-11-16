@@ -21,6 +21,7 @@ members = [
     "services/gateway",
     "apps/cli",
     "apps/dwg-worker",
+    "apps/desktop/src-tauri",
     "sdk/rust",
 ]
 default-members = [

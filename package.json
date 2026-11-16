@@ -6,7 +6,9 @@
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "dev": "pnpm --filter @kelicad/web dev",
+    "dev:desktop": "pnpm --filter @kelicad/desktop dev",
     "build": "pnpm --filter @kelicad/web build",
+    "build:desktop": "pnpm --filter @kelicad/desktop build",
     "test": "pnpm --filter @kelicad/web test",
     "lint": "pnpm --filter @kelicad/web lint",
     "typecheck": "pnpm --filter @kelicad/web typecheck"

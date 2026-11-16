@@ -191,6 +191,17 @@ export type CadSession = {
   bim_schedule_csv(): string;
   ifc_export(): string;
   solid_count(): number;
+  solids_meshes_json(): string;
+  solids_clear(): void;
+  solid_boolean(op: string): string;
+  solid_box(
+    x: number,
+    y: number,
+    z: number,
+    w: number,
+    d: number,
+    h: number,
+  ): string;
 };
 
 export function parseCadOutput(raw: string): CadOutput {

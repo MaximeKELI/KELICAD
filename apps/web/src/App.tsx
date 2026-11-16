@@ -2,6 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { CollabClient, type CollabStatus, type PeerPresence } from "./cad/collab";
 import {
+  desktopAvailable,
+  desktopOpenKelicad,
+  desktopPing,
+  desktopSaveKelicad,
+} from "./cad/desktopBridge";
+import {
   downloadBytes,
   kelicadBytesToSnapshotJson,
   snapshotToKelicadBytes,
@@ -25,6 +31,7 @@ import { PropertiesPanel } from "./components/PropertiesPanel";
 import { SelectionPanel } from "./components/SelectionPanel";
 import { ShapePalette } from "./components/ShapePalette";
 import { StatusBar } from "./components/StatusBar";
+import { Viewport3D } from "./components/Viewport3D";
 
 const QUICK = [
   "M",
@@ -56,7 +63,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [echoes, setEchoes] = useState<string[]>([
-    "KELICAD P1+ — blocs rendus · fenêtre/crossing · grips · gabarits A0–A4/arch · DIMCONTINUE · props.",
+    "KELICAD P2 — viewport 3D WebGPU · solids · booléens · vues ISO · shell Tauri.",
   ]);
   const [revision, setRevision] = useState(0);
   const [entityCount, setEntityCount] = useState(0);
@@ -65,10 +72,12 @@ export function App() {
   const [displayName, setDisplayName] = useState("Alice");
   const [peers, setPeers] = useState<PeerPresence[]>([]);
   const [peerTick, setPeerTick] = useState(0);
+  const [viewMode, setViewMode] = useState<"2d" | "split" | "3d">("split");
+  const [solidCount, setSolidCount] = useState(0);
 
   useEffect(() => {
     void loadCad()
-      .then((session) => {
+      .then(async (session) => {
         const auto = loadAutosave();
         if (auto) {
           try {
@@ -80,6 +89,18 @@ export function App() {
         }
         setCad(session);
         setEntityCount(session.entity_count());
+        setSolidCount(session.solid_count());
+        if (desktopAvailable()) {
+          try {
+            const ping = await desktopPing();
+            setEchoes((prev) => [
+              ...prev,
+              `Shell Tauri: ${ping ?? "ok"}`,
+            ]);
+          } catch {
+            setEchoes((prev) => [...prev, "Shell Tauri détecté."]);
+          }
+        }
       })
       .catch((e: unknown) => setError(String(e)));
   }, []);
@@ -136,6 +157,11 @@ export function App() {
         collab?.flush();
       }
       setEntityCount(session.entity_count());
+      try {
+        setSolidCount(session.solid_count());
+      } catch {
+        setSolidCount(0);
+      }
     },
     [collab],
   );
@@ -165,6 +191,22 @@ export function App() {
     if (!cad) return;
     try {
       const snap = cad.export_snapshot_json();
+      if (desktopAvailable()) {
+        const native = await desktopSaveKelicad(
+          snap,
+          projectName || "dessin.kelicad",
+        );
+        if (native) {
+          setProjectName(native.path.split(/[/\\]/).pop() || projectName);
+          pushRecent(native.path, snap);
+          saveAutosave(snap);
+          setEchoes((prev) => [
+            ...prev,
+            `Enregistré (natif) ${native.path} · ${native.entities} ent. · ${native.blocks} blocs`,
+          ]);
+          return;
+        }
+      }
       const bytes = await snapshotToKelicadBytes(snap);
       downloadBytes(projectName || "dessin.kelicad", bytes);
       pushRecent(projectName || "dessin.kelicad", snap);
@@ -193,6 +235,26 @@ export function App() {
 
   const openKelicad = useCallback(async () => {
     if (!cad) return;
+    if (desktopAvailable()) {
+      try {
+        const native = await desktopOpenKelicad();
+        if (native) {
+          cad.import_snapshot_json(native.snapshot_json);
+          setProjectName(native.path.split(/[/\\]/).pop() || native.path);
+          setRevision((n) => n + 1);
+          setEntityCount(cad.entity_count());
+          setSolidCount(cad.solid_count());
+          pushRecent(native.path, native.snapshot_json);
+          setEchoes((prev) => [
+            ...prev,
+            `Ouvert (natif) ${native.path} · ${native.entities} ent. · ${native.blocks} blocs`,
+          ]);
+          return;
+        }
+      } catch (e) {
+        setEchoes((prev) => [...prev, `Ouverture native: ${String(e)}`]);
+      }
+    }
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".kelicad,application/octet-stream";
@@ -493,6 +555,7 @@ export function App() {
                 const n = cad.view_derive_apply("plan");
                 setRevision((r) => r + 1);
                 setEntityCount(cad.entity_count());
+                setSolidCount(cad.solid_count());
                 setEchoes((prev) => [
                   ...prev,
                   `EXTRUDE: ${summary}`,
@@ -505,6 +568,97 @@ export function App() {
           >
             EXTRUDE
           </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={() => {
+              try {
+                const s = cad.solid_box(0, 0, 0, 4, 3, 2.5);
+                setRevision((r) => r + 1);
+                setSolidCount(cad.solid_count());
+                setEchoes((prev) => [...prev, `BOX: ${s}`]);
+                setViewMode((m) => (m === "2d" ? "split" : m));
+              } catch (e) {
+                setEchoes((prev) => [...prev, `BOX: ${String(e)}`]);
+              }
+            }}
+          >
+            BOX3D
+          </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={() => {
+              try {
+                const s = cad.solid_cylinder(2, 2, 1.2, 3);
+                setRevision((r) => r + 1);
+                setSolidCount(cad.solid_count());
+                setEchoes((prev) => [...prev, `CYL: ${s}`]);
+              } catch (e) {
+                setEchoes((prev) => [...prev, `CYL: ${String(e)}`]);
+              }
+            }}
+          >
+            CYL
+          </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={() => {
+              try {
+                const s = cad.solid_boolean("difference");
+                setRevision((r) => r + 1);
+                setSolidCount(cad.solid_count());
+                setEchoes((prev) => [...prev, `BOOL−: ${s}`]);
+              } catch (e) {
+                setEchoes((prev) => [...prev, `BOOL: ${String(e)}`]);
+              }
+            }}
+          >
+            BOOL−
+          </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={() => {
+              try {
+                const s = cad.solid_boolean("union");
+                setRevision((r) => r + 1);
+                setSolidCount(cad.solid_count());
+                setEchoes((prev) => [...prev, `BOOL+: ${s}`]);
+              } catch (e) {
+                setEchoes((prev) => [...prev, `BOOL: ${String(e)}`]);
+              }
+            }}
+          >
+            BOOL+
+          </button>
+          <button
+            type="button"
+            className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
+            onClick={() => {
+              cad.solids_clear();
+              setRevision((r) => r + 1);
+              setSolidCount(0);
+              setEchoes((prev) => [...prev, "Solids cleared"]);
+            }}
+          >
+            CLR3D
+          </button>
+          {(["2d", "split", "3d"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              className={`rounded border px-2 py-1 font-mono text-xs uppercase ${
+                viewMode === m
+                  ? "border-accent-soft text-accent-soft"
+                  : "border-ink-700 hover:border-accent-soft"
+              }`}
+              onClick={() => setViewMode(m)}
+            >
+              {m}
+            </button>
+          ))}
           <button
             type="button"
             className="rounded border border-ink-700 px-2 py-1 font-mono text-xs hover:border-accent-soft"
@@ -534,6 +688,8 @@ export function App() {
         </div>
         <div className="font-mono text-xs text-ink-500">
           Entités <span className="text-ink-100">{entityCount}</span>
+          {" · "}
+          Solids <span className="text-ink-100">{solidCount}</span>
         </div>
       </header>
       <CollabBar
@@ -581,19 +737,44 @@ export function App() {
             onEcho={(lines) => setEchoes((prev) => [...prev, ...lines].slice(-40))}
           />
         </aside>
-        <main className="min-h-0 min-w-0 flex-1">
-          <DrawingViewport
-            cad={cad}
-            onOutput={onOutput}
-            revision={revision}
-            peers={peers}
-            peerTick={peerTick}
-            onHoverWorld={(x, y) => {
-              if (collabStatus === "online") {
-                collab.sendPresence(x, y);
-              }
-            }}
-          />
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
+          {viewMode !== "3d" && (
+            <div
+              className={`min-h-0 min-w-0 ${
+                viewMode === "split" ? "h-1/2 md:h-full md:w-1/2" : "h-full w-full"
+              }`}
+            >
+              <DrawingViewport
+                cad={cad}
+                onOutput={onOutput}
+                revision={revision}
+                peers={peers}
+                peerTick={peerTick}
+                onHoverWorld={(x, y) => {
+                  if (collabStatus === "online") {
+                    collab.sendPresence(x, y);
+                  }
+                }}
+              />
+            </div>
+          )}
+          {viewMode !== "2d" && (
+            <div
+              className={`min-h-0 min-w-0 border-ink-700/60 ${
+                viewMode === "split"
+                  ? "h-1/2 border-t md:h-full md:w-1/2 md:border-l md:border-t-0"
+                  : "h-full w-full"
+              }`}
+            >
+              <Viewport3D
+                cad={cad}
+                revision={revision}
+                onEcho={(lines) =>
+                  setEchoes((prev) => [...prev, ...lines].slice(-40))
+                }
+              />
+            </div>
+          )}
         </main>
         <PropertiesPanel
           cad={cad}
