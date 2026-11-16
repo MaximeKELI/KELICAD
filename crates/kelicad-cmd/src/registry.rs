@@ -258,7 +258,7 @@ impl CommandId {
     }
 }
 
-const ALL_COMMANDS: [CommandId; 55] = [
+const ALL_COMMANDS: [CommandId; 58] = [
     CommandId::Line,
     CommandId::Pline,
     CommandId::Circle,
