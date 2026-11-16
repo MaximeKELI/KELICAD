@@ -16,7 +16,10 @@ mod views;
 mod rigorous;
 
 pub use aabb3::Aabb3;
-pub use advanced::{cone_mesh, loft_xy_profiles, sphere_mesh, sweep_xy_along_path, wedge_mesh};
+pub use advanced::{
+    cone_mesh, loft_xy_profiles, prism_mesh, pyramid_mesh, sphere_mesh, sweep_xy_along_path,
+    torus_mesh, wedge_mesh,
+};
 pub use error::SolidError;
 pub use kernel::{BuiltinSolidKernel, SolidKernel};
 pub use mesh::Mesh;

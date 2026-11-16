@@ -4,7 +4,10 @@ use kelicad_doc::Geometry;
 use kelicad_math::{Vec2, Vec3};
 
 use crate::aabb3::Aabb3;
-use crate::advanced::{cone_mesh, loft_xy_profiles, sphere_mesh, sweep_xy_along_path, wedge_mesh};
+use crate::advanced::{
+    cone_mesh, loft_xy_profiles, prism_mesh, pyramid_mesh, sphere_mesh, sweep_xy_along_path,
+    torus_mesh, wedge_mesh,
+};
 use crate::error::SolidError;
 use crate::mesh::{box_mesh, cylinder_mesh, extrude_xy_profile, revolve_xy_profile, Mesh};
 use crate::section::{section_segments, segments_to_geometries};
@@ -63,6 +66,40 @@ pub trait SolidKernel {
         b: &Profile2,
         height: f64,
         sections: usize,
+    ) -> Result<SolidBody, SolidError>;
+    /// Torus (major / minor radii).
+    fn torus(
+        &self,
+        center: Vec3,
+        major: f64,
+        minor: f64,
+        major_segs: usize,
+        minor_segs: usize,
+    ) -> Result<SolidBody, SolidError>;
+    /// Regular n-gon pyramid.
+    fn pyramid(
+        &self,
+        center_xy: Vec2,
+        radius: f64,
+        height: f64,
+        sides: usize,
+    ) -> Result<SolidBody, SolidError>;
+    /// Regular n-gon prism extruded along +Z.
+    fn prism(
+        &self,
+        center_xy: Vec2,
+        radius: f64,
+        height: f64,
+        sides: usize,
+    ) -> Result<SolidBody, SolidError>;
+    /// Hollow pipe = outer cylinder − inner cylinder (AABB CSG).
+    fn pipe(
+        &self,
+        center_xy: Vec2,
+        outer_radius: f64,
+        inner_radius: f64,
+        height: f64,
+        segments: usize,
     ) -> Result<SolidBody, SolidError>;
     /// Mesh union (append + union AABB).
     fn boolean_union(&self, a: &SolidBody, b: &SolidBody) -> Result<SolidBody, SolidError>;

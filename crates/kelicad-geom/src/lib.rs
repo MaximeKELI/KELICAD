@@ -27,9 +27,9 @@ pub use aabb::Aabb;
 pub use arc::Arc;
 pub use circle::Circle;
 pub use construct::{
-    angle_bisector, chamfer_lines, circle_from_2_points, circle_from_3_points, fillet_lines,
-    regular_polygon_center_vertex, regular_polygon_side, tangents_circle_circle,
-    tangents_point_circle,
+    angle_bisector, arrow, capsule, chamfer_lines, circle_from_2_points, circle_from_3_points,
+    fillet_lines, grid_lines, isosceles_triangle, regular_polygon_center_vertex,
+    regular_polygon_side, star_polygon, tangents_circle_circle, tangents_point_circle,
 };
 pub use fillet_poly::{
     chamfer_polyline, fillet_polyline, midline, parallel_through,
