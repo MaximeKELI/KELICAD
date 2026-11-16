@@ -775,7 +775,7 @@ export function App() {
                   setEchoes((p) => [...p, ...lines].slice(-40))
                 }
               />
-              <div className="cad-viewcube">
+              <div className="cad-viewmode-switch">
                 <button type="button" onClick={() => setViewMode("3d")}>
                   ISO
                 </button>

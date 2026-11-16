@@ -146,12 +146,20 @@ body {
   gap: 0;
   padding: 1px 0 0;
   height: 92px;
-  /* overflow-y:hidden clipped flyout menus — allow visible dropdowns */
+  /* Scroll horizontal sans barre blanche visible */
   overflow-x: auto;
   overflow-y: visible;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge legacy */
   background: #2b2b2b;
   position: relative;
   z-index: 5;
+}
+
+.cad-ribbon-body::-webkit-scrollbar {
+  height: 0;
+  width: 0;
+  display: none;
 }
 
 .cad-panel {
@@ -1116,91 +1124,153 @@ body {
   border-color: #3a5a7a !important;
 }
 
-/* AutoCAD-like ViewCube / orientation compass */
-.cad-viewcube {
+/* Cercle d'orientation (style ViewCube AutoCAD) */
+.cad-orient {
   position: absolute;
   top: 10px;
   right: 48px;
   z-index: 16;
-  width: 86px;
-  height: 86px;
+  width: 96px;
+  height: 96px;
   pointer-events: auto;
 }
 
-.cad-viewcube .cad-vc-core,
-.cad-viewcube .cad-vc-face,
-.cad-viewcube .cad-vc-scg {
+.cad-orient-ring {
   position: absolute;
-  border: 1px solid #5a5a5a;
-  background: rgba(28, 28, 28, 0.92);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.cad-orient-outer {
+  fill: rgba(22, 22, 22, 0.78);
+  stroke: #6a6a6a;
+  stroke-width: 1.5;
+}
+
+.cad-orient-inner {
+  fill: rgba(36, 36, 36, 0.92);
+  stroke: #555;
+  stroke-width: 1;
+}
+
+.cad-orient button {
+  position: absolute;
+  border: none;
+  background: transparent;
   color: #ddd;
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 9px;
   cursor: pointer;
   padding: 0;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.cad-viewcube .cad-vc-core {
-  left: 22px;
-  top: 22px;
-  width: 42px;
-  height: 42px;
-  border-radius: 4px;
+.cad-orient-n {
+  left: 50%;
+  top: 4px;
+  width: 28px;
+  height: 18px;
+  transform: translateX(-50%);
+}
+
+.cad-orient-s {
+  left: 50%;
+  bottom: 4px;
+  width: 28px;
+  height: 18px;
+  transform: translateX(-50%);
+}
+
+.cad-orient-o {
+  left: 4px;
+  top: 50%;
+  width: 18px;
+  height: 28px;
+  transform: translateY(-50%);
+}
+
+.cad-orient-e {
+  right: 4px;
+  top: 50%;
+  width: 18px;
+  height: 28px;
+  transform: translateY(-50%);
+}
+
+.cad-orient-core {
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  border-radius: 50% !important;
+  transform: translate(-50%, -50%);
+  background: rgba(40, 48, 58, 0.95) !important;
+  border: 1px solid #5a6a7a !important;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  font-size: 10px !important;
 }
 
-.cad-viewcube .cad-vc-n {
-  left: 28px;
-  top: 0;
-  width: 30px;
-  height: 20px;
-  border-radius: 3px 3px 0 0;
-}
-
-.cad-viewcube .cad-vc-s {
-  left: 28px;
-  bottom: 14px;
-  width: 30px;
-  height: 20px;
-  border-radius: 0 0 3px 3px;
-}
-
-.cad-viewcube .cad-vc-o {
-  left: 0;
-  top: 28px;
-  width: 20px;
-  height: 30px;
-  border-radius: 3px 0 0 3px;
-}
-
-.cad-viewcube .cad-vc-e {
-  right: 0;
-  top: 28px;
-  width: 20px;
-  height: 30px;
-  border-radius: 0 3px 3px 0;
-}
-
-.cad-viewcube .cad-vc-scg {
-  left: 18px;
-  bottom: 0;
-  width: 50px;
+.cad-orient-scg {
+  left: 50%;
+  bottom: -2px;
+  width: 36px;
   height: 14px;
-  border-radius: 8px;
-  font-size: 8px;
+  transform: translateX(-50%);
+  border-radius: 7px !important;
+  background: rgba(28, 28, 28, 0.9) !important;
+  border: 1px solid #4a4a4a !important;
+  font-size: 8px !important;
   color: #bbb;
 }
 
-.cad-viewcube button:hover {
+.cad-orient button:hover {
+  color: #fff;
+}
+
+.cad-orient-core:hover {
+  border-color: #8ab4e8 !important;
+  background: rgba(50, 65, 85, 0.98) !important;
+}
+
+/* UCS fixe — coin bas-gauche du viewport (ne suit pas le zoom) */
+.cad-ucs {
+  left: 10px;
+  bottom: 10px;
+  overflow: visible;
+}
+
+/* Sélecteur de mode 2D/3D (viewport 3D) */
+.cad-viewmode-switch {
+  position: absolute;
+  top: 10px;
+  right: 48px;
+  z-index: 16;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cad-viewmode-switch button {
+  border: 1px solid #5a5a5a;
+  background: rgba(28, 28, 28, 0.92);
+  color: #ddd;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 9px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 3px;
+}
+
+.cad-viewmode-switch button:hover {
   border-color: #8ab4e8;
   color: #fff;
   background: rgba(40, 55, 75, 0.95);
-}
-
-.cad-ucs {
-  transform: translate(-1px, -1px);
 }
 
 .cad-navrail {

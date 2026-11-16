@@ -375,6 +375,7 @@ export function DrawingViewport({
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
+      if (wheelRaf) cancelAnimationFrame(wheelRaf);
       canvas.removeEventListener("wheel", onWheel);
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointermove", onMove);
