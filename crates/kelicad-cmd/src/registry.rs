@@ -57,6 +57,10 @@ pub enum CommandId {
     Fillet,
     /// CHAMFER
     Chamfer,
+    /// Tangent from point to circle
+    TangentPc,
+    /// Common tangents between two circles
+    TangentCc,
 }
 
 impl CommandId {
@@ -90,6 +94,8 @@ impl CommandId {
             Self::Circle3p => "CIRCLE3P",
             Self::Fillet => "FILLET",
             Self::Chamfer => "CHAMFER",
+            Self::TangentPc => "TANGENTPC",
+            Self::TangentCc => "TANGENTCC",
         }
     }
 
@@ -124,6 +130,8 @@ impl CommandId {
             "CIRCLE3P" | "C3" | "3P" => Self::Circle3p,
             "FILLET" | "F" => Self::Fillet,
             "CHAMFER" | "CHA" => Self::Chamfer,
+            "TANGENTPC" | "TANPC" | "LT" => Self::TangentPc,
+            "TANGENTCC" | "TANCC" | "LC" => Self::TangentCc,
             _ => return None,
         })
     }

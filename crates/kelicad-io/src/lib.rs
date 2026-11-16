@@ -6,6 +6,7 @@
 pub mod dxf;
 pub mod error;
 pub mod geometry_json;
+pub mod shp;
 pub mod svg;
 
 #[cfg(feature = "native")]
@@ -15,6 +16,7 @@ pub mod pdf;
 
 pub use dxf::{export_dxf, import_dxf, ImportReport};
 pub use error::IoError;
+pub use shp::{import_shp, import_shp_bytes, ShpImportReport};
 pub use svg::export_svg;
 
 #[cfg(feature = "native")]

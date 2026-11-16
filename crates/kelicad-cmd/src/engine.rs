@@ -6,6 +6,7 @@ use kelicad_doc::{
 };
 use kelicad_geom::construct::{
     chamfer_lines, circle_from_3_points, fillet_lines, regular_polygon_center_vertex,
+    tangents_circle_circle, tangents_point_circle,
 };
 use kelicad_geom::transform::offset_line;
 use kelicad_geom::trim::{extend_line_to, trim_line_by_cut};
@@ -142,6 +143,12 @@ enum Active {
     },
     Chamfer {
         distance: Option<f64>,
+    },
+    TangentPc {
+        point: Option<Vec2>,
+    },
+    TangentCc {
+        first: Option<EntityId>,
     },
 }
 
@@ -414,6 +421,8 @@ impl<G: IdGen> CommandEngine<G> {
                     },
                     CommandId::Spline => Active::Spline { points: vec![] },
                     CommandId::Circle3p => Active::Circle3p { points: vec![] },
+                    CommandId::TangentPc => Active::TangentPc { point: None },
+                    CommandId::TangentCc => Active::TangentCc { first: None },
                     _ => unreachable!(),
                 };
                 self.active = Some((other, active));
@@ -551,6 +560,14 @@ impl<G: IdGen> CommandEngine<G> {
             (CommandId::Chamfer, Active::Chamfer { distance: None }) => {
                 prompt("Distance de chanfrein", "Chamfer distance")
             }
+            (CommandId::TangentPc, Active::TangentPc { point: None }) => {
+                prompt("Point extérieur", "External point")
+            }
+            (CommandId::TangentPc, _) => prompt("Sélectionnez un cercle", "Select a circle"),
+            (CommandId::TangentCc, Active::TangentCc { first: None }) => {
+                prompt("Premier cercle", "First circle")
+            }
+            (CommandId::TangentCc, _) => prompt("Second cercle", "Second circle"),
             _ => prompt(id.name(), id.name()),
         })
     }
@@ -1182,6 +1199,85 @@ impl<G: IdGen> CommandEngine<G> {
                     self.active = Some((CommandId::Circle3p, Active::Circle3p { points }));
                     out.prompt = self.current_prompt();
                 }
+            }
+            (CommandId::TangentPc, Active::TangentPc { point: None }) => {
+                self.active = Some((CommandId::TangentPc, Active::TangentPc { point: Some(p) }));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::TangentPc, Active::TangentPc { point: Some(pt) }) => {
+                if let Some(eid) = self.pick_entity(p) {
+                    if let Some(ent) = self.session.document.get_entity(eid) {
+                        if let Geometry::Circle(c) = ent.geometry {
+                            let lines = tangents_point_circle(pt, c, Tolerance::DEFAULT);
+                            if lines.is_empty() {
+                                out.echoes.push("Aucune tangente (point intérieur).".into());
+                            } else {
+                                let mut ops = Vec::new();
+                                let layer_id = self.session.document.current_layer;
+                                for line in lines {
+                                    let id = self.ids.next();
+                                    ops.push(Operation::CreateEntity {
+                                        record: EntityRecord {
+                                            id,
+                                            kind: EntityKind::Line,
+                                            geometry: Geometry::Line(line),
+                                            layer_id,
+                                        },
+                                    });
+                                }
+                                out = self.apply_batch(ops, "Tangente(s) créées".into());
+                            }
+                        } else {
+                            out.echoes.push("Sélectionnez un cercle.".into());
+                        }
+                    }
+                }
+                self.active = None;
+            }
+            (CommandId::TangentCc, Active::TangentCc { first: None }) => {
+                if let Some(eid) = self.pick_entity(p) {
+                    if matches!(
+                        self.session.document.get_entity(eid).map(|e| &e.geometry),
+                        Some(Geometry::Circle(_))
+                    ) {
+                        self.active =
+                            Some((CommandId::TangentCc, Active::TangentCc { first: Some(eid) }));
+                        out.prompt = self.current_prompt();
+                    } else {
+                        out.echoes.push("Premier objet : cercle requis.".into());
+                    }
+                }
+            }
+            (CommandId::TangentCc, Active::TangentCc { first: Some(a_id) }) => {
+                if let Some(b_id) = self.pick_entity(p) {
+                    let ga = self.session.document.get_entity(a_id).map(|e| e.geometry.clone());
+                    let gb = self.session.document.get_entity(b_id).map(|e| e.geometry.clone());
+                    match (ga, gb) {
+                        (Some(Geometry::Circle(ca)), Some(Geometry::Circle(cb))) => {
+                            let lines = tangents_circle_circle(ca, cb, Tolerance::DEFAULT);
+                            if lines.is_empty() {
+                                out.echoes.push("Aucune tangente commune externe.".into());
+                            } else {
+                                let mut ops = Vec::new();
+                                let layer_id = self.session.document.current_layer;
+                                for line in lines {
+                                    let id = self.ids.next();
+                                    ops.push(Operation::CreateEntity {
+                                        record: EntityRecord {
+                                            id,
+                                            kind: EntityKind::Line,
+                                            geometry: Geometry::Line(line),
+                                            layer_id,
+                                        },
+                                    });
+                                }
+                                out = self.apply_batch(ops, "Tangentes communes créées".into());
+                            }
+                        }
+                        _ => out.echoes.push("Deux cercles requis.".into()),
+                    }
+                }
+                self.active = None;
             }
             _ => {}
         }

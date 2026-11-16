@@ -37,8 +37,9 @@ pub fn export_dxf(session: &DocSession) -> Result<String, IoError> {
     for layer in session.document.layers() {
         writeln!(
             out,
-            "0\nLAYER\n2\n{}\n70\n0\n62\n7\n6\nCONTINUOUS",
-            sanitize(&layer.name)
+            "0\nLAYER\n2\n{}\n70\n0\n62\n7\n6\n{}",
+            sanitize(&layer.name),
+            sanitize(&layer.linetype)
         )
         .map_err(io_fmt)?;
     }
@@ -425,13 +426,9 @@ fn read_entity(ty: &str, chunk: &[(i32, String)], report: &mut ImportReport) -> 
                 .cloned()
                 .unwrap_or_default()
                 .replace("\\P", "\n");
-            Some(Geometry::MText(kelicad_doc::MTextGeom {
-                position: Vec2::new(x, y),
-                height: h,
-                rotation: 0.0,
-                content,
-                width: f(&m, 41, 0).unwrap_or(0.0),
-            }))
+            let mut mt = kelicad_doc::MTextGeom::new(Vec2::new(x, y), h, content);
+            mt.width = f(&m, 41, 0).unwrap_or(0.0);
+            Some(Geometry::MText(mt))
         }
         "DIMENSION" => {
             let dx = f(&m, 10, 0).unwrap_or(0.0);

@@ -259,13 +259,12 @@ pub fn geometry_from_json(s: &str) -> Result<Geometry, IoError> {
             rotation,
             content,
             width,
-        } => Geometry::MText(MTextGeom {
-            position: Vec2::new(x, y),
-            height,
-            rotation,
-            content,
-            width,
-        }),
+        } => {
+            let mut mt = MTextGeom::new(Vec2::new(x, y), height, content);
+            mt.rotation = rotation;
+            mt.width = width;
+            Geometry::MText(mt)
+        }
         GeomDto::Dimension {
             kind,
             x1,

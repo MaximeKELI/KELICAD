@@ -10,6 +10,8 @@ pub mod entity;
 pub mod geometry;
 pub mod layer;
 pub mod layout;
+pub mod linetype;
+pub mod mtext;
 
 pub use annotation::{
     DimKind, DimensionGeom, HatchGeom, HatchPattern, MTextGeom, TextAlign, TextGeom,
@@ -20,3 +22,5 @@ pub use entity::{EntityId, EntityKind};
 pub use geometry::Geometry;
 pub use layer::{Layer, LayerFlags, LayerId};
 pub use layout::{Layout, LayoutId, PaperSize, Viewport};
+pub use linetype::{resolve_linetype, Linetype};
+pub use mtext::{parse_mtext, MTextAlign, MTextRun};

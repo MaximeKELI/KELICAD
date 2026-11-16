@@ -27,4 +27,13 @@ Add first-class:
 
 - Document model and all `Geometry` match sites grew two variants.
 - Hatch gains `scale` / `angle` (serde defaults for old files).
-- Further parity (linetypes, MText rich formatting, real DWG, SHP) remains future work.
+
+## Follow-up (implemented)
+
+- Layer linetypes (`CONTINUOUS`, `DASHED`, …) + dash tessellation
+- `.pat` file load (`assets/pat/kelicad.pat`) + CLI `hatch`
+- MText DXF codes (`\P`, `\H`, `\L`, `\C`, …)
+- Shapefile import (Point / PolyLine / Polygon) + CLI `shp`
+- Commands `TANGENTPC` / `TANGENTCC`
+
+Still deferred: custom linetype tables in DXF TABLES, DBF attributes for SHP, real ODA DWG worker.

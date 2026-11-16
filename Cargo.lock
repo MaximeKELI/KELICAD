@@ -1232,6 +1232,7 @@ dependencies = [
  "kelicad-constraints",
  "kelicad-doc",
  "kelicad-dwg",
+ "kelicad-geom",
  "kelicad-io",
  "kelicad-math",
  "kelicad-ops",

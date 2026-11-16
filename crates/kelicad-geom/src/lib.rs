@@ -10,6 +10,7 @@ pub mod construct;
 pub mod ellipse;
 pub mod intersect;
 pub mod line;
+pub mod linetype;
 pub mod pat;
 pub mod polyline;
 pub mod spline;
@@ -32,8 +33,10 @@ pub use intersect::{
     circle_circle, line_circle, line_line, CircleCircleResult, LineCircleResult, LineLineResult,
 };
 pub use line::Line;
+pub use linetype::{dash_line, dash_polyline};
 pub use pat::{
-    builtin_pattern, builtin_patterns, generate_hatch, parse_pat, PatLineDef, PatPattern,
+    builtin_pattern, builtin_patterns, generate_hatch, load_pat_file, parse_pat, resolve_pattern,
+    PatLineDef, PatPattern,
 };
 pub use polyline::Polyline;
 pub use spline::Spline;

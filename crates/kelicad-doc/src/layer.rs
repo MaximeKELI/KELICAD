@@ -47,8 +47,15 @@ pub struct Layer {
     pub color: [u8; 3],
     /// Lineweight in hundredths of mm (CAD convention); 0 = default.
     pub lineweight: u16,
+    /// Linetype name (`CONTINUOUS`, `DASHED`, …).
+    #[serde(default = "default_linetype")]
+    pub linetype: String,
     /// Flags.
     pub flags: LayerFlags,
+}
+
+fn default_linetype() -> String {
+    "CONTINUOUS".into()
 }
 
 impl Layer {
@@ -59,7 +66,14 @@ impl Layer {
             name: name.into(),
             color,
             lineweight: 0,
+            linetype: default_linetype(),
             flags: LayerFlags::default(),
         }
+    }
+
+    /// Builder: set linetype name.
+    pub fn with_linetype(mut self, name: impl Into<String>) -> Self {
+        self.linetype = name.into();
+        self
     }
 }

@@ -132,6 +132,25 @@ pub fn builtin_pattern(name: &str) -> Option<PatPattern> {
     builtin_patterns().into_iter().find(|p| p.name == upper)
 }
 
+/// Load patterns from a `.pat` file on disk.
+pub fn load_pat_file(path: &std::path::Path) -> Result<Vec<PatPattern>, String> {
+    let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    parse_pat(&text)
+}
+
+/// Resolve a pattern by name from an optional file, else builtins.
+pub fn resolve_pattern(name: &str, file: Option<&std::path::Path>) -> Result<PatPattern, String> {
+    if let Some(path) = file {
+        let pats = load_pat_file(path)?;
+        let upper = name.to_ascii_uppercase();
+        if let Some(p) = pats.into_iter().find(|p| p.name.eq_ignore_ascii_case(&upper)) {
+            return Ok(p);
+        }
+        return Err(format!("pattern '{name}' not found in {}", path.display()));
+    }
+    builtin_pattern(name).ok_or_else(|| format!("unknown built-in pattern '{name}'"))
+}
+
 /// Generate hatch segment lines clipped to a closed boundary polygon.
 pub fn generate_hatch(
     boundary: &[Vec2],

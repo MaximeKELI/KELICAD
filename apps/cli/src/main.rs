@@ -9,7 +9,8 @@ use kelicad_bim::{
 };
 use kelicad_doc::{EntityId, EntityRecord};
 use kelicad_dwg::{export_dwg, import_dwg, MockDwgBridge};
-use kelicad_io::{export_dxf, import_dxf};
+use kelicad_geom::{builtin_patterns, generate_hatch, load_pat_file, resolve_pattern};
+use kelicad_io::{export_dxf, import_dxf, import_shp};
 use kelicad_math::{Vec2, Vec3};
 use kelicad_ops::{DocSession, Operation};
 use kelicad_plugin::{
@@ -87,6 +88,41 @@ enum Commands {
     Market {
         #[command(subcommand)]
         cmd: MarketCmd,
+    },
+    /// Import ESRI Shapefile (.shp).
+    Shp {
+        /// Input .shp path.
+        input: PathBuf,
+        /// Optional DXF output.
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+    /// Hatch pattern tools (.pat).
+    Hatch {
+        #[command(subcommand)]
+        cmd: HatchCmd,
+    },
+}
+
+#[derive(Subcommand)]
+enum HatchCmd {
+    /// List built-in pattern names.
+    List,
+    /// List patterns from a .pat file.
+    Parse {
+        /// Path to .pat file.
+        input: PathBuf,
+    },
+    /// Generate hatch segment count for a unit square with a pattern.
+    Preview {
+        /// Pattern name (e.g. ANSI31).
+        name: String,
+        /// Optional .pat file (else built-ins).
+        #[arg(long)]
+        pat: Option<PathBuf>,
+        /// Scale.
+        #[arg(long, default_value_t = 1.0)]
+        scale: f64,
     },
 }
 
@@ -510,7 +546,11 @@ fn run(cli: Cli) -> Result<(), String> {
                 println!("market verify ok: {} entries", cat.entries.len());
                 Ok(())
             }
-            MarketCmd::Install { id, catalog, dir } => {
+            MarketCmd::Install {
+                id,
+                catalog,
+                dir,
+            } => {
                 let text = fs::read_to_string(&catalog).map_err(|e| e.to_string())?;
                 let cat: MarketCatalog = serde_json::from_str(&text).map_err(|e| e.to_string())?;
                 let entry = cat
@@ -523,6 +563,52 @@ fn run(cli: Cli) -> Result<(), String> {
                 copy_dir_recursive(PathBuf::from(&entry.path), dest.clone())
                     .map_err(|e| e.to_string())?;
                 println!("installed {} → {}", entry.id, dest.display());
+                Ok(())
+            }
+        },
+        Commands::Shp { input, output } => {
+            let (session, report) = import_shp(&input).map_err(|e| e.to_string())?;
+            if let Some(out) = output {
+                let dxf = export_dxf(&session).map_err(|e| e.to_string())?;
+                fs::write(out, dxf).map_err(|e| e.to_string())?;
+            }
+            println!(
+                "shp import ok: imported={} skipped={} entities={}",
+                report.imported,
+                report.skipped.len(),
+                session.document.entity_count()
+            );
+            Ok(())
+        }
+        Commands::Hatch { cmd } => match cmd {
+            HatchCmd::List => {
+                for p in builtin_patterns() {
+                    println!("{} — {}", p.name, p.description);
+                }
+                Ok(())
+            }
+            HatchCmd::Parse { input } => {
+                let pats = load_pat_file(&input).map_err(|e| e.to_string())?;
+                for p in pats {
+                    println!("{} ({} lines) — {}", p.name, p.lines.len(), p.description);
+                }
+                Ok(())
+            }
+            HatchCmd::Preview { name, pat, scale } => {
+                let pattern = resolve_pattern(&name, pat.as_deref()).map_err(|e| e.to_string())?;
+                let boundary = vec![
+                    Vec2::ZERO,
+                    Vec2::new(10.0, 0.0),
+                    Vec2::new(10.0, 10.0),
+                    Vec2::new(0.0, 10.0),
+                ];
+                let segs = generate_hatch(&boundary, &pattern, scale, 0.0);
+                println!(
+                    "hatch preview: pattern={} scale={} segments={}",
+                    pattern.name,
+                    scale,
+                    segs.len()
+                );
                 Ok(())
             }
         },

@@ -34,7 +34,7 @@ pub struct TextGeom {
     pub align: TextAlign,
 }
 
-/// Multi-line text (simplified: stored as one string with `\n`).
+/// Multi-line text (DXF MTEXT-compatible payload).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MTextGeom {
     /// Insertion point.
@@ -43,10 +43,52 @@ pub struct MTextGeom {
     pub height: f64,
     /// Rotation.
     pub rotation: f64,
-    /// Content (newlines allowed).
+    /// Content (newlines and DXF codes `\P`, `\H`, `\L`, … allowed).
     pub content: String,
     /// Reference width (0 = unconstrained).
     pub width: f64,
+    /// Width factor (character aspect); 1.0 = default.
+    #[serde(default = "default_width_factor")]
+    pub width_factor: f64,
+    /// Line spacing factor (1.0 = single).
+    #[serde(default = "default_line_spacing")]
+    pub line_spacing: f64,
+    /// Attachment point.
+    #[serde(default)]
+    pub align: crate::mtext::MTextAlign,
+}
+
+fn default_width_factor() -> f64 {
+    1.0
+}
+fn default_line_spacing() -> f64 {
+    1.0
+}
+
+impl MTextGeom {
+    /// Simple multi-line text at `position`.
+    pub fn new(position: Vec2, height: f64, content: impl Into<String>) -> Self {
+        Self {
+            position,
+            height,
+            rotation: 0.0,
+            content: content.into(),
+            width: 0.0,
+            width_factor: 1.0,
+            line_spacing: 1.0,
+            align: crate::mtext::MTextAlign::TopLeft,
+        }
+    }
+
+    /// Plain lines after expanding control codes.
+    pub fn plain_lines(&self) -> Vec<String> {
+        crate::mtext::parse_mtext(&self.content).0
+    }
+
+    /// Styled runs after expanding control codes.
+    pub fn runs(&self) -> Vec<crate::mtext::MTextRun> {
+        crate::mtext::parse_mtext(&self.content).1
+    }
 }
 
 /// Dimension kind for M2.

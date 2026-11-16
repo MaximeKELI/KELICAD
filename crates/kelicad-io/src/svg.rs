@@ -209,11 +209,37 @@ fn write_geom(out: &mut String, g: &Geometry) -> Result<(), IoError> {
                 }
             }
             d.push_str(" Z");
-            writeln!(
-                out,
-                "<path d=\"{d}\" fill=\"{FILL_SOFT}\" stroke=\"{STROKE}\" />"
-            )
-            .map_err(|e| IoError::Format(e.to_string()))?;
+            match &h.pattern {
+                kelicad_doc::HatchPattern::Solid => {
+                    writeln!(
+                        out,
+                        "<path d=\"{d}\" fill=\"{FILL_SOFT}\" stroke=\"{STROKE}\" />"
+                    )
+                    .map_err(|e| IoError::Format(e.to_string()))?;
+                }
+                kelicad_doc::HatchPattern::Named(name) => {
+                    writeln!(
+                        out,
+                        "<path d=\"{d}\" fill=\"none\" stroke=\"{STROKE}\" />"
+                    )
+                    .map_err(|e| IoError::Format(e.to_string()))?;
+                    if let Some(pat) = kelicad_geom::builtin_pattern(name) {
+                        for seg in kelicad_geom::generate_hatch(
+                            &h.boundary,
+                            &pat,
+                            h.scale,
+                            h.angle,
+                        ) {
+                            writeln!(
+                                out,
+                                "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" />",
+                                seg.start.x, seg.start.y, seg.end.x, seg.end.y
+                            )
+                            .map_err(|e| IoError::Format(e.to_string()))?;
+                        }
+                    }
+                }
+            }
         }
         Geometry::Insert(i) => {
             writeln!(
