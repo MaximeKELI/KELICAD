@@ -180,6 +180,9 @@ impl CommandId {
             Self::Arrow => "ARROW",
             Self::Grid => "GRID",
             Self::Triangle => "TRIANGLE",
+            Self::Point => "POINT",
+            Self::Revcloud => "REVCLOUD",
+            Self::Centermark => "CENTERMARK",
         }
     }
 
@@ -242,6 +245,9 @@ impl CommandId {
             "ARROW" | "FLECHE" => Self::Arrow,
             "GRID" | "GRILLE" => Self::Grid,
             "TRIANGLE" | "TRI" => Self::Triangle,
+            "POINT" | "PO" => Self::Point,
+            "REVCLOUD" | "CLOUD" | "RC" => Self::Revcloud,
+            "CENTERMARK" | "CMARK" | "CM" => Self::Centermark,
             _ => return None,
         })
     }
