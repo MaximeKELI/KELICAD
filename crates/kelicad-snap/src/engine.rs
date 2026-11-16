@@ -165,6 +165,43 @@ impl SnapEngine {
                         self.line_snaps(seg, query, out);
                     }
                 }
+                Geometry::Leader(l) => {
+                    if self.modes.endpoint {
+                        for &p in &l.vertices {
+                            Self::push(out, p, SnapKind::Endpoint, query.cursor);
+                        }
+                    }
+                    if self.modes.nearest && l.vertices.len() >= 2 {
+                        for w in l.vertices.windows(2) {
+                            self.line_snaps(Line::new(w[0], w[1]), query, out);
+                        }
+                    }
+                }
+                Geometry::Ray(r) => {
+                    if self.modes.endpoint {
+                        Self::push(out, r.origin, SnapKind::Endpoint, query.cursor);
+                    }
+                    if self.modes.nearest {
+                        let t = (query.cursor - r.origin).dot(r.direction).max(0.0);
+                        Self::push(out, r.point_at(t), SnapKind::Nearest, query.cursor);
+                    }
+                }
+                Geometry::XLine(x) => {
+                    if self.modes.nearest {
+                        let t = (query.cursor - x.point).dot(x.direction);
+                        Self::push(
+                            out,
+                            x.point + x.direction * t,
+                            SnapKind::Nearest,
+                            query.cursor,
+                        );
+                    }
+                }
+                Geometry::Xref(x) => {
+                    if self.modes.endpoint {
+                        Self::push(out, x.position, SnapKind::Endpoint, query.cursor);
+                    }
+                }
             }
         }
     }

@@ -1,0 +1,10 @@
+/home/admin20/KELICAD/target-agent/debug/build/crc32fast/216a655a436270e7/out/crc32fast-216a655a436270e7.d: /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/lib.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/baseline.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/combine.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/specialized/mod.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/table.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/specialized/pclmulqdq.rs
+
+/home/admin20/KELICAD/target-agent/debug/build/crc32fast/216a655a436270e7/out/libcrc32fast-216a655a436270e7.rmeta: /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/lib.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/baseline.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/combine.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/specialized/mod.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/table.rs /home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/specialized/pclmulqdq.rs
+
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/lib.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/baseline.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/combine.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/specialized/mod.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/table.rs:
+/home/admin20/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.5/src/specialized/pclmulqdq.rs:

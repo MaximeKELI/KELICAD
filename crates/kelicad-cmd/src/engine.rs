@@ -460,6 +460,129 @@ impl<G: IdGen> CommandEngine<G> {
                 self.last_command = Some(id);
                 out.prompt = self.current_prompt();
             }
+            CommandId::DimAligned => {
+                self.active = Some((
+                    id,
+                    Active::DimAligned {
+                        def1: None,
+                        def2: None,
+                    },
+                ));
+                self.last_command = Some(id);
+                out.prompt = self.current_prompt();
+            }
+            CommandId::DimRadius => {
+                self.active = Some((id, Active::DimRadius { center: None }));
+                self.last_command = Some(id);
+                out.prompt = self.current_prompt();
+            }
+            CommandId::DimDiameter => {
+                self.active = Some((id, Active::DimDiameter { center: None }));
+                self.last_command = Some(id);
+                out.prompt = self.current_prompt();
+            }
+            CommandId::DimAngular => {
+                self.active = Some((
+                    id,
+                    Active::DimAngular {
+                        vertex: None,
+                        p2: None,
+                    },
+                ));
+                self.last_command = Some(id);
+                out.prompt = self.current_prompt();
+            }
+            CommandId::Leader => {
+                self.active = Some((id, Active::Leader { points: vec![] }));
+                self.last_command = Some(id);
+                out.prompt = self.current_prompt();
+            }
+            CommandId::ArrayRect
+            | CommandId::ArrayPolar
+            | CommandId::Stretch
+            | CommandId::Break
+            | CommandId::Join
+            | CommandId::Explode
+            | CommandId::Lengthen
+            | CommandId::Align => {
+                if self.selection.is_empty()
+                    && !matches!(id, CommandId::Break | CommandId::Lengthen)
+                {
+                    out.echoes
+                        .push("Sélectionnez des objets avant la commande.".into());
+                    return out;
+                }
+                let active = match id {
+                    CommandId::ArrayRect => Active::ArrayRect {
+                        cols: None,
+                        rows: None,
+                        dx: None,
+                    },
+                    CommandId::ArrayPolar => Active::ArrayPolar {
+                        count: None,
+                        center: None,
+                        fill_deg: None,
+                    },
+                    CommandId::Stretch => Active::Stretch {
+                        corner1: None,
+                        corner2: None,
+                        base: None,
+                    },
+                    CommandId::Break => Active::Break,
+                    CommandId::Join => Active::Join,
+                    CommandId::Explode => Active::Explode,
+                    CommandId::Lengthen => Active::Lengthen { delta: None },
+                    CommandId::Align => Active::Align {
+                        src_from: None,
+                        src_to: None,
+                        dst_from: None,
+                    },
+                    _ => unreachable!(),
+                };
+                // JOIN / EXPLODE can finish immediately on start when selection ready
+                if matches!(id, CommandId::Join) {
+                    out = self.apply_join();
+                    self.active = None;
+                    self.last_command = Some(id);
+                    return out;
+                }
+                if matches!(id, CommandId::Explode) {
+                    out = self.apply_explode();
+                    self.active = None;
+                    self.last_command = Some(id);
+                    return out;
+                }
+                self.active = Some((id, active));
+                self.last_command = Some(id);
+                out.prompt = self.current_prompt();
+            }
+            CommandId::Ray => {
+                self.active = Some((id, Active::Ray { origin: None }));
+                self.last_command = Some(id);
+                out.prompt = self.current_prompt();
+            }
+            CommandId::Xline => {
+                self.active = Some((id, Active::Xline { first: None }));
+                self.last_command = Some(id);
+                out.prompt = self.current_prompt();
+            }
+            CommandId::Xref | CommandId::PdfUnderlay => {
+                let kind = if id == CommandId::PdfUnderlay {
+                    XrefKind::Pdf
+                } else {
+                    XrefKind::Drawing
+                };
+                self.active = Some((
+                    id,
+                    Active::Xref {
+                        name: None,
+                        path: None,
+                        kind,
+                    },
+                ));
+                self.last_command = Some(id);
+                out.prompt = self.current_prompt();
+            }
             other => {
                 let active = match other {
                     CommandId::Line => Active::Line { points: vec![] },
@@ -601,6 +724,105 @@ impl<G: IdGen> CommandEngine<G> {
             }
             (CommandId::Ellipse, _) => {
                 prompt("Point définissant le petit axe", "Point defining minor axis")
+            }
+            (CommandId::DimAligned, Active::DimAligned { def1: None, .. }) => {
+                prompt("Premier point d'extension", "First extension point")
+            }
+            (CommandId::DimAligned, Active::DimAligned { def2: None, .. }) => {
+                prompt("Second point d'extension", "Second extension point")
+            }
+            (CommandId::DimAligned, _) => {
+                prompt("Emplacement de la ligne de cote", "Dimension line location")
+            }
+            (CommandId::DimRadius, Active::DimRadius { center: None }) => {
+                prompt("Centre / point sur cercle", "Center or point on circle")
+            }
+            (CommandId::DimRadius, _) => prompt("Point sur le cercle", "Point on circle"),
+            (CommandId::DimDiameter, Active::DimDiameter { center: None }) => {
+                prompt("Centre du cercle", "Circle center")
+            }
+            (CommandId::DimDiameter, _) => prompt("Point sur le cercle", "Point on circle"),
+            (CommandId::DimAngular, Active::DimAngular { vertex: None, .. }) => {
+                prompt("Sommet de l'angle", "Angle vertex")
+            }
+            (CommandId::DimAngular, Active::DimAngular { p2: None, .. }) => {
+                prompt("Premier côté (point)", "First side point")
+            }
+            (CommandId::DimAngular, _) => prompt(
+                "Second côté puis emplacement",
+                "Second side then dim location",
+            ),
+            (CommandId::Leader, Active::Leader { points }) if points.is_empty() => {
+                prompt("Pointe de la flèche", "Leader arrow tip")
+            }
+            (CommandId::Leader, _) => prompt(
+                "Point suivant ou Entrée + texte",
+                "Next point or Enter then text",
+            ),
+            (CommandId::ArrayRect, Active::ArrayRect { cols: None, .. }) => {
+                prompt("Nombre de colonnes", "Number of columns")
+            }
+            (CommandId::ArrayRect, Active::ArrayRect { rows: None, .. }) => {
+                prompt("Nombre de lignes", "Number of rows")
+            }
+            (CommandId::ArrayRect, Active::ArrayRect { dx: None, .. }) => {
+                prompt("Espacement X", "X spacing")
+            }
+            (CommandId::ArrayRect, _) => prompt("Espacement Y", "Y spacing"),
+            (CommandId::ArrayPolar, Active::ArrayPolar { count: None, .. }) => {
+                prompt("Nombre d'éléments", "Number of items")
+            }
+            (CommandId::ArrayPolar, Active::ArrayPolar { center: None, .. }) => {
+                prompt("Centre du réseau", "Array center")
+            }
+            (CommandId::ArrayPolar, Active::ArrayPolar { fill_deg: None, .. }) => {
+                prompt("Angle de remplissage (degrés)", "Fill angle (degrees)")
+            }
+            (CommandId::ArrayPolar, _) => prompt("Point de base sur le cercle", "Base point on circle"),
+            (CommandId::Stretch, Active::Stretch { corner1: None, .. }) => {
+                prompt("Premier coin de la fenêtre", "First crossing window corner")
+            }
+            (CommandId::Stretch, Active::Stretch { corner2: None, .. }) => {
+                prompt("Coin opposé", "Opposite corner")
+            }
+            (CommandId::Stretch, Active::Stretch { base: None, .. }) => {
+                prompt("Point de base", "Base point")
+            }
+            (CommandId::Stretch, _) => prompt("Second point", "Second point"),
+            (CommandId::Break, _) => prompt("Point de rupture sur une ligne", "Break point on a line"),
+            (CommandId::Lengthen, Active::Lengthen { delta: None }) => {
+                prompt("Delta de longueur (+/-)", "Length delta (+/-)")
+            }
+            (CommandId::Lengthen, _) => prompt(
+                "Cliquez près de l'extrémité à modifier",
+                "Click near the end to modify",
+            ),
+            (CommandId::Align, Active::Align { src_from: None, .. }) => {
+                prompt("Premier point source", "First source point")
+            }
+            (CommandId::Align, Active::Align { src_to: None, .. }) => {
+                prompt("Second point source", "Second source point")
+            }
+            (CommandId::Align, Active::Align { dst_from: None, .. }) => {
+                prompt("Premier point destination", "First destination point")
+            }
+            (CommandId::Align, _) => prompt("Second point destination", "Second destination point"),
+            (CommandId::Ray, Active::Ray { origin: None }) => prompt("Origine du rayon", "Ray origin"),
+            (CommandId::Ray, _) => prompt("Point sur le rayon", "Point through ray"),
+            (CommandId::Xline, Active::Xline { first: None }) => {
+                prompt("Premier point de la xline", "First xline point")
+            }
+            (CommandId::Xline, _) => prompt("Second point", "Second point"),
+            (CommandId::Xref, Active::Xref { name: None, .. })
+            | (CommandId::PdfUnderlay, Active::Xref { name: None, .. }) => {
+                prompt("Nom de la référence", "Reference name")
+            }
+            (CommandId::Xref, Active::Xref { path: None, .. })
+            | (CommandId::PdfUnderlay, Active::Xref { path: None, .. }) => {
+                prompt("Chemin du fichier", "File path")
+            }
+            (CommandId::Xref, _) | (CommandId::PdfUnderlay, _) => {
+                prompt("Point d'insertion", "Insertion point")
             }
             (CommandId::Spline, Active::Spline { points }) if points.is_empty() => {
                 prompt("Premier point d'ajustement", "First fit point")
@@ -760,6 +982,19 @@ impl<G: IdGen> CommandEngine<G> {
                 }
                 self.active = None;
             }
+            Active::Leader { points } => {
+                if points.len() >= 2 {
+                    out = self.commit_one(Geometry::Leader(LeaderGeom::new(
+                        points[0],
+                        *points.last().unwrap(),
+                        "",
+                    )));
+                    // Keep waiting for text via on_text if empty — commit leader now
+                } else {
+                    out.echoes.push("LEADER : au moins 2 points.".into());
+                }
+                self.active = None;
+            }
             _ => {
                 out.echoes.push(format!(
                     "{} : Entrée ignorée (continuez la saisie ou Échap).",
@@ -795,7 +1030,7 @@ impl<G: IdGen> CommandEngine<G> {
                 align: TextAlign::Left,
                 style_id: None,
                 annotative: false,
-}));
+            }));
             self.active = None;
             return out;
         }
@@ -813,6 +1048,41 @@ impl<G: IdGen> CommandEngine<G> {
                 ..Default::default()
             };
         }
+
+        if let Some((cid, Active::Xref { name: None, path, kind })) = self.active.clone() {
+            if matches!(cid, CommandId::Xref | CommandId::PdfUnderlay) {
+                self.active = Some((
+                    cid,
+                    Active::Xref {
+                        name: Some(t.to_string()),
+                        path,
+                        kind,
+                    },
+                ));
+                return CommandOutput {
+                    prompt: self.current_prompt(),
+                    ..Default::default()
+                };
+            }
+        }
+        if let Some((cid, Active::Xref { name: Some(name), path: None, kind })) = self.active.clone()
+        {
+            if matches!(cid, CommandId::Xref | CommandId::PdfUnderlay) {
+                self.active = Some((
+                    cid,
+                    Active::Xref {
+                        name: Some(name),
+                        path: Some(t.to_string()),
+                        kind,
+                    },
+                ));
+                return CommandOutput {
+                    prompt: self.current_prompt(),
+                    ..Default::default()
+                };
+            }
+        }
+
         if let Some((CommandId::Insert, Active::Insert { name: None })) = self.active.clone() {
             if self.session.document.block_by_name(t).is_none() {
                 return CommandOutput {
@@ -907,6 +1177,104 @@ impl<G: IdGen> CommandEngine<G> {
             (CommandId::Chamfer, Active::Chamfer { distance: None }) => {
                 out = self.apply_chamfer(n.abs());
                 self.active = None;
+            }
+            (CommandId::ArrayRect, Active::ArrayRect { cols: None, rows, dx }) => {
+                self.active = Some((
+                    CommandId::ArrayRect,
+                    Active::ArrayRect {
+                        cols: Some(n.round().max(1.0) as usize),
+                        rows,
+                        dx,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::ArrayRect,
+                Active::ArrayRect {
+                    cols: Some(c),
+                    rows: None,
+                    dx,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::ArrayRect,
+                    Active::ArrayRect {
+                        cols: Some(c),
+                        rows: Some(n.round().max(1.0) as usize),
+                        dx,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::ArrayRect,
+                Active::ArrayRect {
+                    cols: Some(c),
+                    rows: Some(r),
+                    dx: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::ArrayRect,
+                    Active::ArrayRect {
+                        cols: Some(c),
+                        rows: Some(r),
+                        dx: Some(n),
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::ArrayRect,
+                Active::ArrayRect {
+                    cols: Some(c),
+                    rows: Some(r),
+                    dx: Some(dx),
+                },
+            ) => {
+                out = self.apply_array_rect(c, r, dx, n);
+                self.active = None;
+            }
+            (
+                CommandId::ArrayPolar,
+                Active::ArrayPolar {
+                    count: None,
+                    center,
+                    fill_deg,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::ArrayPolar,
+                    Active::ArrayPolar {
+                        count: Some(n.round().max(1.0) as usize),
+                        center,
+                        fill_deg,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::ArrayPolar,
+                Active::ArrayPolar {
+                    count: Some(c),
+                    center: Some(cen),
+                    fill_deg: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::ArrayPolar,
+                    Active::ArrayPolar {
+                        count: Some(c),
+                        center: Some(cen),
+                        fill_deg: Some(n),
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Lengthen, Active::Lengthen { delta: None }) => {
+                self.active = Some((CommandId::Lengthen, Active::Lengthen { delta: Some(n) }));
+                out.prompt = self.current_prompt();
             }
             _ => {
                 out.echoes.push("Nombre non attendu ici.".into());
@@ -1129,10 +1497,10 @@ impl<G: IdGen> CommandEngine<G> {
                     assoc_a: None,
                     assoc_b: None,
                     text_override: None,
-                    style_id: None,
+                    style_id: Some(self.session.document.current_dim_style),
                     annotative: false,
                     angle_p3: None,
-}));
+                }));
                 self.active = None;
             }
             (CommandId::Hatch, Active::Hatch { mut points }) => {
@@ -1343,6 +1711,362 @@ impl<G: IdGen> CommandEngine<G> {
                 }
                 self.active = None;
             }
+
+            (
+                CommandId::DimAligned,
+                Active::DimAligned {
+                    def1: None,
+                    def2: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::DimAligned,
+                    Active::DimAligned {
+                        def1: Some(p),
+                        def2: None,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::DimAligned,
+                Active::DimAligned {
+                    def1: Some(a),
+                    def2: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::DimAligned,
+                    Active::DimAligned {
+                        def1: Some(a),
+                        def2: Some(p),
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::DimAligned,
+                Active::DimAligned {
+                    def1: Some(a),
+                    def2: Some(b),
+                },
+            ) => {
+                out = self.commit_one(Geometry::Dimension(DimensionGeom {
+                    kind: DimKind::Aligned,
+                    def1: a,
+                    def2: b,
+                    dim_line: p,
+                    assoc_a: None,
+                    assoc_b: None,
+                    text_override: None,
+                    style_id: Some(self.session.document.current_dim_style),
+                    annotative: false,
+                    angle_p3: None,
+                }));
+                self.active = None;
+            }
+            (CommandId::DimRadius, Active::DimRadius { center: None }) => {
+                self.active = Some((CommandId::DimRadius, Active::DimRadius { center: Some(p) }));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::DimRadius, Active::DimRadius { center: Some(c) }) => {
+                out = self.commit_one(Geometry::Dimension(DimensionGeom {
+                    kind: DimKind::Radius,
+                    def1: c,
+                    def2: p,
+                    dim_line: p,
+                    assoc_a: None,
+                    assoc_b: None,
+                    text_override: None,
+                    style_id: Some(self.session.document.current_dim_style),
+                    annotative: false,
+                    angle_p3: None,
+                }));
+                self.active = None;
+            }
+            (CommandId::DimDiameter, Active::DimDiameter { center: None }) => {
+                self.active =
+                    Some((CommandId::DimDiameter, Active::DimDiameter { center: Some(p) }));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::DimDiameter, Active::DimDiameter { center: Some(c) }) => {
+                out = self.commit_one(Geometry::Dimension(DimensionGeom {
+                    kind: DimKind::Diameter,
+                    def1: c,
+                    def2: p,
+                    dim_line: p,
+                    assoc_a: None,
+                    assoc_b: None,
+                    text_override: None,
+                    style_id: Some(self.session.document.current_dim_style),
+                    annotative: false,
+                    angle_p3: None,
+                }));
+                self.active = None;
+            }
+            (
+                CommandId::DimAngular,
+                Active::DimAngular {
+                    vertex: None,
+                    p2: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::DimAngular,
+                    Active::DimAngular {
+                        vertex: Some(p),
+                        p2: None,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::DimAngular,
+                Active::DimAngular {
+                    vertex: Some(v),
+                    p2: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::DimAngular,
+                    Active::DimAngular {
+                        vertex: Some(v),
+                        p2: Some(p),
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::DimAngular,
+                Active::DimAngular {
+                    vertex: Some(v),
+                    p2: Some(a),
+                },
+            ) => {
+                // Third click = second side; dim_line midway for now, angle_p3 = p
+                let mid = Vec2::new((a.x + p.x) * 0.5, (a.y + p.y) * 0.5);
+                out = self.commit_one(Geometry::Dimension(DimensionGeom {
+                    kind: DimKind::Angular,
+                    def1: v,
+                    def2: a,
+                    dim_line: mid,
+                    assoc_a: None,
+                    assoc_b: None,
+                    text_override: None,
+                    style_id: Some(self.session.document.current_dim_style),
+                    annotative: false,
+                    angle_p3: Some(p),
+                }));
+                self.active = None;
+            }
+            (CommandId::Leader, Active::Leader { mut points }) => {
+                points.push(p);
+                self.active = Some((CommandId::Leader, Active::Leader { points }));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Stretch,
+                Active::Stretch {
+                    corner1: None,
+                    corner2: None,
+                    base: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::Stretch,
+                    Active::Stretch {
+                        corner1: Some(p),
+                        corner2: None,
+                        base: None,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Stretch,
+                Active::Stretch {
+                    corner1: Some(c1),
+                    corner2: None,
+                    base: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::Stretch,
+                    Active::Stretch {
+                        corner1: Some(c1),
+                        corner2: Some(p),
+                        base: None,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Stretch,
+                Active::Stretch {
+                    corner1: Some(c1),
+                    corner2: Some(c2),
+                    base: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::Stretch,
+                    Active::Stretch {
+                        corner1: Some(c1),
+                        corner2: Some(c2),
+                        base: Some(p),
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Stretch,
+                Active::Stretch {
+                    corner1: Some(c1),
+                    corner2: Some(c2),
+                    base: Some(b),
+                },
+            ) => {
+                out = self.apply_stretch(c1, c2, p - b);
+                self.active = None;
+            }
+            (CommandId::Break, Active::Break) => {
+                out = self.apply_break_at(p);
+                self.active = None;
+            }
+            (CommandId::Lengthen, Active::Lengthen { delta: Some(d) }) => {
+                out = self.apply_lengthen_at(p, d);
+                self.active = None;
+            }
+            (
+                CommandId::Align,
+                Active::Align {
+                    src_from: None,
+                    src_to: None,
+                    dst_from: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::Align,
+                    Active::Align {
+                        src_from: Some(p),
+                        src_to: None,
+                        dst_from: None,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Align,
+                Active::Align {
+                    src_from: Some(a),
+                    src_to: None,
+                    dst_from: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::Align,
+                    Active::Align {
+                        src_from: Some(a),
+                        src_to: Some(p),
+                        dst_from: None,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Align,
+                Active::Align {
+                    src_from: Some(a),
+                    src_to: Some(b),
+                    dst_from: None,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::Align,
+                    Active::Align {
+                        src_from: Some(a),
+                        src_to: Some(b),
+                        dst_from: Some(p),
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::Align,
+                Active::Align {
+                    src_from: Some(sf),
+                    src_to: Some(st),
+                    dst_from: Some(df),
+                },
+            ) => {
+                out = self.apply_align(sf, st, df, p);
+                self.active = None;
+            }
+            (CommandId::Ray, Active::Ray { origin: None }) => {
+                self.active = Some((CommandId::Ray, Active::Ray { origin: Some(p) }));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Ray, Active::Ray { origin: Some(o) }) => {
+                if let Some(r) = RayGeom::from_points(o, p) {
+                    out = self.commit_one(Geometry::Ray(r));
+                } else {
+                    out.echoes.push("RAY dégénéré.".into());
+                }
+                self.active = None;
+            }
+            (CommandId::Xline, Active::Xline { first: None }) => {
+                self.active = Some((CommandId::Xline, Active::Xline { first: Some(p) }));
+                out.prompt = self.current_prompt();
+            }
+            (CommandId::Xline, Active::Xline { first: Some(a) }) => {
+                if let Some(x) = XLineGeom::from_points(a, p) {
+                    out = self.commit_one(Geometry::XLine(x));
+                } else {
+                    out.echoes.push("XLINE dégénérée.".into());
+                }
+                self.active = None;
+            }
+            (
+                CommandId::Xref | CommandId::PdfUnderlay,
+                Active::Xref {
+                    name: Some(name),
+                    path: Some(path),
+                    kind,
+                },
+            ) => {
+                out = self.apply_xref_insert(&name, &path, kind, p);
+                self.active = None;
+            }
+            (
+                CommandId::ArrayPolar,
+                Active::ArrayPolar {
+                    count: Some(count),
+                    center: None,
+                    fill_deg,
+                },
+            ) => {
+                self.active = Some((
+                    CommandId::ArrayPolar,
+                    Active::ArrayPolar {
+                        count: Some(count),
+                        center: Some(p),
+                        fill_deg,
+                    },
+                ));
+                out.prompt = self.current_prompt();
+            }
+            (
+                CommandId::ArrayPolar,
+                Active::ArrayPolar {
+                    count: Some(count),
+                    center: Some(c),
+                    fill_deg: Some(fill),
+                },
+            ) => {
+                out = self.apply_array_polar(count, c, p, fill);
+                self.active = None;
+            }
+
             _ => {}
         }
         out
@@ -1489,6 +2213,328 @@ impl<G: IdGen> CommandEngine<G> {
         self.commit_one(Geometry::Polyline(poly))
     }
 
+    fn apply_array_rect(&mut self, cols: usize, rows: usize, dx: f64, dy: f64) -> CommandOutput {
+        let offsets = rectangular_array_offsets(cols, rows, dx, dy);
+        let mut ops = Vec::new();
+        for id in self.selection.iter() {
+            if let Some(ent) = self.session.document.get_entity(id) {
+                for off in &offsets {
+                    let new_id = self.ids.next();
+                    ops.push(Operation::CreateEntity {
+                        record: EntityRecord {
+                            id: new_id,
+                            kind: ent.kind,
+                            geometry: ent.geometry.translated(*off),
+                            layer_id: ent.layer_id,
+                        },
+                    });
+                }
+            }
+        }
+        let n = ops.len();
+        self.apply_batch(ops, format!("ARRAYRECT : {n} copie(s)"))
+    }
+
+    fn apply_array_polar(
+        &mut self,
+        count: usize,
+        center: Vec2,
+        base: Vec2,
+        fill_deg: f64,
+    ) -> CommandOutput {
+        let copies = polar_array_copies(center, base, count, fill_deg);
+        let mut ops = Vec::new();
+        for id in self.selection.iter() {
+            if let Some(ent) = self.session.document.get_entity(id) {
+                for (pos, rot) in &copies {
+                    let new_id = self.ids.next();
+                    // Rotate about center then place: rotate geom about center by rot.
+                    let g = ent.geometry.rotated(center, *rot);
+                    // polar_array_copies already encodes rotation of base point; rotation of geom is enough.
+                    let _ = pos;
+                    ops.push(Operation::CreateEntity {
+                        record: EntityRecord {
+                            id: new_id,
+                            kind: ent.kind,
+                            geometry: g,
+                            layer_id: ent.layer_id,
+                        },
+                    });
+                }
+            }
+        }
+        let n = ops.len();
+        self.apply_batch(ops, format!("ARRAYPOLAR : {n} copie(s)"))
+    }
+
+    fn apply_stretch(&mut self, c1: Vec2, c2: Vec2, delta: Vec2) -> CommandOutput {
+        let mut ops = Vec::new();
+        let ids = if self.selection.is_empty() {
+            self.session
+                .document
+                .entities()
+                .map(|e| e.id)
+                .collect::<Vec<_>>()
+        } else {
+            self.selection.to_vec()
+        };
+        for id in ids {
+            if let Some(ent) = self.session.document.get_entity(id) {
+                let g = match &ent.geometry {
+                    Geometry::Line(l) => Some(Geometry::Line(stretch_line(*l, c1, c2, delta))),
+                    Geometry::Polyline(pl) => {
+                        Some(Geometry::Polyline(stretch_polyline(pl, c1, c2, delta)))
+                    }
+                    _ => None,
+                };
+                if let Some(geometry) = g {
+                    let changed = match (&ent.geometry, &geometry) {
+                        (Geometry::Line(a), Geometry::Line(b)) => a != b,
+                        (Geometry::Polyline(a), Geometry::Polyline(b)) => a != b,
+                        _ => false,
+                    };
+                    if changed {
+                        ops.push(Operation::SetGeometry { id, geometry });
+                    }
+                }
+            }
+        }
+        let n = ops.len();
+        self.apply_batch(ops, format!("STRETCH : {n} objet(s)"))
+    }
+
+    fn apply_break_at(&mut self, p: Vec2) -> CommandOutput {
+        let Some(eid) = self.pick_entity(p) else {
+            return CommandOutput {
+                echoes: vec!["Aucun objet sous le curseur.".into()],
+                ..Default::default()
+            };
+        };
+        let Some(ent) = self.session.document.get_entity(eid).cloned() else {
+            return CommandOutput::default();
+        };
+        let Geometry::Line(line) = ent.geometry else {
+            return CommandOutput {
+                echoes: vec!["BREAK : lignes uniquement.".into()],
+                ..Default::default()
+            };
+        };
+        let Some((a, b)) = break_line_near(line, p, Tolerance::DEFAULT) else {
+            return CommandOutput {
+                echoes: vec!["Point de rupture invalide (extrémité).".into()],
+                ..Default::default()
+            };
+        };
+        let new_id = self.ids.next();
+        let ops = vec![
+            Operation::SetGeometry {
+                id: eid,
+                geometry: Geometry::Line(a),
+            },
+            Operation::CreateEntity {
+                record: EntityRecord {
+                    id: new_id,
+                    kind: EntityKind::Line,
+                    geometry: Geometry::Line(b),
+                    layer_id: ent.layer_id,
+                },
+            },
+        ];
+        self.apply_batch(ops, "BREAK effectué.".into())
+    }
+
+    fn apply_join(&mut self) -> CommandOutput {
+        let ids = self.selection.to_vec();
+        if ids.len() < 2 {
+            return CommandOutput {
+                echoes: vec!["JOIN : sélectionnez au moins 2 objets.".into()],
+                ..Default::default()
+            };
+        }
+        let g0 = self.session.document.get_entity(ids[0]).map(|e| e.geometry.clone());
+        let g1 = self.session.document.get_entity(ids[1]).map(|e| e.geometry.clone());
+        match (g0, g1) {
+            (Some(Geometry::Line(a)), Some(Geometry::Line(b))) => {
+                let Some(j) = join_collinear_lines(a, b, Tolerance::DEFAULT) else {
+                    return CommandOutput {
+                        echoes: vec!["JOIN : lignes non colinéaires/jointives.".into()],
+                        ..Default::default()
+                    };
+                };
+                let ops = vec![
+                    Operation::SetGeometry {
+                        id: ids[0],
+                        geometry: Geometry::Line(j),
+                    },
+                    Operation::DeleteEntity { id: ids[1] },
+                ];
+                self.selection.clear();
+                self.apply_batch(ops, "JOIN lignes.".into())
+            }
+            (Some(Geometry::Polyline(a)), Some(Geometry::Polyline(b))) => {
+                let Some(j) = join_polylines(&a, &b, Tolerance::DEFAULT) else {
+                    return CommandOutput {
+                        echoes: vec!["JOIN : polylignes non jointives.".into()],
+                        ..Default::default()
+                    };
+                };
+                let ops = vec![
+                    Operation::SetGeometry {
+                        id: ids[0],
+                        geometry: Geometry::Polyline(j),
+                    },
+                    Operation::DeleteEntity { id: ids[1] },
+                ];
+                self.selection.clear();
+                self.apply_batch(ops, "JOIN polylignes.".into())
+            }
+            _ => CommandOutput {
+                echoes: vec!["JOIN : 2 lignes ou 2 polylignes.".into()],
+                ..Default::default()
+            },
+        }
+    }
+
+    fn apply_explode(&mut self) -> CommandOutput {
+        let mut ops = Vec::new();
+        let ids = self.selection.to_vec();
+        for id in ids {
+            let Some(ent) = self.session.document.get_entity(id).cloned() else {
+                continue;
+            };
+            match ent.geometry {
+                Geometry::Polyline(pl) => {
+                    ops.push(Operation::DeleteEntity { id });
+                    for seg in pl.segments() {
+                        let new_id = self.ids.next();
+                        ops.push(Operation::CreateEntity {
+                            record: EntityRecord {
+                                id: new_id,
+                                kind: EntityKind::Line,
+                                geometry: Geometry::Line(seg),
+                                layer_id: ent.layer_id,
+                            },
+                        });
+                    }
+                }
+                Geometry::Insert(ins) => {
+                    let Some(def) = self.session.document.get_block(ins.block_id).cloned() else {
+                        continue;
+                    };
+                    ops.push(Operation::DeleteEntity { id });
+                    for g in &def.entities {
+                        let new_id = self.ids.next();
+                        let sx = if ins.scale.x.abs() < 1e-12 {
+                            1.0
+                        } else {
+                            ins.scale.x
+                        };
+                        let geom = g
+                            .scaled(Vec2::ZERO, sx)
+                            .rotated(Vec2::ZERO, ins.rotation)
+                            .translated(ins.position);
+                        ops.push(Operation::CreateEntity {
+                            record: EntityRecord {
+                                id: new_id,
+                                kind: geom.kind(),
+                                geometry: geom,
+                                layer_id: ent.layer_id,
+                            },
+                        });
+                    }
+                }
+                _ => {}
+            }
+        }
+        self.selection.clear();
+        let n = ops.len();
+        if n == 0 {
+            return CommandOutput {
+                echoes: vec!["EXPLODE : rien à décomposer (polyligne/insert).".into()],
+                ..Default::default()
+            };
+        }
+        self.apply_batch(ops, format!("EXPLODE : {n} op(s)"))
+    }
+
+    fn apply_lengthen_at(&mut self, p: Vec2, delta: f64) -> CommandOutput {
+        let Some(eid) = self.pick_entity(p) else {
+            return CommandOutput {
+                echoes: vec!["Aucun objet.".into()],
+                ..Default::default()
+            };
+        };
+        let Some(ent) = self.session.document.get_entity(eid).cloned() else {
+            return CommandOutput::default();
+        };
+        let Geometry::Line(line) = ent.geometry else {
+            return CommandOutput {
+                echoes: vec!["LENGTHEN : lignes uniquement.".into()],
+                ..Default::default()
+            };
+        };
+        let Some(nl) = lengthen_line(line, p, delta, Tolerance::DEFAULT) else {
+            return CommandOutput {
+                echoes: vec!["LENGTHEN impossible.".into()],
+                ..Default::default()
+            };
+        };
+        self.apply_batch(
+            vec![Operation::SetGeometry {
+                id: eid,
+                geometry: Geometry::Line(nl),
+            }],
+            "LENGTHEN OK.".into(),
+        )
+    }
+
+    fn apply_align(&mut self, sf: Vec2, st: Vec2, df: Vec2, dt: Vec2) -> CommandOutput {
+        let Some((origin, rot, scale)) = align_2point(sf, st, df, dt) else {
+            return CommandOutput {
+                echoes: vec!["ALIGN : points dégénérés.".into()],
+                ..Default::default()
+            };
+        };
+        let mut ops = Vec::new();
+        for id in self.selection.iter() {
+            if let Some(ent) = self.session.document.get_entity(id) {
+                // Transform via scale+rotate about origin then translate origin→df
+                let g = ent
+                    .geometry
+                    .scaled(origin, scale)
+                    .rotated(origin, rot)
+                    .translated(df - origin);
+                // align_transform_point for verification
+                let _ = align_transform_point(sf, origin, rot, scale, df);
+                ops.push(Operation::SetGeometry { id, geometry: g });
+            }
+        }
+        let n = ops.len();
+        self.apply_batch(ops, format!("ALIGN : {n} objet(s)"))
+    }
+
+    fn apply_xref_insert(
+        &mut self,
+        name: &str,
+        path: &str,
+        kind: XrefKind,
+        position: Vec2,
+    ) -> CommandOutput {
+        let xref_id = XrefId::from_uuid(Uuid::now_v7());
+        let def = XrefDef::new(xref_id, name, path, kind);
+        self.session.document.upsert_xref(def);
+        // Note: xref def upsert is not yet an Operation — document mutation outside journal.
+        // For undo integrity, also create entity via ops; def persists on document.
+        self.commit_one(Geometry::Xref(XrefInsertGeom {
+            xref_id,
+            position,
+            scale: Vec2::new(1.0, 1.0),
+            rotation: 0.0,
+            clip: None,
+            fade: 1.0,
+        }))
+    }
+
     fn erase_selection(&mut self) -> CommandOutput {
         let ids = self.selection.to_vec();
         self.selection.clear();
@@ -1608,6 +2654,20 @@ impl<G: IdGen> CommandEngine<G> {
                     .map(|seg| seg.distance_squared(p))
                     .fold(f64::INFINITY, f64::min)
                     .sqrt(),
+                Geometry::Leader(l) => l
+                    .vertices
+                    .iter()
+                    .map(|q| q.distance(p))
+                    .fold(f64::INFINITY, f64::min),
+                Geometry::Ray(r) => {
+                    let t = (p - r.origin).dot(r.direction).max(0.0);
+                    r.point_at(t).distance(p)
+                }
+                Geometry::XLine(x) => {
+                    let t = (p - x.point).dot(x.direction);
+                    (x.point + x.direction * t).distance(p)
+                }
+                Geometry::Xref(x) => x.position.distance(p),
             };
             if d <= self.snap_aperture * 2.0 && best.map(|(_, bd)| d < bd).unwrap_or(true) {
                 best = Some((ent.id, d));

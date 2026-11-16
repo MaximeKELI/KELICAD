@@ -157,6 +157,14 @@ fn content_bounds(session: &DocSession) -> (f64, f64, f64, f64) {
                     add(v.x, v.y);
                 }
             }
+            Geometry::Leader(l) => {
+                for v in &l.vertices {
+                    add(v.x, v.y);
+                }
+            }
+            Geometry::Ray(r) => add(r.origin.x, r.origin.y),
+            Geometry::XLine(x) => add(x.point.x, x.point.y),
+            Geometry::Xref(x) => add(x.position.x, x.position.y),
         }
     }
     if !min_x.is_finite() {

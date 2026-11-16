@@ -109,6 +109,18 @@ fn expand_bounds(g: &Geometry, min_x: &mut f64, min_y: &mut f64, max_x: &mut f64
                 add(v.x, v.y);
             }
         }
+        Geometry::Leader(l) => {
+            for v in &l.vertices {
+                add(v.x, v.y);
+            }
+        }
+        Geometry::Ray(r) => {
+            add(r.origin.x, r.origin.y);
+            let tip = r.point_at(1.0);
+            add(tip.x, tip.y);
+        }
+        Geometry::XLine(x) => add(x.point.x, x.point.y),
+        Geometry::Xref(x) => add(x.position.x, x.position.y),
     }
 }
 
@@ -286,6 +298,46 @@ fn write_geom(out: &mut String, g: &Geometry) -> Result<(), IoError> {
                 d.push_str(" Z");
             }
             writeln!(out, "<path d=\"{d}\" />").map_err(|e| IoError::Format(e.to_string()))?;
+        }
+        Geometry::Leader(l) => {
+            if l.vertices.len() >= 2 {
+                let mut d = String::new();
+                for (i, v) in l.vertices.iter().enumerate() {
+                    if i == 0 {
+                        write!(d, "M {} {}", v.x, v.y).ok();
+                    } else {
+                        write!(d, " L {} {}", v.x, v.y).ok();
+                    }
+                }
+                writeln!(out, "<path d=\"{d}\" />").map_err(|e| IoError::Format(e.to_string()))?;
+            }
+        }
+        Geometry::Ray(r) => {
+            let tip = r.point_at(100.0);
+            writeln!(
+                out,
+                "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke-dasharray=\"4 2\" />",
+                r.origin.x, r.origin.y, tip.x, tip.y
+            )
+            .map_err(|e| IoError::Format(e.to_string()))?;
+        }
+        Geometry::XLine(x) => {
+            let a = x.point - x.direction * 100.0;
+            let b = x.point + x.direction * 100.0;
+            writeln!(
+                out,
+                "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke-dasharray=\"2 2\" />",
+                a.x, a.y, b.x, b.y
+            )
+            .map_err(|e| IoError::Format(e.to_string()))?;
+        }
+        Geometry::Xref(x) => {
+            writeln!(
+                out,
+                "<rect x=\"{}\" y=\"{}\" width=\"1\" height=\"1\" fill=\"none\" stroke-dasharray=\"3 3\" />",
+                x.position.x, x.position.y
+            )
+            .map_err(|e| IoError::Format(e.to_string()))?;
         }
     }
     Ok(())

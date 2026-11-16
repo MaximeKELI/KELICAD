@@ -246,6 +246,46 @@ fn write_entity(
                 writeln!(out, "10\n{}\n20\n{}\n30\n0.0", p.x, p.y).map_err(io_fmt)?;
             }
         }
+        Geometry::Leader(l) => {
+            writeln!(out, "0\nLEADER\n8\n{layer}\n71\n1\n76\n{}", l.vertices.len())
+                .map_err(io_fmt)?;
+            for v in &l.vertices {
+                writeln!(out, "10\n{}\n20\n{}\n30\n0.0", v.x, v.y).map_err(io_fmt)?;
+            }
+            if !l.text.is_empty() {
+                writeln!(out, "0\nTEXT\n8\n{layer}\n10\n{}\n20\n{}\n30\n0.0\n40\n{}\n1\n{}",
+                    l.vertices.last().map(|v| v.x).unwrap_or(0.0),
+                    l.vertices.last().map(|v| v.y).unwrap_or(0.0),
+                    l.text_height,
+                    l.text.replace('\n', " "),
+                ).map_err(io_fmt)?;
+            }
+        }
+        Geometry::Ray(r) => {
+            writeln!(
+                out,
+                "0\nRAY\n8\n{layer}\n10\n{}\n20\n{}\n30\n0.0\n11\n{}\n21\n{}\n31\n0.0",
+                r.origin.x, r.origin.y, r.direction.x, r.direction.y
+            )
+            .map_err(io_fmt)?;
+        }
+        Geometry::XLine(x) => {
+            writeln!(
+                out,
+                "0\nXLINE\n8\n{layer}\n10\n{}\n20\n{}\n30\n0.0\n11\n{}\n21\n{}\n31\n0.0",
+                x.point.x, x.point.y, x.direction.x, x.direction.y
+            )
+            .map_err(io_fmt)?;
+        }
+        Geometry::Xref(x) => {
+            // Export as INSERT-like POINT marker (full XREF table later).
+            writeln!(
+                out,
+                "0\nPOINT\n8\n{layer}\n10\n{}\n20\n{}\n30\n0.0",
+                x.position.x, x.position.y
+            )
+            .map_err(io_fmt)?;
+        }
     }
     Ok(())
 }

@@ -83,6 +83,29 @@ pub fn append_geometry_lines(geom: &Geometry, out: &mut Vec<f32>) {
             push_seg(out, o + Vec2::new(s, s), o + Vec2::new(-s, s));
             push_seg(out, o + Vec2::new(-s, s), o + Vec2::new(-s, -s));
         }
+
+        Geometry::Leader(l) => {
+            for w in l.vertices.windows(2) {
+                push_seg(out, w[0], w[1]);
+            }
+        }
+        Geometry::Ray(r) => {
+            let tip = r.point_at(1000.0);
+            push_seg(out, r.origin, tip);
+        }
+        Geometry::XLine(x) => {
+            let a = x.point - x.direction * 1000.0;
+            let b = x.point + x.direction * 1000.0;
+            push_seg(out, a, b);
+        }
+        Geometry::Xref(x) => {
+            let s = 0.25;
+            let o = x.position;
+            push_seg(out, o + Vec2::new(-s, -s), o + Vec2::new(s, -s));
+            push_seg(out, o + Vec2::new(s, -s), o + Vec2::new(s, s));
+            push_seg(out, o + Vec2::new(s, s), o + Vec2::new(-s, s));
+            push_seg(out, o + Vec2::new(-s, s), o + Vec2::new(-s, -s));
+        }
     }
 }
 
