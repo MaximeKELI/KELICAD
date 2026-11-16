@@ -82,3 +82,31 @@ pub struct BlockSource {
     /// Entity ids that were absorbed into the block.
     pub entity_ids: Vec<EntityId>,
 }
+
+/// Expand an insert into world-space geometries (scale → rotate → translate).
+pub fn expand_insert(def: &BlockDef, ins: &InsertGeom) -> Vec<Geometry> {
+    let sx = if ins.scale.x.abs() < 1e-12 {
+        1.0
+    } else {
+        ins.scale.x
+    };
+    let sy = if ins.scale.y.abs() < 1e-12 {
+        1.0
+    } else {
+        ins.scale.y
+    };
+    // Uniform scale preferred; non-uniform approximates with avg for rotate-friendly paths.
+    let s = if (sx - sy).abs() < 1e-9 {
+        sx
+    } else {
+        (sx.abs() + sy.abs()) * 0.5
+    };
+    def.entities
+        .iter()
+        .map(|g| {
+            g.scaled(Vec2::ZERO, s)
+                .rotated(Vec2::ZERO, ins.rotation)
+                .translated(ins.position)
+        })
+        .collect()
+}
